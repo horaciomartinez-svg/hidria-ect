@@ -4,9 +4,12 @@ Repositorio del **Programa Empresas Hídricamente Responsables (HIDRIA)** de la 
 
 La plataforma digitaliza la **Metodología de Diagnóstico para la Optimización Hídrica Industrial (MD-OHI)**: alta de empresas, diagnósticos de seis semanas, repositorio documental, cuestionario de análisis técnico (CAT), inventario de infraestructura hidráulica (IIH), balance hídrico enriquecido (BHE), muestreo y cadena de custodia, cálculo del Índice de Valor de Optimización Hídrica (IVOH), bitácoras, planes de acción, aula de capacitación y reportes.
 
-## Alcance de este repositorio (v1.0)
+## Alcance de este repositorio
 
-Esta versión contiene **únicamente el paquete documental y el esquema de base de datos** de HIDRIA MD-OHI v1.0. El código de la aplicación (cliente React PWA y Edge Functions) se incorpora por el equipo de desarrollo en fases posteriores, conforme al plan de `docs/07`.
+El repositorio contiene el **paquete documental v1.0**, el **esquema de base de datos** ya
+aplicado en Supabase y, a partir de la Fase 0, el **código de la plataforma** (cliente React
+PWA y Edge Functions) que construye el equipo autónomo `hidria_coding_team/`, conforme al
+plan de `docs/07`.
 
 | Capa | Tecnología prevista |
 |---|---|
@@ -20,25 +23,31 @@ Esta versión contiene **únicamente el paquete documental y el esquema de base 
 ```
 .
 ├── README.md
-├── docs/                          # Paquete HIDRIA MD-OHI v1.0 (10 documentos)
-│   ├── 00-Glosario-de-Siglas-HIDRIA-MD-OHI.md
-│   ├── 01-Diseño-Base-de-Datos-HIDRIA-MD-OHI.md
-│   ├── 02-supabase_schema_hidria_mdohi.sql
-│   ├── 03-seed_catalogos.sql
-│   ├── 04-Contratos-API-y-Tablas-de-Decision-HIDRIA-MD-OHI.md
-│   ├── 05-Plan-de-Pruebas-HIDRIA-MD-OHI.md
-│   ├── 06-Gobernanza-y-Privacidad-HIDRIA-MD-OHI.md
-│   ├── 07-Plan-de-Migracion-y-Despliegue-HIDRIA-MD-OHI.md
-│   ├── 08-Contenido-del-Aula-y-Banco-de-Preguntas-HIDRIA-MD-OHI.md
-│   └── Arquitectura HIDRIA-ECT con MD-OHI v2.0.md
-└── supabase/
-    └── migrations/
-        ├── 20261031000000_base_hidria_mdohi.sql
-        ├── 20261031001000_seed_catalogos.sql
-        └── 20261108000000_privacy_addendum.sql
+├── docs/                          # Paquete HIDRIA MD-OHI v1.0 (fuente única de verdad)
+├── app/                           # Cliente React 18 + TS + Vite + Tailwind (PWA)
+├── supabase/
+│   ├── migrations/                # 3 migraciones aplicadas (forward-only)
+│   ├── functions/                 # Edge Functions EF-01…EF-13 (Fase 1)
+│   └── tests/                     # pgTAP
+├── tests/                         # unitarias/E2E del cliente (Fase 1)
+├── qa/                            # matriz de trazabilidad (Fase 1)
+├── scripts/                       # guardas de CI y verificación local
+├── hidria_coding_team/            # gobierno del equipo autónomo (8 agentes)
+├── .github/workflows/ci.yml       # CI mínima
+├── .env.example                   # plantilla sin valores reales
+└── package.json                   # workspaces (app)
 ```
 
 `supabase/migrations/` es la copia desplegable de los documentos SQL del paquete, con prefijo de fecha según el orden de aplicación del documento `07`; el *addendum de privacidad* (buzón ARCO) proviene de `docs/06` §12.
+
+## Equipo autónomo `hidria_coding_team`
+
+La plataforma se construye por un equipo de **8 agentes de IA** que trabajan en el bucle
+`PLAN → ASSIGN → IMPLEMENT → PR → SPEC REVIEW → SECURITY REVIEW → QA → MERGE → DEPLOY STAGING
+→ VERIFY`, sin revisión humana paso a paso. El gobierno, el backlog y la evidencia viven en
+[`hidria_coding_team/TEAM.md`](hidria_coding_team/TEAM.md) y [`hidria_coding_team/tasks/`](hidria_coding_team/tasks/BACKLOG.md);
+las instrucciones de cada agente, en [`hidria_coding_team/agents/`](hidria_coding_team/agents/).
+El humano solo interviene ante una condición de PARO (`TEAM.md` §12).
 
 ## Aplicar la base de datos
 
