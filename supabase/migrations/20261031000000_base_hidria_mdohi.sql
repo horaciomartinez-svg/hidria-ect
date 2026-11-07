@@ -12,35 +12,6 @@ create extension if not exists pgcrypto;
 -- 0. FUNCIONES AUXILIARES
 -- ============================================================================
 
--- Rol del usuario en un diagnóstico (security definer: evita RLS recursivo)
-create or replace function public.my_diagnostic_role(p_diagnostic_id uuid)
-returns text
-language sql stable security definer set search_path = public as $$
-  select pm.role from public.project_members pm
-  where pm.diagnostic_id = p_diagnostic_id and pm.user_id = auth.uid()
-  limit 1;
-$$;
-
--- Es miembro del diagnóstico (cualquier rol)
-create or replace function public.is_diagnostic_member(p_diagnostic_id uuid)
-returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.project_members pm
-    where pm.diagnostic_id = p_diagnostic_id and pm.user_id = auth.uid()
-  );
-$$;
-
--- Es miembro del diagnóstico al que pertenece una ficha de bitácora
-create or replace function public.is_logbook_entry_member(p_entry_id uuid)
-returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.logbook_entries le
-    where le.id = p_entry_id and public.is_diagnostic_member(le.diagnostic_id)
-  );
-$$;
-
 -- updated_at automático
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
@@ -629,6 +600,39 @@ create table if not exists public.quiz_attempts (
 );
 
 -- ============================================================================
+-- 2.11 Funciones de membresía (requieren tablas del Esquema Base)
+-- ============================================================================
+
+-- Rol del usuario en un diagnóstico (security definer: evita RLS recursivo)
+create or replace function public.my_diagnostic_role(p_diagnostic_id uuid)
+returns text
+language sql stable security definer set search_path = public as $$
+  select pm.role from public.project_members pm
+  where pm.diagnostic_id = p_diagnostic_id and pm.user_id = auth.uid()
+  limit 1;
+$$;
+
+-- Es miembro del diagnóstico (cualquier rol)
+create or replace function public.is_diagnostic_member(p_diagnostic_id uuid)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.project_members pm
+    where pm.diagnostic_id = p_diagnostic_id and pm.user_id = auth.uid()
+  );
+$$;
+
+-- Es miembro del diagnóstico al que pertenece una ficha de bitácora
+create or replace function public.is_logbook_entry_member(p_entry_id uuid)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.logbook_entries le
+    where le.id = p_entry_id and public.is_diagnostic_member(le.diagnostic_id)
+  );
+$$;
+
+-- ============================================================================
 -- 3. VISTAS (motor de cálculo hídrico y gates)
 -- ============================================================================
 
@@ -947,7 +951,7 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'organizations','profiles','companies','diagnostics','documents','signatures',
+    'profiles','companies','diagnostics','documents','signatures',
     'iih_assets','water_balances','samples']
   loop
     execute format('alter table public.%I enable row level security', t);
@@ -957,6 +961,11 @@ begin
   end loop;
 end $$;
 
+-- 5.1b Organizaciones: aislamiento por tenant sobre organizations.id
+alter table public.organizations enable row level security;
+drop policy if exists organizations_sel on public.organizations;
+create policy organizations_sel on public.organizations for select
+  using (public.is_tenant_member(id));
 -- Escritura restringida: admin institucional del tenant o según se indique en app
 drop policy if exists profiles_write on public.profiles;
 create policy profiles_write on public.profiles for all
@@ -987,9 +996,8 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'document_checklist_items','cat_responses','balance_flows',
-    'quality_parameters','custody_transfers','lab_results','ivoh_evaluations',
-    'alternatives','action_plans','action_plan_items','logbook_entries']
+    'document_checklist_items','cat_responses','ivoh_evaluations',
+    'alternatives','action_plans','logbook_entries']
   loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists %I on public.%I', t||'_sel', t);
@@ -1001,6 +1009,42 @@ begin
   end loop;
 end $$;
 
+-- 5.2c Tablas hijas sin diagnostic_id: membresía por la tabla padre (columna sin calificar = NEW en INSERT CHECK)
+alter table public.balance_flows enable row level security;
+drop policy if exists balance_flows_sel on public.balance_flows;
+create policy balance_flows_sel on public.balance_flows for select using (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists balance_flows_ins on public.balance_flows;
+create policy balance_flows_ins on public.balance_flows for insert with check (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists balance_flows_upd on public.balance_flows;
+create policy balance_flows_upd on public.balance_flows for update using (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id))) with check (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id)));
+alter table public.quality_parameters enable row level security;
+drop policy if exists quality_parameters_sel on public.quality_parameters;
+create policy quality_parameters_sel on public.quality_parameters for select using (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists quality_parameters_ins on public.quality_parameters;
+create policy quality_parameters_ins on public.quality_parameters for insert with check (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists quality_parameters_upd on public.quality_parameters;
+create policy quality_parameters_upd on public.quality_parameters for update using (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id))) with check (exists (select 1 from public.water_balances p where p.id = balance_id and public.is_diagnostic_member(p.diagnostic_id)));
+alter table public.custody_transfers enable row level security;
+drop policy if exists custody_transfers_sel on public.custody_transfers;
+create policy custody_transfers_sel on public.custody_transfers for select using (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists custody_transfers_ins on public.custody_transfers;
+create policy custody_transfers_ins on public.custody_transfers for insert with check (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists custody_transfers_upd on public.custody_transfers;
+create policy custody_transfers_upd on public.custody_transfers for update using (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id))) with check (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id)));
+alter table public.lab_results enable row level security;
+drop policy if exists lab_results_sel on public.lab_results;
+create policy lab_results_sel on public.lab_results for select using (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists lab_results_ins on public.lab_results;
+create policy lab_results_ins on public.lab_results for insert with check (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists lab_results_upd on public.lab_results;
+create policy lab_results_upd on public.lab_results for update using (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id))) with check (exists (select 1 from public.samples p where p.id = sample_id and public.is_diagnostic_member(p.diagnostic_id)));
+alter table public.action_plan_items enable row level security;
+drop policy if exists action_plan_items_sel on public.action_plan_items;
+create policy action_plan_items_sel on public.action_plan_items for select using (exists (select 1 from public.action_plans p where p.id = plan_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists action_plan_items_ins on public.action_plan_items;
+create policy action_plan_items_ins on public.action_plan_items for insert with check (exists (select 1 from public.action_plans p where p.id = plan_id and public.is_diagnostic_member(p.diagnostic_id)));
+drop policy if exists action_plan_items_upd on public.action_plan_items;
+create policy action_plan_items_upd on public.action_plan_items for update using (exists (select 1 from public.action_plans p where p.id = plan_id and public.is_diagnostic_member(p.diagnostic_id))) with check (exists (select 1 from public.action_plans p where p.id = plan_id and public.is_diagnostic_member(p.diagnostic_id)));
 -- 5.2b Tablas hijas de la bitácora (ámbito por entry_id)
 do $$
 declare t text;
