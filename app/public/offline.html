@@ -61,18 +61,24 @@
       li {
         margin-bottom: 0.35rem;
       }
-      button {
+      /* Enlace de acción: sin JavaScript inline (compatible con una CSP
+         `script-src 'self'` futura en F1-16). */
+      .accion {
+        display: block;
         width: 100%;
         min-height: 44px;
-        border: 0;
+        box-sizing: border-box;
+        padding: 0.7rem 1rem;
         border-radius: 0.5rem;
         background: #0a4a50;
         color: #ffffff;
         font: inherit;
         font-weight: 600;
+        text-align: center;
+        text-decoration: none;
         cursor: pointer;
       }
-      button:hover {
+      .accion:hover {
         background: #083b40;
       }
       :focus-visible {
@@ -102,7 +108,7 @@
         <li>Si es el primer arranque sin red, conéctate una vez para instalar la
           aplicación.</li>
       </ul>
-      <button type="button" onclick="location.reload()">Reintentar</button>
+      <a class="accion" href="/">Reintentar</a>
       <p class="foot">HIDRIA — Metodología MD-OHI · Gobierno del Estado de Tamaulipas</p>
     </main>
   </body>

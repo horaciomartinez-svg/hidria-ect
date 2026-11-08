@@ -5,9 +5,9 @@
 | **Tarea** | `task-45` (F1-02b, secuencia de `task-43`) |
 | **Agente** | `dev-frontend-pwa` (04) |
 | **Fecha** | 2026-11-07 21:0x (America/Mexico_City) |
-| **Estado** | **DISEÑO — sin rama, sin commits, sin PR** (PR #12 congelado en `5cc56ed`) |
-| **Base prevista** | `main` actualizado tras el merge de PR #12 |
-| **Ubicación de este documento** | `C:\Proyectos\hidria-f1-02b-design\F1-02b_diseno_pwa.md` (fuera del repo para no ensuciar la rama congelada). Al abrir la rama se copia a `hidria_coding_team/reports/F1/F1-02b_diseno_pwa.md` en el primer commit. |
+| **Estado** | **Implementado** — A/2 `feature/F1-02b-pwa` (manifest, iconos, offline, SW) y B/2 `feature/F1-02b-pwa-ui` (UI de actualización/instalación, fases y evidencia CDP) |
+| **Base** | `main` = `7ca0639` (F1-02a mergeada) |
+| **Ubicación de este documento** | `hidria_coding_team/reports/F1/F1-02b_diseno_pwa.md`, versionado en la rama A/2 (PR #21) |
 | **Revisores destino** | `supervisor-hidria` (decisión), `revisor-especificaciones` (criterio Lighthouse), `seguridad-privacidad` (política de caché/SW), `qa-tester` (E2E/offline) |
 
 ---
@@ -26,7 +26,8 @@ de instalación. PR de secuencia desde `main` (después del merge de #12), ~360 
 - Service worker propio (`injectManifest`) con precache del shell y política de caché explícita.
 - Aviso de actualización (`registerType: 'prompt'`, sin `skipWaiting` automático) y de «listo
   offline».
-- Identificador de build (`__APP_BUILD__`) y versión en `/acerca`.
+- Identificador de build (`__APP_BUILD__`) y versión en `/acerca` — **se entrega en B/2** (en A/2 sólo
+  se usa `__APP_VERSION__`, ya existente).
 - Instalación: captura de `beforeinstallprompt`, indicación para iOS, `navigator.storage.persist()`.
 
 **Fuera de alcance (y dónde vive)**
@@ -51,7 +52,7 @@ de instalación. PR de secuencia desde `main` (después del merge de #12), ~360 
 | D5 | `manifest: false` en el plugin y manifest propio en `public/` | El fichero queda versionado y revisable; el plugin no lo regenera (evita sorpresas entre build y repo) |
 | D6 | Navegación offline = **shell precacheado** (`/index.html`), no página estática | El requisito es offline-first: la app debe arrancar, mostrar el banner offline y (cuando exista) el espejo Dexie. `offline.html` es el fallback cuando el shell no está disponible (primer arranque sin red, cache eviction) |
 | D7 | SW **deshabilitado en `dev`** (`devOptions.enabled: false`) | Evitar cachés fantasma en desarrollo; pruebas con `vite build && vite preview` (localhost cuenta como contexto seguro) |
-| D8 | Versión de caché = `hidria-shell-<vX.Y.Z>-<build>` | Al activar un SW nuevo se borran cachés de versiones previas (`cleanupOutdatedCaches`) |
+| D8 | **Caché versionada `hidria-shell-<vX.Y.Z>-<build>`** con `PrecacheController({ cacheName })` + limpieza propia de cachés `hidria-shell-*` antiguas al activar | Cumple lo prometido en el sign-off de seguridad sin acumular cachés: cada build tiene nombre propio y el `activate` borra las versiones anteriores. `__APP_VERSION__`/`__APP_BUILD__` se inyectan también en el build del SW |
 
 ---
 
@@ -213,7 +214,8 @@ compilación. Plan:
 | Edge Functions (`/functions/v1/**`) | **No** | Idem; además son operaciones con efectos |
 | Realtime (`wss`) | **No** (no pasa por SW; además no se cachea WebSocket) | Estado efímero |
 | URLs prefirmadas de R2 / documentos (`restringido_nda`) | **No** | Enlace firmado de 15 min + contenido clasificado; jamás debe quedar en `CacheStorage` |
-| Token de sesión (Supabase Auth en `localStorage`) | **No** lo toca el SW | El SW no lee `localStorage`/IndexedDB; no hay mensajes que transporten tokens |
+| Token de sesión (Supabase Auth en `localStorage`) | **No** lo toca el SW | El SW no lee `localStorage`/IndexedDB; el único uso de `localStorage` es la sesión del SDK y un *ack* de UI sin PII (`hidria:pwa-offline-ready-ack`), nunca dentro del SW |
+| Caché HTTP del navegador | Fuera del alcance del SW | `NetworkOnly` no impide la caché HTTP; se requiere `Cache-Control: no-store/private` en Supabase/EF/R2 sensible (coordinación Dev EF/DevOps) |
 | Respuestas con cabecera `Set-Cookie`/`Authorization` | **No** | No hay rutas de caché que las cubran |
 
 **Consecuencias de diseño**
@@ -250,19 +252,19 @@ build (CI) ──► SW nuevo en estado "waiting"
  mensaje SKIP_WAITING ──► sw activa ──► recarga controlada
 ```
 
-- `app/src/pwa/register.ts`: `registerSW({ immediate: true, onNeedRefresh, onOfflineReady,
-  onRegisteredSW })` desde `virtual:pwa-register`; expone `updateServiceWorker(true)`.
-- `app/src/pwa/useServiceWorker.ts`: hook con estado `{ needRefresh, offlineReady, offlineReadyAck }`;
-  `hasPendingWork()` devuelve **`false`** en F1-02b y queda como punto de extensión documentado para
-  M4/M6/M10 (allí leerá `ops_queue.status='queued'`).
-- `app/src/components/pwa/UpdateBanner.tsx`: banner accesible (`role="status"`,
+- `app/src/pwa/register.ts` (A/2): `registerSW({ immediate: true, onNeedRefresh, onOfflineReady })`
+  desde `virtual:pwa-register`; expone `updateServiceWorker(true)`. **No** se usa `onRegisteredSW`.
+- `app/src/pwa/usePwaState.ts` (B/2): hook `useSyncExternalStore` con estado
+  `{ needRefresh, offlineReady }`.
+- `app/src/components/pwa/UpdateBanner.tsx` (B/2): banner accesible (`role="status"`,
   `aria-live="polite"`, `data-pwa-update="true"`), botones «Actualizar ahora» y «Después»; el segundo
   mantiene el aviso hasta el cierre de sesión.
-- Aviso «listo para usarse sin conexión» una sola vez (persistido en `localStorage` bajo clave
-  propia, sin datos personales).
-- **Versión:** `__APP_VERSION__` (ya existe, de `app/package.json`) y `__APP_BUILD__` nuevo en
-  `vite.config.ts` (`process.env.GITHUB_SHA ?? process.env.BUILD_ID ?? 'dev'`), mostrados en
-  `/acerca` y usados en el nombre de caché. Sin secretos: `GITHUB_SHA` no es sensible.
+- Aviso «listo para usarse sin conexión» una sola vez: el **ack se persiste en `localStorage` de la
+  UI** (`hidria:pwa-offline-ready-ack`, sin PII); el **service worker no accede a `localStorage`** ni a
+  IndexedDB.
+- **Versión:** `__APP_VERSION__` (ya existe, de `app/package.json`) en A/2. `__APP_BUILD__`
+  (`GITHUB_SHA ?? BUILD_ID ?? 'dev'`) y su visualización en `/acerca` **se entregan en B/2**; sin
+  secretos (`GITHUB_SHA` no es sensible).
 - Registro: `injectRegister: false` + `registerSW` en `main.tsx` (sólo producción; en `dev` no hay SW).
 
 ---
@@ -401,7 +403,8 @@ commit de `feature/F1-02b-pwa` (PR #12 ya mergeado, `main` = `7ca0639`).*
   «Lighthouse PWA ≥ 90» se sustituye por **evidencia CDP** (manifest válido, `getInstallabilityErrors`
   vacío, SW controlando, navegación offline, registro de versión Chrome/CDP y `__APP_BUILD__`).
   `lighthouse@11.7.1` queda sólo como medición histórica no-gate; Lighthouse 13.x es
-  complementario. Se implementa el script reproducible `app/scripts/pwa-audit.mjs`.
+  complementario. El script reproducible `app/scripts/pwa-audit.mjs` (`npm run pwa:audit`) se
+  entrega en **B/2**; en A/2 no existe todavía.
 - **Sign-off de seguridad (`APROBADO CON CONDICIONES`)** incorporado al código:
   - sólo shell público precacheado; **sin handler genérico** de caché (default passthrough);
   - `NetworkOnly` para `*.supabase.co` y R2 (`*.r2.dev`, `*.r2.cloudflarestorage.com`);
@@ -418,11 +421,12 @@ commit de `feature/F1-02b-pwa` (PR #12 ya mergeado, `main` = `7ca0639`).*
   Supabase/EF y en objetos R2 sensibles, o `fetch(..., { cache: 'no-store' })` en descargas: el SW
   no controla la caché HTTP del navegador. Se traslada a Dev EF/DevOps (ver §13.3).
 
-### 13.2 Correcciones de coherencia aplicadas en este PR
+### 13.2 Correcciones de coherencia y su ubicación
 
 - **Fases (decisión híbrida del usuario, sin ADR nuevo; `BACKLOG.md` PR #16):** en `registry.tsx`
   **M5 (IIH) → F2** y **M7 (Muestreo) → F1** con `phaseNote` «F1 mínimo / F2 completo». No cambian
-  rutas ni contratos.
+  rutas ni contratos. **Esta corrección se entrega en B/2 (#22)**, no en A/2 (#21): A/2 no modifica
+  `registry.tsx`.
 - **§11 del reporte F1-02a** (`reports/F1/F1-02_shell_pwa.md`) actualizado al head final real
   `61aaa21`, squash `6c1372b` y CI 5/5 (el commit documental de cierre no cambió código).
 
@@ -435,5 +439,29 @@ commit de `feature/F1-02b-pwa` (PR #12 ya mergeado, `main` = `7ca0639`).*
 | `/privacidad` pública con texto íntegro de `docs/06` | **task-51** |
 | E2E Playwright versionado (sustituye al script local) | **task-49** (QA) |
 | `lighthouse@11.7.1` histórico en staging | **F1-16** |
+| `npm run pwa:audit` (script CDP) y `__APP_BUILD__` en `/acerca` | **Implementados en B/2 (#22)** — no existen en A/2 |
+| Caché versionada `hidria-shell-<v>-<build>` | **Implementada en B/2 (#22)**: `PrecacheController({cacheName})` + limpieza de cachés antiguas en `activate` |
+| Prueba de dos orígenes para el mensaje `SKIP_WAITING` | **task-49** (requiere segundo host); en A/2 hay guarda estática `scripts/check-sw-origin.mjs` |
+
+### 13.4 Correcciones de la revisión de PR #21 (commits nuevos sobre `4b41f7e`)
+
+- **B1 — origen exacto en `SKIP_WAITING`:** `sw.ts` compara ahora
+  `new URL(sourceUrl).origin !== self.location.origin` (con `try/catch`), en lugar de
+  `startsWith`. Se añade la guarda de regresión `app/scripts/check-sw-origin.mjs`, ejecutada en
+  `npm run build` (y por tanto en CI), que falla si vuelve el patrón por prefijo y documenta los
+  vectores (`https://origen.evil.example` → rechazado). La prueba funcional con dos orígenes reales
+  requiere un segundo host y queda en **task-49**.
+- **m1 — `pwa:audit`:** se retira de `package.json` en A/2 (el script llega en B/2); en su lugar
+  A/2 declara `check:sw`.
+- **m2 — caché versionada:** en A/2 el versionado era por revisiones de Workbox; **en B/2 se
+  implementa el nombre de caché prometido** `hidria-shell-<vX.Y.Z>-<build>` con
+  `PrecacheController({ cacheName })` y limpieza de cachés `hidria-shell-*` antiguas en el evento
+  `activate` (D8 actualizada).
+- **m3 — `offline.html`:** se elimina el `onclick` inline; el botón pasa a enlace `<a href="/">`
+  (compatible con CSP `script-src 'self'` futura).
+- **m4 — estado del documento:** actualizado a «Implementado (A/2 + B/2)».
+- **m5 — `onRegisteredSW`:** eliminado de la descripción; el código no lo usa.
+- **m6 — `localStorage`:** aclarado que el *ack* «offline listo» es estado de UI sin PII y que el SW
+  no accede a `localStorage`/IndexedDB.
 
 *Fin de la actualización.*

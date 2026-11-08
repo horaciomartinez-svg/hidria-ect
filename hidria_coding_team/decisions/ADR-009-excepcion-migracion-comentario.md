@@ -4,7 +4,7 @@
 - **Fecha:** 2026-11-08
 - **Autor:** Lead (creador), a solicitud del supervisor y del revisor
 - **Alcance:** **una sola línea** de `supabase/migrations/20261108020030_f1_01a_fix_roles2.sql`
-- **PR:** #15 `fix/F1-01a-migration-comment` (head `0ff8f5d`; 1 archivo, +1/−1)
+- **PR:** #15 `fix/F1-01a-migration-comment` (head `bb5a4e0`; 2 archivos/2 líneas: 1 línea de comentario en `20261108020030` + 1 línea de test en `060:53`; **esta excepción cubre solo la migración**)
 - **Relacionadas:** task-13 (pgTAP+Postgres en CI), PR #14, `reports/qa/PR-4_qa.md` §1.5
 
 ## 1. Contexto
@@ -25,7 +25,7 @@ y por tanto no se puede cerrar task-13/G1.
 
 ## 2. Decisión
 
-Se autoriza **una excepción one-off** a la regla forward-only de `TEAM.md` §8, limitada
+Se autoriza **una excepción one-off** a la regla forward-only de `TEAM.md` §2.6, limitada
 **exclusivamente** a esa línea de comentario:
 
 - Sustituir el texto con comillas anidadas por una redacción sin comillas conflictivas
@@ -33,11 +33,16 @@ Se autoriza **una excepción one-off** a la regla forward-only de `TEAM.md` §8,
 - **No** se toca ninguna otra línea, migración, versión, nombre de archivo ni `docs/02`.
 - **No** se crea una migración nueva solo por el comentario: los comentarios no son contrato;
   la BD puede quedar con `obj_description` NULL.
+- El **test** `060:53` (paréntesis faltante en `ok(...)`) incluido en el PR #15 **no es una
+  migración aplicada**: es una corrección sintáctica de archivo de test, no cubierta por esta
+  excepción, y debe dejar intacto el `plan(51)` y las aserciones.
 
 ## 3. Condiciones de aceptación
 
-1. **Diff exactamente 1 línea** (+1/−1) y prueba de que no se modificó ninguna otra migración
-   aplicada; escanear todas las migraciones por comillas impares similares antes de cerrar.
+1. **Diff de la migración exactamente 1 línea** (+1/−1) y prueba de que no se modificó ninguna
+   otra migración aplicada; el PR puede incluir además **1 línea de test** (`060:53`) que **no**
+   está cubierta por esta excepción. Escanear todas las migraciones por comillas impares
+   similares antes de cerrar; el `plan(51)` de `060` debe quedar intacto.
 2. Evidencia de `pg_get_functiondef`/ACL sin cambios, `obj_description` NULL, `schema_migrations`
    = 16 sin fila nueva de `20261108020030`, y replay limpio (`supabase db reset` sin 42601).
 3. Secret/PII scan 0; CI verde (incluye Deno).

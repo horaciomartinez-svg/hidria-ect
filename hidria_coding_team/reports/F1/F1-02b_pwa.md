@@ -184,10 +184,26 @@ A hace la app instalable y offline; B cierra el aviso de versión, la instalaci�
 
 ## 10. Estado de publicación
 
-- **PR-A:** `feature/F1-02b-pwa` @ `4b41f7e` → `main` (CI y re-revisión al publicar).
-- **PR-B:** `feature/F1-02b-pwa-ui` @ _pendiente_ → base `feature/F1-02b-pwa` (se retargetea a `main`
-  tras el merge de A).
-- CI: _pendiente al publicar_ (Guardas + Cliente + Edge Functions Deno).
-- Revisión solicitada: spec (alcance PWA/fases), seguridad (SW/caché/secretos), QA (CDP/offline).
+- **PR-A (mergeada):** `feature/F1-02b-pwa` @ `73df49b` → `main` por squash
+  **`7cc84a2`** (head final revisado `73df49b`; CI 10/10 incl. pgTAP y E2E Playwright).
+- **PR-B (este):** `feature/F1-02b-pwa-ui`, rebasado/mergeado sobre `main` = `057ad79`. Incluye la
+  UI de actualización/instalación, las fases híbridas M5→F2 / M7 F1 (con `phaseNote`), la evidencia
+  CDP y las piezas que A/2 difirió:
+  - **`__APP_BUILD__`** restaurado (`vite define` + `APP_BUILD` en `config.ts` + declaración de
+    tipos) y visible en `/acerca` junto con la versión.
+  - **Caché versionada** `hidria-shell-<vX.Y.Z>-<build>` implementada con
+    `PrecacheController({ cacheName })` y limpieza de cachés `hidria-shell-*` antiguas en
+    `activate` (sin acumulación entre builds).
+  - **`npm run pwa:audit`** (`app/scripts/pwa-audit.mjs`) publicado.
+- **Head de B/2, CI y veredictos:** ver §10.1 (se completa al publicar el head final).
+- Revisión solicitada: spec (alcance B/2 y fases), seguridad (SW/caché/secretos/APP_BUILD) y
+  QA (auditoría CDP E1–E10 + offline).
+
+### 10.1 Verificación del head de B/2
+
+- Head: _pendiente al publicar_.
+- CI: _pendiente al publicar_ (Guardas + Cliente + Edge Functions Deno + pgTAP + E2E Playwright).
+- Auditoría CDP (`npm run pwa:audit`): _pendiente al publicar_ (Chrome 156 registrado).
+- `npm ci` / `lint` / `typecheck` / `build`: verificados localmente antes del push.
 
 *Reporte de `dev-frontend-pwa` para F1-02b.*

@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && tsc -p tsconfig.sw.json --noEmit && vite build",
+    "build": "tsc --noEmit && tsc -p tsconfig.sw.json --noEmit && node scripts/check-sw-origin.mjs && vite build",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.sw.json --noEmit",
-    "preview": "vite preview",
-    "pwa:audit": "node scripts/pwa-audit.mjs"
+    "check:sw": "node scripts/check-sw-origin.mjs",
+    "pwa:audit": "node scripts/pwa-audit.mjs",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
