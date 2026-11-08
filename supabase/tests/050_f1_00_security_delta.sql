@@ -4,7 +4,7 @@
 -- el aislamiento multi-tenant A/B se mantiene.
 begin;
 
-select plan(11);
+select plan(14);
 
 insert into public.organizations (id, name, org_type) values
   ('11111111-1111-4111-8111-111111111111','Org Sec A','srhds'),
@@ -13,11 +13,13 @@ insert into auth.users (id, aud, role, email, created_at, updated_at) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','authenticated','authenticated','inv@example.invalid',now(),now()),
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','authenticated','authenticated','obs@example.invalid',now(),now()),
   ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','authenticated','authenticated','coord@example.invalid',now(),now()),
-  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','authenticated','authenticated','new@example.invalid',now(),now());
+  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','authenticated','authenticated','new@example.invalid',now(),now()),
+  ('abababab-abab-4bab-8bab-abababababab','authenticated','authenticated','admin@example.invalid',now(),now());
 insert into public.profiles (user_id, organization_id, full_name, email, global_role) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','Invitado','inv@example.invalid','invitado'),
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','11111111-1111-4111-8111-111111111111','Observador','obs@example.invalid','observador'),
-  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','11111111-1111-4111-8111-111111111111','Coordinador','coord@example.invalid','coordinador_srhds');
+  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','11111111-1111-4111-8111-111111111111','Coordinador','coord@example.invalid','coordinador_srhds'),
+  ('abababab-abab-4bab-8bab-abababababab','11111111-1111-4111-8111-111111111111','Admin','admin@example.invalid','admin_institucional');
 insert into public.companies (id, organization_id, razon_social, nombre_planta, giro,
   calle, colonia_parque, cp, municipio, organismo_operador) values
   ('12121212-1212-4212-8212-121212121212','11111111-1111-4111-8111-111111111111','Empresa A','Planta A','manufacturera','Calle','Parque','87000','Victoria','COMAPA'),
@@ -81,6 +83,18 @@ $sql$, '42501', NULL, 'observador no puede INSERTAR water_balances');
 
 -- Coordinador: no puede elevar un perfil a admin; sí puede crear rol no-admin.
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"coordinador_srhds"}';
+select lives_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id)
+  values ('acacacac-acac-4cac-8cac-acacacacacac','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1')
+$sql$, 'coordinador SÍ puede INSERTAR diagnostics (RES-1)');
+select is((with upd as (
+  update public.profiles set full_name='Admin cambiado'
+   where user_id='abababab-abab-4bab-8bab-abababababab' returning 1
+) select count(*) from upd), 0::bigint,
+  'coordinador no puede UPDATE perfil admin_institucional');
 select throws_ok($sql$
   insert into public.profiles (user_id, organization_id, full_name, email, global_role)
   values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','11111111-1111-4111-8111-111111111111',
@@ -91,6 +105,13 @@ select lives_ok($sql$
   values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','11111111-1111-4111-8111-111111111111',
     'Nuevo equipo','new@example.invalid','equipo')
 $sql$, 'coordinador sí puede crear un perfil con rol no-admin');
+
+-- Admin del tenant sí puede actualizar su propio perfil admin.
+set local request.jwt.claims = '{"sub":"abababab-abab-4bab-8bab-abababababab","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"admin_institucional"}';
+select lives_ok($sql$
+  update public.profiles set full_name='Admin OK'
+   where user_id='abababab-abab-4bab-8bab-abababababab'
+$sql$, 'admin_institucional sí puede actualizar perfil admin');
 
 -- Sin regresión de aislamiento A/B: observador del tenant A solo ve A.
 set local request.jwt.claims = '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"observador"}';
