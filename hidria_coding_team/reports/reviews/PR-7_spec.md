@@ -160,3 +160,36 @@ select public.has_any_global_role(array['equipo',NULL]::text[]);
 **CAMBIOS SOLICITADOS** (un solo residual acotado, B1-array[NULL]). El resto del delta está correcto: B1 en los casos NULL/''/array[]/[''], M2 `invitado`, ADR-007/M1 y regresión. Con la corrección anterior + CI 4/4 + guarda 3, el PR pasa a **APROBADO**; la re-revisión se limita a esa migración y a los nuevos casos de 060. Observación menor: §8 del reporte cita `4197602` y sus runs, no el head final `b67abf3` (+4/−3 documental); actualizar al commitear para trazabilidad (no bloquea).
 
 No se ejecutaron comandos Git de escritura ni merges; el anexo queda en el working tree. Las comprobaciones SQL fueron de solo lectura sobre `zucalshlfcxejpukshxl`.
+
+---
+
+# Anexo final — Re-revisión PR #7 (`c958c9e`, APROBADO)
+
+- **Head final:** `c958c9e9f9422814e4b9cf6b1907cb2b65168bec` (merge commit de `main@f83569a`; 7 commits, 6 archivos, +427/−21; base `main@f83569a`).
+- **CI:** 4/4 `success` en `c958c9e` (runs `42438497450` y `42438501225`, `Guardas de repositorio` + `Cliente`). `mergeable_state: clean`.
+- **Delta desde `b67abf3`:** `20261108020030_f1_01a_fix_roles2.sql` (+47), `060` ampliado (`plan(51)`) y merge del reporte F1-01a; 16 migraciones aplicadas (3 base + 9 F1-00 + 4 F1-01a).
+- **Veredicto vigente:** **APROBADO** (especificaciones). Sustituye el CAMBIOS SOLICITADOS del anexo anterior para el merge.
+
+## Verificación
+
+| Punto | Resultado | Evidencia |
+|---|---|---|
+| **B1 `has_any_global_role(array[NULL])` con claim** | ✅ **Corregido** | Nueva migración `20030` con `exists` filtrando `NULL/''` y `coalesce(...,false)`. BD con claim `equipo`: `array[NULL]`=**false**, `array['equipo',NULL]`=**true**; sin claim `[NULL]`=false; `array[]`/`array['']`=false. `has_global_role(NULL/'' )`=false. |
+| **Casos en `060`** | ✅ | `plan(51)`: `array[NULL]` y `['equipo',NULL]` sin claim y con claim; `has_global_role(NULL/'' )`; casos de claim vacío; seed/instance_id; RLS. |
+| **E3 `instance_id`** | ✅ | BD: 6/6 seed users con `instance_id='00000000-0000-0000-0000-000000000000'`; `060` lo comprueba; GoTrue los ve. |
+| **M2 `invitado`** | ✅ | Seed 6/6/6 roles incluido `invitado`; BD confirma 6 usuarios, 6 perfiles, 6 roles; `.invalid`; sin accesos indebidos. |
+| **M1 / ADR-007** | ✅ | ADR-007 en el árbol como `aceptada con condiciones` (fila del revisor aprobada; seguridad pendiente) y `task-27` bloqueante de G3; no se mueve el seed antes del merge. |
+| **Conflicto del reporte F1-01a** | ✅ Resuelto sin pérdida | El merge conserva la evidencia de la rama (B1/M2/array[NULL], `instance_id`, 16 migraciones) y la de `main` (E3 resuelta por `F0-14`, hook activado; QA/PR #9); no quedan marcadores de conflicto; `mergeable_state: clean`. |
+| **Forward-only** | ✅ | Migración `20030` nueva; no se editaron las migraciones previas; no se tocó base ni `docs/02`; `docs/02`/base SHA-256 = `2A7B6F…42CB5` en ambos; guarda 3 CI verde. |
+| **Alcance** | ✅ | 6 archivos: 4 migraciones F1-01a, `060`, reporte; 0 en `app/`/`functions/`/`.github/`/`docs/`; sin secretos. |
+| **CI** | ✅ | 4/4 en el head final. |
+
+## Observaciones menores (no bloquean)
+
+1. `reports/F1/F1-01_auth_claims.md` §6 aún dice «Pendiente de entorno: activación del hook (usuario)», contradiciendo §5/`F0-14` (E3 resuelta); limpiar la frase al commitear.
+2. §8 cita CI sobre `26d3788` (commit del fix) y no el merge final `c958c9e`; el PR body sigue citando `schema_migrations=15`, `plan 46` y CI `b67abf3`; actualizar ambos a 16/51/`c958c9e` para trazabilidad.
+3. `instance_id` y `email_confirmed_at` de los 6 seeds quedan para la limpieza de `task-27`/ADR-007 antes de piloto; ya rastreado, no bloquea #7.
+
+## Conclusión
+
+**APROBADO** para el squash de PR #7 en `c958c9e`. B1 residual, M2, `instance_id`, conflicto del reporte, forward-only y guarda 3 están verificados; solo quedan correcciones de trazabilidad documental (observaciones 1–2) y la limpieza de seed de ADR-007/task-27 antes de G3. No se ejecutaron comandos Git de escritura ni merges; este es el último anexo de `PR-7_spec.md`.

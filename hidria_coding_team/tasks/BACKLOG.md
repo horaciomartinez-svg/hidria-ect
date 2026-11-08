@@ -28,8 +28,8 @@
 | ID | Tarea | Dueño | Deps | Estado |
 |---|---|---|---|---|
 | F1-00 | Migraciones correctivas + grants DML PostgREST (`M-01…M-08`: idempotencia, auditoría, folio, RPC BHE, Realtime, RPC rol, default perfil, completitud) | arquitecto-bd | F0-12 | **hecha** — PR #4 squash `b4fbc83` (2026-11-08); 12 migraciones aplicadas, CI 4/4, spec APROBADO, seguridad sin veto, QA AMARILLO con excepción pgTAP (task-13) |
-| F1-01 | Auth con custom claims y roles | arquitecto-bd + dev-edge-functions | F1-00 | pendiente (P0; siguiente) |
-| F1-02 | Shell PWA (router, layout, sesión, tema) | dev-frontend-pwa | F1-01 | pendiente |
+| F1-01 | Auth con custom claims y roles | arquitecto-bd + dev-edge-functions | F1-00 | **hecha (2026-11-08)** — F1-01a squash `e21a665` (16 migraciones, suite 060 `plan 51`, seed 6 roles con `instance_id`, helpers fail-closed) + F1-01b squash `424ca01` (`_shared/auth.ts`, guardas 16 endpoints, `401 AUTH_INVALID`, 58 pruebas Deno); spec APROBADO, seguridad sin veto, QA VERDE (excepción Deno-CI) |
+| F1-02 | Shell PWA (router, layout, sesión, tema) | dev-frontend-pwa | F1-01 | **en_progreso** — task-43, rama desde `424ca01`; login con claims ADR-005, guardas de ruta, PWA |
 | F1-03 | M1 — Registro de empresas | dev-frontend-pwa | F1-02 | pendiente |
 | F1-04 | M2/M11 — Diagnósticos, gates y Kanban (EF-01) | dev-edge-functions + dev-frontend-pwa | F1-03 | pendiente |
 | F1-05 | M3 — Documentos y EF-08 (presign/register) | dev-edge-functions + dev-frontend-pwa | F1-04 | pendiente |

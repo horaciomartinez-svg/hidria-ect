@@ -5,28 +5,29 @@
 - **Tarea:** `task-25` — F1 · QA PR #7 (F1-01a auth claims DB)
 - **PR:** [#7](https://github.com/horaciomartinez-svg/hidria-ect/pull/7) — `feature/F1-01a-auth-claims` → `main`
 - **Head evaluado (inicial):** `44891b333b3eb65a0d04d69b4484c7614ba03377`
-- **Head final evaluado:** `b67abf3ef05657cf5d8a63921123a1d7a94a6040` (fix B1/M2 `4197602` + commit documental `b67abf3`) — ver «Re-QA delta» al final
-- **Base:** `main` `6b95be062736bd62d65c9e8fa48419d7aece078e` · merge-base con la rama: `b4fbc83`
-- **Diff del PR (base..head):** 5 archivos, +485/−0 — 3 migraciones, 1 suite pgTAP y 1 reporte. Sin cambios en `app/**`, `.github/**`, `supabase/functions/**`, `docs/02` ni migración base.
-- **Delta `44891b3..b67abf3`:** 3 archivos (migración `20261108020020_f1_01a_fix_roles.sql`, suite `060` y reporte) + commit `b67abf3` que solo actualiza §8 del reporte (+4/−3).
+- **Head QA anterior:** `b67abf3ef05657cf5d8a63921123a1d7a94a6040` — ver «Re-QA delta»
+- **Head final QA:** `c958c9e9f9422814e4b9cf6b1907cb2b65168bec` (merge de `main@f83569a`; residual `20261108020030`) — ver «Re-QA final `c958c9e`» al final
+- **Base:** `main` `f83569a9ef5f8bfaad522a71a1ca92058a75affa` · merge-base con la rama: `b4fbc83`
+- **Diff del PR (base..head):** 6 archivos, +427/−21 — 4 migraciones, 1 suite pgTAP y 1 reporte. Sin cambios en `app/**`, `.github/**`, `supabase/functions/**`, `docs/02` ni migración base.
+- **Deltas:** `44891b3..b67abf3` (fix B1/M2 `20261108020020`, suite 46); `b67abf3..c958c9e` (residual `20261108020030` + main `f83569a` mergeado; suite 51).
 - **Entorno:** local Windows (PowerShell) + proyecto Supabase `zucalshlfcxejpukshxl` (consultas de solo lectura) + GitHub Actions
 
 ## Resultado: AMARILLO — merge permitido con excepción pgTAP documentada
 
-> **Actualización head final `b67abf3`:** B1 (fail-closed) y M2 (`invitado`) quedaron
-> corregidos en la migración `20261108020020`; la suite `060` pasó a `plan(46)`. Sigue
-> **AMARILLO**: la suite no se ejecutó (0/46) y persisten hallazgos no bloqueantes Q-01
-> (`array[NULL]` con claim devuelve NULL) y Q-02 (lectura tenant de `invitado`, política
-> preexistente). Ver «Re-QA delta» al final: ese apartado **sustituye** los conteos de este
-> análisis histórico de `44891b3`.
+> **Actualización head final `c958c9e`:** el residual Q-01 quedó corregido en
+> `20261108020030` (`has_any_global_role(array[NULL])` → **false**, con y sin claim; sin
+> regresión en `array['']`/`array[]`/NULL) y los 6 seed users tienen `instance_id` de GoTrue.
+> La suite `060` pasó a **`plan(51)`** (51/51 aserciones estáticas). Sigue **AMARILLO**:
+> la suite no se ejecutó (0/51) y task-13 sigue siendo gate antes de G1. Ver «Re-QA final
+> `c958c9e`» al final: sustituye los conteos históricos.
 >
 > **No es ROJO**: no hay defecto de esquema/servicio demostrado; migraciones aplicadas y
 > verificadas en vivo, CI 4/4 y regresión limpia.
-> **No es VERDE pleno**: la suite `060` **no se ejecutó** (0/46). Es el mismo tipo de
+> **No es VERDE pleno**: la suite `060` **no se ejecutó** (0/51). Es el mismo tipo de
 > excepción que F1-00: se permite el merge, pero **task-13 (pgTAP en CI con Postgres) es
 > obligatoria antes de G1** y la matriz no cambia a verde.
 > **No bloqueante.** El `401 AUTH_INVALID` no se valida aquí (es middleware EF, task-21); E3
-> (hook sin activar) está documentado.
+> (activación del hook) queda documentado; el seed sigue en migración por ADR-007/task-27.
 
 ## 1. Respuestas explícitas
 
@@ -254,3 +255,46 @@ condiciones: (a) Q-01 se corrige/cubre en task-13 o micro-fix; (b) Q-02 lo confi
 security/docs; (c) task-13 ejecuta `060` (46 aserciones) y las previas antes de G1. Si
 spec/security exigen `array[NULL]=false` estricto, es un CAMBIO SOLICITADO, no un veto de QA.
 Sin git de escritura; el reporte y `qa/trazabilidad.md` quedan en working tree.
+
+## Re-QA final `c958c9e` (2026-11-07 20:55, America/Mexico_City)
+
+**Motivo:** head limpio tras merge de `main@f83569a` en la rama (`c958c9e9f9422814e4b9cf6b1907cb2b65168bec`);
+CI 4/4 y `mergeable_state=clean`. PR final: **6 archivos, +427/−21**, base `f83569a`.
+
+### Delta verificado
+
+| Pieza | Cambio |
+|---|---|
+| `20261108020030_f1_01a_fix_roles2.sql` (+47) | **Q-01 resuelto:** `has_any_global_role` usa `unnest` + filtro de nulos/vacíos y `coalesce(..., false)` ⇒ `array[NULL]`, `array['']`, `array[]`, `array['',NULL]` devuelven **false**; `array['equipo',NULL]` es true si hay claim `equipo`. **E3:** fija `instance_id='00000000-0000-0000-0000-000000000000'` en los 6 `auth.users` sintéticos (GoTrue los ve). Forward-only: no edita `20261108020000/010/020` (verificado). |
+| `060_f1_01a_auth_claims.sql` | `plan(46)` → **`plan(51)`**: +1 aserción `instance_id`, +2 sin claim (`array[NULL]`, `array['equipo',NULL]`), +2 con claim `equipo` (`array[NULL]`, `array['equipo',NULL]`). |
+| Reporte F1-01 | Actualizado (16 migraciones, 51 aserciones, `instance_id`, CI final). |
+| Merge de `main@f83569a` | Resuelve el conflicto de `reports/F1/F1-01_auth_claims.md`; no toca código fuera de F1-01a. |
+
+### Verificación independiente (MCP, solo lectura)
+
+- `schema_migrations` = **16** (3 base + 9 F1-00 + 4 F1-01a); migraciones previas **sin editar** (diff vacío de 20000/010/020).
+- Sin claim: `array[NULL]`, `array['',NULL]`, `array['']`, `array[]`, `NULL` ⇒ **false**.
+- Con claim `equipo`: `array[NULL]`=false; `array['',NULL]`=false; `array['equipo',NULL]`=**true**; `array['']`/`array[]`=false; `NULL`=false; `has_global_role(NULL)`=false. **Q-01 cerrado.**
+- Seed: **6** `auth.users` con `instance_id` de ceros (**6/6, 0 NULL**), 6 `profiles`, 6 roles distintos (`admin_institucional, coordinador_srhds, empresa, equipo, invitado, observador`), 6 membresías, 2 diagnósticos; emails `.invalid`; helper `has_any_global_role` invoker con `search_path=public, pg_temp`.
+- Suite: `plan(51)` = **51 aserciones estáticas**; incluye `instance_id` y los 4 casos `array[NULL]` con/sin claim.
+
+### Regresión
+
+| Comprobación | Resultado |
+|---|---|
+| CI en `c958c9e` | **4/4 success** — runs [42438497450](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42438497450) (push) y [42438501225](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42438501225) (PR), `head_sha=c958c9e`; Guardas + Cliente |
+| `docs/02` byte-idéntico a la migración base | **Sí**: mismo blob `a2394bce…` en `c958c9e` |
+| Secretos | Secret scan del árbol `c958c9e` sin coincidencias; guardas CI verdes |
+| Alcance | 6 archivos: 4 migraciones + suite `060` + reporte; sin `app/**`, `.github/**`, `functions/**`, `docs/02` ni migración base |
+| Forward-only | Nueva migración `20030`; 20000/010/020 sin editar; 16 filas en `schema_migrations` |
+
+### Dictamen final
+
+**AMARILLO — merge permitido con excepción pgTAP documentada** para `c958c9e`. Q-01
+(`array[NULL]`) queda **cerrado y verificado** en BD y en la suite; `instance_id` de los 6
+seed users presente (6/6); 16 migraciones; CI 4/4; guarda 3 intacta. La única excepción sigue
+siendo que la suite `060` (51 aserciones) **no se ejecutó** (sin runner pgTAP; task-13 la
+debe ejecutar en CI antes de G1). Persiste la observación Q-02 (lectura tenant del `invitado`
+por política preexistente) y M1/ADR-007/task-27 (seed en migración). **No es bloqueante**;
+merge permitido con la excepción citada. Sin git de escritura; reporte y matriz quedan en
+working tree.
