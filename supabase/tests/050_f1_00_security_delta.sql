@@ -4,7 +4,7 @@
 -- el aislamiento multi-tenant A/B se mantiene.
 begin;
 
-select plan(14);
+select plan(24);
 
 insert into public.organizations (id, name, org_type) values
   ('11111111-1111-4111-8111-111111111111','Org Sec A','srhds'),
@@ -14,12 +14,14 @@ insert into auth.users (id, aud, role, email, created_at, updated_at) values
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','authenticated','authenticated','obs@example.invalid',now(),now()),
   ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','authenticated','authenticated','coord@example.invalid',now(),now()),
   ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','authenticated','authenticated','new@example.invalid',now(),now()),
-  ('abababab-abab-4bab-8bab-abababababab','authenticated','authenticated','admin@example.invalid',now(),now());
+  ('abababab-abab-4bab-8bab-abababababab','authenticated','authenticated','admin@example.invalid',now(),now()),
+  ('efefefef-efef-4efe-8efe-efefefefefef','authenticated','authenticated','empresa@example.invalid',now(),now());
 insert into public.profiles (user_id, organization_id, full_name, email, global_role) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','Invitado','inv@example.invalid','invitado'),
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','11111111-1111-4111-8111-111111111111','Observador','obs@example.invalid','observador'),
   ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','11111111-1111-4111-8111-111111111111','Coordinador','coord@example.invalid','coordinador_srhds'),
-  ('abababab-abab-4bab-8bab-abababababab','11111111-1111-4111-8111-111111111111','Admin','admin@example.invalid','admin_institucional');
+  ('abababab-abab-4bab-8bab-abababababab','11111111-1111-4111-8111-111111111111','Admin','admin@example.invalid','admin_institucional'),
+  ('efefefef-efef-4efe-8efe-efefefefefef','11111111-1111-4111-8111-111111111111','Empresa','empresa@example.invalid','empresa');
 insert into public.companies (id, organization_id, razon_social, nombre_planta, giro,
   calle, colonia_parque, cp, municipio, organismo_operador) values
   ('12121212-1212-4212-8212-121212121212','11111111-1111-4111-8111-111111111111','Empresa A','Planta A','manufacturera','Calle','Parque','87000','Victoria','COMAPA'),
@@ -85,11 +87,52 @@ $sql$, '42501', NULL, 'observador no puede INSERTAR water_balances');
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"coordinador_srhds"}';
 select lives_ok($sql$
   insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
-    fecha_fin, index_version_id)
+    fecha_fin, index_version_id, fase_actual, folio)
   values ('acacacac-acac-4cac-8cac-acacacacacac','11111111-1111-4111-8111-111111111111',
     '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
-    '00000000-0000-4000-8000-0000000000a1')
-$sql$, 'coordinador SÍ puede INSERTAR diagnostics (RES-1)');
+    '00000000-0000-4000-8000-0000000000a1',1,'MDOHI-FAKE-999')
+$sql$, 'coordinador SÍ puede INSERTAR diagnostics fase 1 (RES-1)');
+select ok(
+  (select folio from public.diagnostics where id='acacacac-acac-4cac-8cac-acacacacacac')
+    ~ '^MDOHI-[0-9]{4}-[0-9]{3}$'
+  and (select folio from public.diagnostics where id='acacacac-acac-4cac-8cac-acacacacacac')
+    <> 'MDOHI-FAKE-999',
+  'folio server-side: el folio inyectado se sobrescribe');
+select throws_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual, estado, avance_pct, cat_estado,
+    bitacora_cerrada, ivoh_actual, brecha_pct, semaforo_atraso, reporte_document_id)
+  values ('ahahahah-ahah-4hah-8hah-ahahahahahah','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',6,'reportado',100,'validado_r2',
+    true,9.9,99.0,'rojo','11111111-1111-4111-8111-111111111111')
+$sql$, '42501', NULL, 'INSERT con estado inicial inyectado rechazado');
+select throws_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual)
+  values ('adadadad-adad-4dad-8dad-adadadadadad','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',2)
+$sql$, '42501', NULL, 'INSERT diagnostics fase 2 rechazado (no saltar gates)');
+select throws_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual)
+  values ('aeaeaeae-aeae-4eae-8eae-aeaeaeaeaeae','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',6)
+$sql$, '42501', NULL, 'INSERT diagnostics fase 6 rechazado (no saltar gates)');
+select throws_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual)
+  values ('afafafaf-afaf-4faf-8faf-afafafafafaf','11111111-1111-4111-8111-111111111111',
+    '13131313-1313-4313-8313-131313131313','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',1)
+$sql$, '42501', NULL, 'INSERT diagnostics con company de otro tenant rechazado');
+select throws_ok($sql$
+  update public.diagnostics set fase_actual=6
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, 'P0001', 'Gate F6: el IVOH no está validado en R4 (se requieren 6/6 factores).',
+  'UPDATE a fase 6 sin IVOH bloqueado por trigger');
 select is((with upd as (
   update public.profiles set full_name='Admin cambiado'
    where user_id='abababab-abab-4bab-8bab-abababababab' returning 1
@@ -106,19 +149,53 @@ select lives_ok($sql$
     'Nuevo equipo','new@example.invalid','equipo')
 $sql$, 'coordinador sí puede crear un perfil con rol no-admin');
 
+-- Positivo con el otro rol autorizado: equipo.
+set local request.jwt.claims = '{"sub":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"equipo"}';
+select lives_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual)
+  values ('ajajajaj-ajaj-4jaj-8jaj-ajajajajajaj','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',1)
+$sql$, 'equipo SÍ puede INSERTAR diagnostics fase 1');
+
+-- Empresa: sin ownership definido en M2, queda fuera del INSERT (docs/01 §5).
+set local request.jwt.claims = '{"sub":"efefefef-efef-4efe-8efe-efefefefefef","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"empresa"}';
+select throws_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual)
+  values ('eaeaeaea-eaea-4eae-8eae-eaeaeaeaeaea','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',1)
+$sql$, '42501', NULL, 'empresa no puede INSERTAR diagnostics hasta M2 (ownership)');
+
 -- Admin del tenant sí puede actualizar su propio perfil admin.
 set local request.jwt.claims = '{"sub":"abababab-abab-4bab-8bab-abababababab","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"admin_institucional"}';
 select lives_ok($sql$
   update public.profiles set full_name='Admin OK'
    where user_id='abababab-abab-4bab-8bab-abababababab'
 $sql$, 'admin_institucional sí puede actualizar perfil admin');
+select throws_ok($sql$
+  insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
+    fecha_fin, index_version_id, fase_actual)
+  values ('agagagag-agag-4gag-8gag-agagagagagag','11111111-1111-4111-8111-111111111111',
+    '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
+    '00000000-0000-4000-8000-0000000000a1',1)
+$sql$, '42501', NULL, 'admin_institucional no puede INSERTAR diagnostics (docs/01 §5)');
 
 -- Sin regresión de aislamiento A/B: observador del tenant A solo ve A.
 set local request.jwt.claims = '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"observador"}';
-select is((select count(*) from public.diagnostics), 1::bigint,
-  'observador del tenant A solo ve 1 diagnóstico de A');
+select is((select count(*) from public.diagnostics), 3::bigint,
+  'observador del tenant A solo ve 3 diagnósticos de A');
 select is((select count(*) from public.companies), 1::bigint,
   'observador del tenant A solo ve 1 empresa de A');
+
+-- DELETE de diagnostics sigue sujeto a my_diagnostic_role(id).
+set local request.jwt.claims = '{"sub":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"coordinador_srhds"}';
+select is((with del as (
+  delete from public.diagnostics where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' returning 1
+) select count(*) from del), 1::bigint,
+  'coordinador puede DELETEAR diagnóstico de su tenant');
 
 reset role;
 reset request.jwt.claims;

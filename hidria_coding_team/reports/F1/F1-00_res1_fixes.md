@@ -1,75 +1,104 @@
 # F1-00 — RES-1 (`diagnostics_write`) y residuales de seguridad (task-18)
 
 - **Agente:** `arquitecto-bd` (02)
-- **Fecha:** 2026-11-08 13:00 (America/Mexico_City)
+- **Fecha:** 2026-11-08 13:35 (America/Mexico_City)
 - **Tarea:** `task-18` — RES-1 + residuales de la re-revisión de seguridad de F1-00
-- **Rama:** `fix/F1-task18-res1`, desde `main` `7ca0639`
-- **Migración nueva:** `supabase/migrations/20261108030000_f1_00_res1_fixes.sql` (aplicada vía MCP)
-- **Entorno:** `zucalshlfcxejpukshxl` (dev/staging sintético, ADR-004 E2); `schema_migrations = 17`
-- **Alcance:** solo DB (`supabase/migrations/**`, `supabase/tests/**`, reportes F1-00). Sin tocar `supabase/functions/**`, `app/**` ni `docs/02`.
+- **Rama:** `fix/F1-task18-res1`, desde `main` `7ca0639`; head del PR #19 (actualizar en GitHub)
+- **Migraciones nuevas:**
+  - `20261108030000_f1_00_res1_fixes.sql`
+  - `20261108030010_f1_00_res1_fixes2.sql` (candado fase 1 y retiro de admin)
+  - `20261108030020_f1_00_res1_hardening.sql` (estado inicial + folio server-side + retiro de empresa)
+  - Aplicadas vía MCP.
+- **Entorno:** `zucalshlfcxejpukshxl` (dev/staging sintético, ADR-004 E2); `schema_migrations = 19`.
+- **Alcance:** solo DB (`supabase/migrations/**`, `supabase/tests/**`, reportes F1-00). Sin tocar `supabase/functions/**`, `app/**`, `docs/02` ni docs/01.
 
 ## Resultado: VERDE (DB)
 
-RES-1 queda resuelto con **INSERT separado** para `diagnostics`: el alta se autoriza por tenant +
-`global_role` (docs/01 §5: `admin_institucional`, `coordinador_srhds`, `equipo`, `empresa`) y
-`company_id` del mismo tenant; `UPDATE`/`DELETE` conservan `my_diagnostic_role(id)` en
-`coordinador`/`equipo`, tal como exige SEC-PR4-02. Se añadió el positivo que faltaba y se
-resolvieron los residuales de vistas, `profiles_write`, requisito PG ≥ 16 y SHA del reporte.
+RES-1 resuelto con **INSERT separado** y endurecido: roles `coordinador_srhds`/`equipo`, tenant,
+`company_id` del mismo tenant, `fase_actual=1` y **trigger BEFORE INSERT** que fija el folio
+server-side y rechaza cualquier estado inicial inyectado. `admin_institucional` y `empresa`
+quedan fuera del INSERT (M1 y falta de ownership M2, respectivamente). `UPDATE`/`DELETE` siguen
+con `my_diagnostic_role(id)`; el residual de campos de estado en UPDATE queda en **task-59**.
+Residuales de vistas, `profiles_write`, PG≥16 y SHA corregidos.
 
 ## 1. RES-1 — `diagnostics` (M2)
 
 | Política | Operación | Regla |
 |---|---|---|
-| `diagnostics_ins` (nueva) | INSERT | `is_tenant_member(organization_id)` + `global_role IN (admin_institucional, coordinador_srhds, equipo, empresa)` + `company_id` pertenece al mismo tenant |
-| `diagnostics_upd` (nueva) | UPDATE | tenant + `my_diagnostic_role(id) IN (coordinador, equipo)` + `company_id` del mismo tenant |
-| `diagnostics_del` (nueva) | DELETE | tenant + `my_diagnostic_role(id) IN (coordinador, equipo)` |
-| `diagnostics_sel` (sin cambio) | SELECT | `is_tenant_member(organization_id)` |
+| `diagnostics_ins` | INSERT | `is_tenant_member(organization_id)` + `global_role IN (coordinador_srhds, equipo)` + `company_id` del mismo tenant + `fase_actual=1` |
+| `diagnostics_upd` | UPDATE | tenant + `my_diagnostic_role(id) IN (coordinador, equipo)` + company del tenant |
+| `diagnostics_del` | DELETE | tenant + `my_diagnostic_role(id) IN (coordinador, equipo)` |
+| `diagnostics_sel` | SELECT | `is_tenant_member(organization_id)` |
 
-`diagnostics_write` (FOR ALL) se eliminó. La comprobación de `company_id` evita insertar un
-diagnóstico del tenant A apuntando a una empresa del tenant B (integridad multi-tenant).
+`diagnostics_write` (FOR ALL) se eliminó.
 
-Verificación en vivo (fixtures F1-01a + transacción con `ROLLBACK`):
+### Trigger `diagnostics_initial_state` (BEFORE INSERT)
+
+- Asigna **folio server-side** con `diagnostics_folio_seq` y formato `MDOHI-AAAA-NNN`; cualquier
+  folio del cliente (`MDOHI-FAKE-999`) se sobrescribe.
+- Para `auth.uid() != null` (API autenticada) **rechaza** (42501) si el INSERT intenta inyectar:
+  `fase_actual != 1`, `estado != 'activo'`, `avance_pct != 0`, `cat_estado != 'no_enviado'`,
+  `bitacora_cerrada != false`, `ivoh_actual`/`brecha_pct`/`reporte_document_id` no nulos,
+  `semaforo_atraso != 'verde'`, `proximo_hito`/`reprogramacion_justificacion` no nulos.
+- Los fixtures de test insertados como `postgres` (`auth.uid()` null) pueden sembrar estados
+  avanzados; la API autenticada no.
+
+Verificación en vivo (claims sintéticos + `ROLLBACK`):
 
 | Caso | Resultado |
 |---|---|
-| `coordinador_srhds` INSERT diagnóstico válido (org/empresa A) | **OK**, fila insertada |
-| `invitado` INSERT diagnóstico | **42501**, 0 filas |
-| `coordinador_srhds` INSERT con `company_id` de otro tenant | **42501**, 0 filas |
-| `diagnostics` visibles tras alta | 3 (2 seed + 1) |
+| `coordinador_srhds` INSERT fase 1 | **OK** |
+| `equipo` INSERT fase 1 | **OK** |
+| INSERT fase 2 / fase 6 | **42501**, 0 filas |
+| INSERT con `estado='reportado'`, `avance=100`, etc. | **42501**, 0 filas |
+| INSERT con `folio='MDOHI-FAKE-999'` | **OK**, folio sobrescrito `MDOHI-2026-NNN` |
+| INSERT `company_id` de otro tenant | **42501**, 0 filas |
+| `empresa` (mismo tenant, sin ownership M2) | **42501** |
+| `admin_institucional` | **42501** |
+| `invitado`/`observador` | **42501** |
+| UPDATE a fase 6 sin IVOH | **P0001** `Gate F6...` (trigger) |
 
 ## 2. Residuales
 
-- **Vistas:** revocado `INSERT/UPDATE/DELETE` de `v_bhe_monthly`, `v_bhe_summary`,
-  `v_balance_indicators`, `v_ivoh_score`, `v_diagnostic_completeness` para `authenticated` y
-  `service_role`; se mantiene `SELECT`. Verificado: las 5 quedan con DML=false.
-  **Guarda CI:** suite `010_f1_00_grants_views.sql` añade dos aserciones que fallan si cualquier
-  vista recupera DML para `authenticated`/`service_role` (cierra SEC-PR4-01 en CI cuando esté el
-  job pgTAP de task-13).
-- **PG ≥ 16:** `REVOKE MAINTAIN` (F1-00) exige PG ≥ 16; el proyecto usa 17.11 y la suite 010
-  añade `ok(current_setting('server_version_num')::int >= 160000)`.
-- **`profiles_write.USING`:** un `coordinador_srhds` ya **no** puede UPDATE/DELETE un perfil
-  `admin_institucional` (la condición de USING exige que el rol de la fila no sea admin para
-  caller no-admin); el admin conserva acceso. Verificado: coordinador=0 filas, admin=1 fila.
-  La no-escalada de `WITH CHECK` se mantiene.
-- **SHA truncado:** corregido en `F1-00_delta_seguridad.md` (`1fb4ae45c61adc065adecc074630b7f14497d2d5`).
+- **Vistas:** DML revocado en las 5 vistas para `authenticated` y `service_role`; guarda en `010`
+  (2 aserciones) para que CI falle si reaparece DML.
+- **PG ≥ 16:** `REVOKE MAINTAIN` requiere PG≥16; se añade aserción de versión (17.11 actual).
+- **`profiles_write.USING`:** coordinador no puede UPDATE/DELETE perfiles `admin_institucional`;
+  admin conserva acceso. Verificado 0/1 filas.
+- **SHA truncado:** `F1-00_delta_seguridad.md` corregido (`1fb4ae45c61adc065adecc074630b7f14497d2d5`).
+- **Residual conocido (fuera de #19):** `diagnostics_upd` permite a coordinador/equipo cambiar
+  `estado`, `reporte_document_id`, `bitacora_cerrada` sin candado específico (el trigger solo
+  controla fases). Queda en **task-59** (ADR + candado o EF-only) antes de M2/F1-04; no usar con
+  datos reales hasta cerrarlo.
 
-## 3. pgTAP
+## 3. pgTAP y CI
 
 | Suite | Cambio | Plan |
 |---|---|---|
-| `010_f1_00_grants_views.sql` | guarda de DML de 5 vistas (authenticated/service_role) + PG≥16 | `18 → 21` |
-| `050_f1_00_security_delta.sql` | positivo INSERT diagnostics, coordinador vs perfil admin, admin positivo | `11 → 14` |
+| `010_f1_00_grants_views.sql` | DML de 5 vistas + PG≥16 | `18 → 21` |
+| `050_f1_00_security_delta.sql` | positivos coordinador/equipo, folio, estado inyectado, empresa/admin/cross-tenant, UPDATE/DELETE, perfiles | `11 → 24` |
 
-- Sintaxis: **pglast 8.7 → 3/3 archivos OK** (migración + 010 + 050).
-- Aserciones equivalentes ejecutadas en vivo vía MCP (§1/§2).
-- La ejecución pgTAP en CI depende de task-13/PR #14 (job `supabase start`/`db reset`/`test db`);
-  no se modifica CI en esta rama.
+- pglast 8.7: migraciones/tests modificados OK.
+- Total previsto de la suite: **129 aserciones** (21+9+9+15+24+51); el job pgTAP de CI
+  (task-13/PR #14, ya mergeado) aplica las migraciones desde archivos y ejecuta las 6 suites.
+- Aserciones equivalentes ejecutadas vía MCP (§1/§2).
+
+### Nota `schema_migrations` (discrepancia esperada)
+
+La BD remota tiene **19 filas**. MCP registra la **versión de aplicación** (timestamp), no el
+nombre del archivo:
+- `20261108030000` → `20261108185038`
+- `20261108030010` → `20261108190015`
+- `20261108030020` → `20261108190421`
+
+El CI/task-13 aplica desde archivos y usa los nombres `20261108030000/…010/…020`. Las 3
+migraciones son necesarias por el ciclo de revisión (RES-1, candado fase 1, hardening de estado
+inicial/folio); no hay drift de esquema, solo distinta representación de versión.
 
 ## 4. Límites y seguimiento
 
-- No se incluyó RES-1 en `docs/01` ni se documentó un ADR EF-only: se eligió la política INSERT
-  SQL, manteniendo el DDL como autoridad.
-- `empresa` puede INSERTAR diagnósticos según docs/01 §5; si el diseño M2 decide restringirlo,
-  se ajusta en una migración posterior.
-- El job pgTAP de CI (task-13) debe ejecutar 010/050 con el plan actualizado; QA valida el conteo.
-- Sin secretos ni datos reales; fixtures sintéticos con `.invalid`.
+- `empresa` queda fuera del INSERT hasta que M2 defina ownership (`companies.contraparte_user_id`
+  o equivalente); se alineará docs/01 §5 en esa tarea.
+- `admin_institucional` retirado por M1 (docs/01 §5).
+- Residual `diagnostics_upd` → task-59, documentado, no implementado aquí.
+- Sin secretos ni datos reales; fixtures `.invalid`.
