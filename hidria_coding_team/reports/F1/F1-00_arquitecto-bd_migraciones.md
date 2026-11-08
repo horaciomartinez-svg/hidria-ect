@@ -36,6 +36,13 @@ dependen de credencial/consola (E3).
 3 originales. `docs/02` y la migración base siguen byte-idénticos
 (SHA-256 `2a7b6f88…42cb5`, guarda de CI intacta).
 
+> **Nota operativa (CLI):** MCP `apply_migration` registra `version` como timestamp de
+> aplicación y `name` con el prefijo del archivo (mismo patrón que las 3 migraciones base).
+> Si un pipeline usa `supabase db push`, verá las 8 como "pendientes" por versión; son
+> idempotentes y pueden reaplicarse sin error, pero conviene reconciliar la tabla
+> (`supabase migration repair`) o dejar que el pipeline las aplique en staging con CLI.
+> En este host no hay `SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` para usar el CLI.
+
 ### Hashes de los archivos nuevos
 
 | Archivo | SHA-256 |
