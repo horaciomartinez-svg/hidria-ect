@@ -289,18 +289,21 @@ condiciones de seguridad aplicables. F1-02b va en PR de secuencia aparte.
 
 ## 11. Estado de la corrección (SHA y CI)
 
-- **Head final del PR:** `32a1da8` (`32a1da808659491c0be42ac3f100544300a974b6`), 2 commits sobre
-  `5cc56ed` sin reescribir historia.
-- **Delta de corrección:** 12 archivos, +500/−249 (sólo `app/**` y este reporte).
+- **Head final del PR:** `61aaa21` (`61aaa21df0e3e08d60d824e76d84ae43119da72e`), 3 commits sobre
+  `5cc56ed` sin reescribir historia: corrección (`32a1da8`) + cierre documental del reporte
+  (`61aaa21`).
+- **Delta de corrección de código:** 12 archivos, +500/−249 (sólo `app/**` y este reporte). El
+  último commit es **sólo** `reports/F1/F1-02_shell_pwa.md` (+13/−7); el código revisado por
+  spec/seguridad/QA es el de `32a1da8`.
 - **CI en `32a1da8`:** **5/5 job runs verdes** — run `42510516213` (Guardas de repositorio + Edge
-  Functions (Deno) + Cliente lint/typecheck/build) y run `42510511667` (Guardas + Cliente);
-  `mergeable_state: clean`.
+  Functions (Deno) + Cliente lint/typecheck/build) y run `42510511667` (Guardas + Cliente).
+  **CI en `61aaa21`:** **5/5 verdes** — runs `42510796869` y `42510792401`.
+- **Merge:** squash `6c1372b95cbc1e3fafe9f4383b751c8814586106` en `main`.
 - **Evidencia local:** lint/typecheck/build **0** (también sin `.env`); build-time guard de clave
   pública probado en negativo; **smoke E2E CDP 24/24** sobre el build de producción (3 escenarios
   negativos de B1, 6 variantes de redirect malicioso rechazadas + control positivo, shell/guardas,
   logout).
-- **Re-revisión acotada solicitada:** **task-52** spec (B1+M1+m1–m5), **task-53** delta de
-  seguridad (SEC-PR12-01/05/06/07), **task-54** re-QA delta. El código a revisar es `32a1da8`; el
-  único delta posterior es este reporte.
+- **Re-revisión acotada:** **task-52** spec (B1+M1+m1–m5), **task-53** delta de seguridad
+  (SEC-PR12-01/05/06/07), **task-54** re-QA delta; veredictos favorables con ese código.
 
 *Reporte de `dev-frontend-pwa` para F1-02a (corrección de revisión de PR #12).*
