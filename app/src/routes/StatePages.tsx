@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { Link, useRouteError } from 'react-router-dom';
-import { APP_VERSION, SERVICE_ROLE_LEAK_DETECTED } from '../lib/config';
+import { APP_BUILD, APP_VERSION, SERVICE_ROLE_LEAK_DETECTED } from '../lib/config';
 import { GLOBAL_ROLE_LABEL, type GlobalRole } from '../lib/auth/claims';
+import { InstallCta } from '../components/pwa/InstallCta';
 
 /* ------------------------------------------------------------------------- */
 /* Primitivas de estado (accesibles y sin lógica de negocio)                  */
@@ -114,16 +115,37 @@ export function AboutPage() {
         desconcentrado de la SRHDS. Equipo académico: UCI (Universidades y Centros de
         Innovación).
       </p>
-      <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+      <dl className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-panel p-4">
           <dt className="text-xs uppercase tracking-wide text-slate-500">Versión del cliente</dt>
           <dd className="mt-1 font-mono text-lg text-hidria-900">v{APP_VERSION}</dd>
         </div>
         <div className="rounded-lg border border-line bg-panel p-4">
+          <dt className="text-xs uppercase tracking-wide text-slate-500">Build</dt>
+          <dd className="mt-1 break-all font-mono text-sm text-hidria-900">{APP_BUILD}</dd>
+        </div>
+        <div className="rounded-lg border border-line bg-panel p-4">
           <dt className="text-xs uppercase tracking-wide text-slate-500">Fase</dt>
-          <dd className="mt-1 text-lg text-hidria-900">Fase 1 — MVP núcleo (F1-02)</dd>
+          <dd className="mt-1 text-lg text-hidria-900">Fase 1 — MVP núcleo (F1-02b)</dd>
         </div>
       </dl>
+
+      <section
+        className="mt-6 rounded-lg border border-line bg-panel p-5"
+        aria-labelledby="instalar-titulo"
+      >
+        <h2 id="instalar-titulo" className="text-sm font-semibold text-hidria-900">
+          Instalación y uso sin conexión
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+          HIDRIA puede instalarse como aplicación y abrir sin conexión el shell de la
+          plataforma. Los datos y las validaciones requieren conexión; la captura offline se
+          habilitará con los módulos de campo (M4/M6/M10).
+        </p>
+        <div className="mt-3">
+          <InstallCta />
+        </div>
+      </section>
       <p className="mt-6 text-xs text-slate-500">
         Contratos consumidos: <code>docs/04</code> §2.1 (claims), §2.5 (folios), §7
         (Realtime) y §8 (errores canónicos); textos legales: <code>docs/06</code>.
