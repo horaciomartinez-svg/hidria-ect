@@ -42,16 +42,20 @@ Verificación en vivo (claims sintéticos + `ROLLBACK`):
 - `docs/04` §2.5: folio server-side en INSERT e inmutable en UPDATE; campos de gate solo EF.
 - `docs/01` §5 no cambia: la autorización por rol de `diagnostics_upd` se mantiene; el trigger
   añade el candado de columnas.
-- Ninguna EF actual se modifica; EF-01/EF-07 deben usar `service_role`/RPC (ya previsto en docs/04).
+- Ninguna EF actual se modifica; EF-01/EF-07 deben usar `service_role`. Un RPC
+  `security definer` invocado por usuario autenticado **no** es ruta válida: conserva
+  `auth.uid()` no nulo y el trigger lo bloquea (task-66).
 
 ## 3. pgTAP
 
-- `050_f1_00_security_delta.sql`: **plan 28** (+4):
-  - UPDATE `folio` → 42501;
+- `050_f1_00_security_delta.sql`: **plan 34** (task-59 + task-66):
+  - UPDATE `folio` → 42501; folio con `service_role` → 42501 (SEC-PR26-01);
   - UPDATE combinado estado/reporte/bitácora/avance/cat → 42501;
+  - cada campo restante `semaforo_atraso`, `ivoh_actual`, `brecha_pct`, `proximo_hito`,
+    `reprogramacion_justificacion` → 42501;
   - UPDATE `fecha_fin` permitido;
   - `service_role` UPDATE `estado` permitido (ruta EF).
-- Total suite: **133 aserciones** (21+9+9+15+28+51); pgTAP CI (task-13) ejecuta desde archivos.
+- Total suite: **139 aserciones** (21+9+9+15+34+51); pgTAP CI (task-13) ejecuta desde archivos.
 - pglast 8.7: migración y 050 OK.
 - Sin datos reales; fixtures `.invalid`.
 

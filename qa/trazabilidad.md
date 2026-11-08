@@ -62,7 +62,7 @@
 | R-13 | Idempotencia con `Idempotency-Key`: misma clave+mismo payload → mismo cuerpo sin duplicar efectos | docs/04 §2.3; docs/05 §4.3 | API-00; OFF-04 | pendiente | F1-00: tabla `api_idempotency` + unique `(user,endpoint,key)` validada por SQL; API-00 (EF) y pgTAP 020 no ejecutados |
 | R-14 | Los gates no se encolan offline; botón deshabilitado y cero llamadas a EF | docs/04 §6 (regla 4); docs/05 §4.4 | OFF-01 | pendiente | F1-02a: `/sincronizacion` publica la regla y lista **EF-01…07, EF-10, EF-12**; Dexie/`ops_queue` diferida a M4/M6/M10; smoke E2E **24/24 reportado, no reproducido** (H-15) |
 | R-15 | Merge LWW por campo y conflicto visible en UI (nunca pisar en silencio) | docs/04 §6 (regla 3); docs/05 §4.4 | OFF-03 | pendiente | — |
-| R-16 | RLS multi-tenant (`is_tenant_member`) y por membresía/rol de diagnóstico (`my_diagnostic_role`) | docs/01 §RLS; docs/04 §1.1; docs/05 §4.2 | SEC-01, SEC-02, SEC-03; DOC-06; E2E-09 | pendiente | F1-00: grants + `security_invoker` validados por SQL; aislamiento por filas probado con fixtures JWT en reporte del arquitecto (no pgTAP); SEC-01/02/03 pendientes. F1-01a: `current_org_id`/`is_tenant_member` con claims simulados + `SET ROLE` validados por SQL (1/0 sin claim/ajeno); suite 060 no ejecutada; tenant B **poblado** no probado. F1-00 RES-1 (PR #19): `diagnostics_ins/upd/del` + trigger de estado inicial/folio; 19 migraciones; suites 010/050; pgTAP **129/129**; residual UPDATE (**task-59**, incl. folio) aceptado |
+| R-16 | RLS multi-tenant (`is_tenant_member`) y por membresía/rol de diagnóstico (`my_diagnostic_role`) | docs/01 §RLS; docs/04 §1.1; docs/05 §4.2 | SEC-01, SEC-02, SEC-03; DOC-06; E2E-09 | pendiente | F1-00: grants + `security_invoker` validados por SQL; aislamiento por filas probado con fixtures JWT en reporte del arquitecto (no pgTAP); SEC-01/02/03 pendientes. F1-01a: `current_org_id`/`is_tenant_member` con claims simulados + `SET ROLE` validados por SQL (1/0 sin claim/ajeno); suite 060 no ejecutada; tenant B **poblado** no probado. F1-00 RES-1 (PR #19): `diagnostics_ins/upd/del` + trigger de estado inicial/folio; 19 migraciones; suites 010/050; pgTAP **129/129**; UPDATE residual → **task-59 cerrada** (PR #26): folio inmutable + gate/estado solo service_role; pgTAP **133/133**, 20 migraciones |
 | R-17 | JWT con custom claims `organization_id`/`global_role`; sin claim → 401 `AUTH_INVALID` | docs/04 §2.1; docs/07 §3 (paso 0.5); docs/05 §4.2 | SEC-04 | pendiente | F1-00: hook presente con claims (no activo, E3); F1-01a: BD falla cerrado (null/false/0 filas) verificado por SQL; **16 migraciones** y fix residual `array[NULL]`→false (`20261108020030`) + `instance_id` de los 6 seed users; F1-01b: **58 pruebas Deno del middleware ejecutadas por QA (58/58)** y **CI con job Edge Functions (Deno) 5/5**; SEC-04 unitario; 401 HTTP real/integración EF pendientes (task-21); suite 060 no ejecutada; F1-02a: UI con claims **estrictos** (fix B1: `invalid_claims`, sin shell) y guardas de navegación, pero **no autoriza** (RLS/EF manda) y su smoke 24/24 no se reprodujo |
 | R-18 | `quiz_questions` denegada a `authenticated`; `v_quiz_questions` sin `correcta`/retroalimentación | docs/04 §9, TD-7; docs/05 §4.2 | SEC-05; AUL-01 | pendiente | F1-00: `authenticated` sin SELECT en tabla cruda y vista sin `correcta` (columnas) validado por SQL; pgTAP 010 no ejecutado; AUL-01 pendiente |
 | R-19 | `audit_log` append-only con hash encadenado `prev_hash→hash` | docs/01; docs/04 §2.6; docs/05 §4.2 | SEC-06 | pendiente | F1-00: cadena/hash, GENESIS, unique `prev_hash` y append-only validados por SQL (estructura); recálculo SHA-256/concurrencia y pgTAP 020 no ejecutados |
@@ -238,14 +238,17 @@ post-merge `42514381567`, **5/5 checks**, E2E job success (`11 passed`) y artefa
 | F1-02a: job CI **`E2E Playwright`** con artefactos y run id | **✓ success** (PR `42514177112` y post-merge `42514381567`, 5/5; E2E jobs `128833457125`/`128834097587`, 11 passed) | artefactos `13630053837`/`13630457311`; `reports/qa/F1-02_e2e.md` |
 | F1-02a: checks del shell E2E (protegidas/sesión/invitado/logout/gates/B1) | **✓ verde CI** (solo shell UI) | suite `tests/e2e/`; sin verdes de reglas R-* |
 | F1-02a: PWA instalable / Lighthouse / Dexie | diferidos correctamente | F1-02b / F1-16 / capturas offline |
-| F1-02b A/2: `npm ci`/`lint`/`typecheck`/`build` sin `.env` + PWA (`injectManifest`, 11 precache, `sw.js`, manifest, `offline.html`, iconos en `dist/`) | **✓ exit 0** | `reports/qa/PR-21_qa.md` §1–§2; head `4b41f7e` |
-| F1-02b A/2: política de caché (solo shell, `NetworkOnly` Supabase/R2, sin tokens/IDB, `SKIP_WAITING` same-origin, SW off en dev) y manifest/offline accesibles | **✓ estática + SW generado** | `reports/qa/PR-21_qa.md` §3–§5 |
-| F1-02b A/2: CI **7/7** runs (incl. pgTAP), `docs/02` intacto, alcance/secretos limpios | **✓** | check runs 42513693754 / 42513668283; `PR-21_qa.md` §6 |
-| F1-02b A/2: observaciones P2 (`pwa:audit` sin archivo; icono maskable idéntico al normal) | **no bloqueantes** (corregir en B/2 o retirar script) | `PR-21_qa.md` §7 |
+| F1-02b A/2: `npm ci`/`lint`/`typecheck`/`build` sin `.env` + PWA (`injectManifest`, 11 precache, `sw.js`, manifest, `offline.html`, iconos en `dist/`) | **✓ exit 0** | `reports/qa/PR-21_qa.md` §1–§2 + §Re-QA delta; head `73df49b` |
+| F1-02b A/2: política de caché (solo shell, `NetworkOnly` Supabase/R2, sin tokens/IDB, `SKIP_WAITING` same-origin exacto, SW off en dev) y manifest/offline accesibles | **✓ estática + SW generado** | `PR-21_qa.md` §3–§5 + §Re-QA delta |
+| F1-02b A/2: CI **10/10** runs (incl. pgTAP/E2E), `docs/02` intacto, alcance/secretos limpios | **✓** | runs 42515175830 / 42515171348; `PR-21_qa.md` §6 + §Re-QA delta |
+| F1-02b A/2: observaciones P2 (`pwa:audit` sin archivo; icono maskable idéntico al normal) | **P2-02 resuelto** en `73df49b`; P2-01 icono maskable queda no bloqueante | `PR-21_qa.md` §7 + §Re-QA delta |
+| F1-02b A/2 delta `73df49b`: B1 same-origin exacto (+ `check-sw-origin` en build), M1 fases diferidas a #22, offline sin `onclick`, `pwa:audit` retirado; CI **10/10** | **✓** | `PR-21_qa.md` §Re-QA delta; runs 42515175830/42515171348 |
 | F1-02b: instalabilidad real/Lighthouse | **diferido** a F1-16/ADR-008 + B/2 (no exigido en A/2) | `PR-21_qa.md` §8 |
 | F1-00 RES-1: 3 migraciones nuevas (`30000/010/020`), **19 en total**, forward-only; `diagnostics_ins/upd/del`, trigger estado inicial/folio, roles, company, vistas y `profiles_write` | **✓ verificado estático** | `reports/qa/PR-19_qa.md` §1–§2; MCP `schema_migrations`=19 |
 | F1-00 RES-1: suites `010` plan **21**, `050` plan **24**, total **129/129** en pgTAP CI (6 suites) | **✓ CI** | run 42514098168 (PR) / 42514093030 (push); `PR-19_qa.md` §3–§4 |
 | F1-00 RES-1: `docs/02` intacto, alcance migraciones/tests/reportes, sin secretos; residual UPDATE (incl. folio) → task-59 aceptada | **✓** | `PR-19_qa.md` §5–§6 |
+| F1-00 task-59 (PR #26 `5d84a20`): `diagnostics_update_lock` folio inmutable y gate/estado solo `service_role`/EF; `fase_actual` por gate F2; INSERT RES-1 intacto | **✓ estático + pgTAP** | `reports/qa/PR-26_qa.md` §1–§2 |
+| F1-00 task-59: suite `050` plan **28**, total **133/133** en CI (20 migraciones; run 42515152096/42515136929) | **✓** | `PR-26_qa.md` §2–§3 |
 
 **Ninguna fila de la matriz cambia a `verde` con esta evidencia**: es verificación SQL
 equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las suites.
@@ -278,15 +281,24 @@ equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las sui
   artefactos); **H-15 resuelto**. Los checks del shell tienen evidencia CI; **no** se marcan
   verdes las reglas R-* (E2E-01/E2E-09 siguen sin flujos reales). PWA/Lighthouse/Dexie
   diferidos correctamente.
-- **F1-02b A/2 (PR #21, head `4b41f7e`): VERDE** de la unidad PWA base: build/lint/typecheck
+- **F1-02b A/2 (PR #21, head final `73df49b`): VERDE** de la unidad PWA base: build/lint/typecheck
   sin `.env`, SW `injectManifest` con 11 entradas, manifest/offline/iconos en `dist/`, caché
-  solo shell + `NetworkOnly` Supabase/R2, SW off en dev, CI 7/7 (incl. pgTAP), sin secretos.
-  P2 no bloqueantes: `pwa:audit` apunta a un script ausente y el icono maskable es idéntico
-  al normal. Instalabilidad/Lighthouse → F1-16/ADR-008 y B/2; sin verdes funcionales de
-  instalabilidad en la matriz.
+  solo shell + `NetworkOnly` Supabase/R2, SW off en dev, **B1 same-origin exacto** con
+  `check-sw-origin` en build, M1 fases diferidas a #22, `pwa:audit` retirado y offline sin
+  `onclick`; CI **10/10** (incl. pgTAP/E2E), sin secretos. P2-01 no bloqueante (icono maskable
+  idéntico, revisar en B/2/F1-16). Instalabilidad/Lighthouse → F1-16/ADR-008 y B/2; sin verdes
+  funcionales de instalabilidad en la matriz.
 - **F1-00 RES-1 (PR #19, head `e602ecd`): VERDE** de task-18: 3 migraciones nuevas (19 total,
   forward-only), hardening de INSERT de `diagnostics` (tenant/rol/company/fase, estado inicial
   congelado, folio server-side, empresa/admin fuera), vistas y `profiles_write`; suites `010`
   (21) y `050` (24) con **6/6 suites / 129/129** en pgTAP CI; `docs/02` intacto; residual de
   UPDATE (estado/reporte/bitácora y **folio**) = **task-59 aceptada** por spec/seguridad antes
   de M2/F1-04. Sin verdes de reglas R-* (solo evidencia BD).
+- **F1-00 task-59 (PR #26, head `5d84a20`): VERDE** — candado de UPDATE de `diagnostics`:
+  folio inmutable para todos los roles, campos de gate/estado solo `service_role`/EF,
+  `fase_actual` por `diagnostics_phase_gate` (P0001), INSERT RES-1 intacto. Suite `050` plan
+  **28**, total **6 suites/133/133**; 20 migraciones forward-only; `docs/04` §2.5 y ADR-010
+  actualizados; `docs/02` intacto. **task-59 cerrada**; residual de `docs/01` §5 documentado
+  en ADR. Condiciones no bloqueantes en **task-66** (contrato RPC/EF vs trigger, tests de
+  folio con service_role/gates restantes, sign-off ADR-010) antes de M2/F1-04. Sin verdes de
+  reglas R-* (evidencia BD).
