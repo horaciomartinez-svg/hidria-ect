@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "HIDRIA — Optimización Hídrica Industrial",
+  "short_name": "HIDRIA",
+  "description": "Plataforma MD-OHI del Programa Empresas Hídricamente Responsables (SDFI–SRHDS, Gobierno del Estado de Tamaulipas)",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "theme_color": "#0d5c63",
+  "background_color": "#f7fafb",
+  "categories": ["business", "productivity", "education"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Tablero de diagnósticos", "short_name": "Tablero", "url": "/kanban" },
+    { "name": "Aula MD-OHI", "short_name": "Aula", "url": "/aula" },
+    { "name": "Sincronización", "short_name": "Cola", "url": "/sincronizacion" }
+  ]
+}

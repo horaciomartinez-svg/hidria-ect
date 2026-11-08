@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // HIDRIA — cliente PWA (React 18 + TS + Vite + Tailwind). F1-02.
 const pkg = JSON.parse(
@@ -34,8 +35,8 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
  *
  * La guarda de runtime de `src/lib/config.ts` sólo evita `createClient`, pero Vite ya
  * habría inlineado la variable en el bundle. Aquí se falla el build (incluido CI) si
- * `VITE_SUPABASE_ANON_KEY` es una clave secreta (`sb_secret_*`), un JWT con rol
- * distinto de `anon` (`service_role`) o un JWT ilegible.
+ * `VITE_SUPABASE_ANON_KEY` es una clave secreta (`sb_secret_*`), un JWT con rol distinto
+ * de `anon` (`service_role`) o un JWT ilegible.
  */
 function assertPublicClientKey(anonKey: string | undefined): void {
   const key = (anonKey ?? '').trim();
@@ -69,14 +70,33 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, envDir, 'VITE_');
   assertPublicClientKey(env.VITE_SUPABASE_ANON_KEY);
 
+  // Identificador de build visible en /acerca y en el nombre de caché (sin secretos).
+  const appBuild = (process.env.GITHUB_SHA ?? process.env.BUILD_ID ?? 'dev').slice(0, 12);
+
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src/pwa',
+        filename: 'sw.ts',
+        registerType: 'prompt',
+        injectRegister: false, // registro explícito en src/pwa/register.ts
+        manifest: false, // manifest propio versionado en public/manifest.webmanifest
+        injectManifest: {
+          globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,ico}'],
+          globIgnores: ['**/screenshots/**', '**/*.map'],
+        },
+        devOptions: { enabled: false },
+      }),
+    ],
     envDir,
     resolve: {
       alias: { '@': srcDir },
     },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
+      __APP_BUILD__: JSON.stringify(appBuild),
     },
     server: {
       port: 5173,

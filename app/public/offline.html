@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d5c63" />
+    <meta name="robots" content="noindex" />
+    <title>Sin conexión · HIDRIA</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem;
+        background: #f7fafb;
+        color: #0f172a;
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+        line-height: 1.55;
+      }
+      main {
+        width: 100%;
+        max-width: 34rem;
+        background: #ffffff;
+        border: 1px solid #dfe8ec;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        box-shadow: 0 1px 2px rgba(7, 47, 51, 0.06), 0 1px 3px rgba(7, 47, 51, 0.1);
+      }
+      .kicker {
+        margin: 0;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #0d5c63;
+      }
+      h1 {
+        margin: 0.4rem 0 0.75rem;
+        font-size: 1.5rem;
+        line-height: 1.25;
+        color: #072f33;
+      }
+      p {
+        margin: 0 0 0.85rem;
+        font-size: 0.95rem;
+        color: #334155;
+      }
+      ul {
+        margin: 0 0 1.25rem;
+        padding-left: 1.15rem;
+        font-size: 0.9rem;
+        color: #334155;
+      }
+      li {
+        margin-bottom: 0.35rem;
+      }
+      button {
+        width: 100%;
+        min-height: 44px;
+        border: 0;
+        border-radius: 0.5rem;
+        background: #0a4a50;
+        color: #ffffff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #083b40;
+      }
+      :focus-visible {
+        outline: 2px solid #0d5c63;
+        outline-offset: 2px;
+      }
+      .foot {
+        margin: 1.25rem 0 0;
+        font-size: 0.7rem;
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="contenido" role="main">
+      <p class="kicker">SDFI · SRHDS · Tamaulipas</p>
+      <h1>Sin conexión</h1>
+      <p>
+        No fue posible contactar el servidor de HIDRIA. La aplicación volverá a estar
+        disponible en cuanto recuperes la conexión.
+      </p>
+      <ul>
+        <li>Las validaciones que requieren conexión permanecen deshabilitadas
+          (<code>docs/04</code> §6.4).</li>
+        <li>La captura offline se habilitará con los módulos de campo (M4/M6/M10); hasta
+          entonces, HIDRIA necesita conexión para guardar datos.</li>
+        <li>Si es el primer arranque sin red, conéctate una vez para instalar la
+          aplicación.</li>
+      </ul>
+      <button type="button" onclick="location.reload()">Reintentar</button>
+      <p class="foot">HIDRIA — Metodología MD-OHI · Gobierno del Estado de Tamaulipas</p>
+    </main>
+  </body>
+</html>
