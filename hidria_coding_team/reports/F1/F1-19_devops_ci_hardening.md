@@ -3,16 +3,18 @@
 - **Agente:** `devops-github-cloudflare` (07)
 - **Fecha:** 2026-11-08 13:35 (America/Mexico_City) · 2026-11-08T19:35Z
 - **Tarea:** `task-50` — F1 · CI hardening (SEC-PR12-01/02/08), **bloqueante de G1**
-- **Rama / PR:** `chore/F1-19-ci-hardening` · base `main@8e4e258` (docs #24/#25 ya en
-  `main@cc812fc`; no tocan CI)
-- **Alcance de esta entrega (parte 1, sin `app/vite.config.ts`):**
+- **Rama / PR:** `chore/F1-19-ci-hardening` · base `main@8e4e258`; merge con
+  `main@057ad79` (#21 F1-02b A/2 y #26 task-59 ya mergeados; no tocan estos scripts)
+- **Alcance de esta entrega:**
   1. job **`Seguridad (dependencias y bundle)`** con `npm audit --omit=dev` (falla en
      high/critical; únicos advisories de producción actuales son **moderate** de react-router
      con excepción documentada);
   2. escaneo de **`app/dist/**`** que rechaza credenciales de servicio
-     (`sb_secret_*`, `SUPABASE_SERVICE_ROLE_KEY` con valor, JWT con `role=service_role`).
-- **Parte 2 diferida:** guard **build-time** en `app/vite.config.ts` (F1-02b/#21 lo modifica;
-  se hará después del merge de #21, coordinado con `dev-frontend-pwa`).
+     (`sb_secret_*`, `SUPABASE_SERVICE_ROLE_KEY` con valor, JWT con `role=service_role`);
+  3. prueba del **guard build-time** ya existente en `app/vite.config.ts` (SEC-PR12-01):
+     `scripts/ci/build-guard-test.mjs` verifica con claves sintéticas que rechaza
+     `sb_secret_*`/service_role/ilegibles y acepta anon pública. **No se modifica
+     `app/vite.config.ts`** (el guard de F1-02a se conservó en #21; así no hay conflicto).
 
 ## Resultado: VERDE local — pendiente run de CI
 
@@ -64,7 +66,7 @@ lo añada al ruleset (no se toca el ruleset).
   tarea: **GHSA-wrjc-x8rr-h8h6** y **GHSA-337j-9hxr-rhxg** de `react-router`/`react-router-dom`
   6.x (mitigado `safeRedirect` en F1-02a; major 7.18.5 se evalúa en **task-53**).
 
-Estado actual (local, `main@8e4e258` + merge docs):
+Estado actual (local, `main@057ad79` tras merge de #21/#26):
 
 ```text
 [npm-audit] Producción (--omit=dev): 2 vulnerabilidades
@@ -74,9 +76,10 @@ Estado actual (local, `main@8e4e258` + merge docs):
 ```
 
 Los 2 moderate son los GHSA de react-router documentados (no high). El **audit completo**
-(incluye dev) reporta 13 (10 moderate, 3 high: `vite`, `@playwright/test`, `playwright`), todos
-de toolchain de desarrollo **no empaquetado**; se documentan aquí y quedan fuera del gate de
-producción (el task los menciona como no bloqueantes; los majors se evalúan en task-53).
+(incluye dev) reporta **18** (2 low, 13 moderate, 3 high: `vite`, `@playwright/test`,
+`playwright`), todos de toolchain de desarrollo **no empaquetado**; se documentan aquí y quedan
+fuera del gate de producción (el task los menciona como no bloqueantes; los majors se evalúan
+en task-53).
 
 ### Pruebas del script (fixtures)
 
@@ -99,10 +102,10 @@ El literal aislado `service_role` se reporta como **aviso** (no falla): aparece 
 en la guarda build-time de F1-02a, en el texto de UI y en el propio `supabase-js`; por sí solo
 no es una credencial. Lo que bloquea es una clave/JWT de servicio utilizable.
 
-Estado actual del build (`npm run build` → `app/dist`):
+Estado actual del build tras #21 (`npm run build` → `app/dist`, PWA `injectManifest` + `sw.js`):
 
 ```text
-[dist-scan] 3 archivos de texto escaneados en app\dist.
+[dist-scan] 8 archivos de texto escaneados en app\dist.
 [dist-scan] AVISO: 3 referencia(s) al literal "service_role" (guarda/UI/supabase-js, sin credencial).
 [dist-scan] OK: sin claves secretas, variables service_role con valor ni JWT de servicio en el bundle.
 ```
@@ -114,16 +117,33 @@ Estado actual del build (`npm run build` → `app/dist`):
 | `sb_secret_` + 40 chars, `SUPABASE_SERVICE_ROLE_KEY: '…'`, JWT `role=service_role` | exit 1 (3 hallazgos) | **exit 1**, lista las 3 credenciales |
 | solo literal `role === 'service_role'` (guarda) | exit 0 (aviso) | **exit 0** |
 
+## 3.1 Prueba del guard build-time (SEC-PR12-01, sin tocar `vite.config`)
+
+`app/vite.config.ts` ya implementa `assertPublicClientKey` desde F1-02a y **#21 lo conservó**;
+`scripts/ci/build-guard-test.mjs` lo verifica de extremo a extremo lanzando builds de Vite en
+directorios temporales con claves sintéticas (no toca `app/dist`):
+
+| Caso | Clave | Esperado | Resultado |
+|---|---|---|---|
+| anon pública | JWT sintético `role: anon` | build OK | **OK** (exit 0) |
+| clave secreta | `sb_secret_` + 40 chars | build falla | **OK** (exit 1, `sb_secret`) |
+| clave de servicio | JWT sintético `role: service_role` | build falla | **OK** (exit 1, `role "anon"`) |
+| JWT ilegible | `no-es-un-jwt` | build falla | **OK** (exit 1, `payload`) |
+
+No se modifica `app/vite.config.ts` (evita el conflicto con #21): la condición SEC-PR12-01
+queda cubierta por el guard existente + su prueba determinista en CI.
+
 ## 4. Validación local (árbol actual)
 
 | # | Comando | Resultado |
 |---|---|---|
-| 1 | `npm ci` | exit 0 |
+| 1 | `npm ci` (tras merge #21) | exit 0 |
 | 2 | `node scripts/ci/npm-audit.mjs` | **exit 0** (0 high/critical de producción; 2 moderate documentados) |
-| 3 | `npm run build` | exit 0 (91 módulos; JS 475.01 kB / 137.39 kB gzip) |
-| 4 | `node scripts/ci/dist-scan.mjs` | **exit 0** (sin credenciales; 3 avisos de literal) |
-| 5 | fixtures negativos (audit + dist) | **exit 1** como se espera |
-| 6 | `node --check` de ambos scripts | exit 0 |
+| 3 | `npm run build` | exit 0 (67 módulos; PWA `injectManifest`, `sw.js`, 11 entradas de precache 539.73 KiB) |
+| 4 | `node scripts/ci/dist-scan.mjs` | **exit 0** (8 archivos; sin credenciales; 3 avisos de literal) |
+| 5 | `node scripts/ci/build-guard-test.mjs` | **exit 0** (4/4 casos OK) |
+| 6 | fixtures negativos (audit + dist) | **exit 1** como se espera |
+| 7 | `node --check` de los 3 scripts | exit 0 |
 
 ## 5. Evidencia CI (se completa con run id)
 
@@ -141,16 +161,14 @@ Estado actual del build (`npm run build` → `app/dist`):
 - El escaneo de bundle se ejecuta sobre el build real (`npm run build`), no sobre fuentes.
 - El gate es de **producción** (`--omit=dev`): el audit completo de dev se documenta pero no
   bloquea (toolchain no empaquetado). No se relajan los 5 checks existentes.
-- La parte 2 (guard build-time en `vite.config`) se hará tras el merge de #21 para evitar
-  conflicto; comportamiento objetivo: rechazar `sb_secret_*`, JWT no-`anon`/`service_role` e
-  ilegibles, con test de clave sintética. Ya existe la guarda de F1-02a en `main`; #21 la
-  modifica.
+- **Guard build-time**: ya existe en `app/vite.config.ts` (F1-02a, conservado en #21); no se
+  modifica el archivo para evitar conflicto. La prueba `scripts/ci/build-guard-test.mjs`
+  demuestra que rechaza `sb_secret_*`, JWT `service_role` e ilegibles y acepta anon pública
+  (4/4 casos). La condición SEC-PR12-01 queda cubierta por guard + test en CI.
 
 ## 7. Pendientes / siguiente paso
 
 - [ ] Publicar PR y verificar **6/6 checks** verdes (run id en §5).
-- [ ] Tras el merge de **#21**: segunda parte de task-50 (`app/vite.config.ts` build-time guard)
-      en PR/commit aparte, coordinado con `dev-frontend-pwa`.
 - [ ] Proponer `Seguridad (dependencias y bundle)` como required cuando el usuario lo añada.
 - [ ] task-53: evaluar react-router 7.18.5 y retirar la allowlist si procede.
 

@@ -134,5 +134,7 @@ jobs:
         run: node scripts/ci/npm-audit.mjs
       - name: Build del cliente
         run: npm run build
+      - name: Probar guard build-time con claves sintéticas
+        run: node scripts/ci/build-guard-test.mjs
       - name: Escaneo de credenciales en el bundle (dist)
         run: node scripts/ci/dist-scan.mjs
