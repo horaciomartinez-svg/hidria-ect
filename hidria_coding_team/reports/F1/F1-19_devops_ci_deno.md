@@ -173,3 +173,61 @@ para su revisión (pin/rutas/58/58) y a QA para la matriz SEC-04.
 Publicación/PR/run de CI: **no ejecutables** con el token actual. Se requiere el permiso
 `Workflows: Read and write` (o scope `workflow`) en `GITHUB_TOKEN`, o que el commit preparado
 se publique con otra credencial. Reanudar task-44 en cuanto el permiso esté disponible.
+
+## 7. Estado preservado y preparado para el desbloqueo (2026-11-07 20:59)
+
+El supervisor confirmó la escalación al Lead/usuario y pidió no reintentar hasta el desbloqueo.
+Estado congelado a la espera:
+
+| Elemento | Estado verificado |
+|---|---|
+| Worktree `C:\Proyectos\hidria-ci-deno` | limpio, rama `chore/F1-19-ci-deno`, HEAD `f6a83eb` (2 commits locales) |
+| Rama remota `chore/F1-19-ci-deno` | existe vacía en `20b6c50` (sin los commits locales) |
+| `main` remoto | `20b6c50` sin cambios |
+| `.env` | sin modificar (`mtime 2026-11-07 20:10`) → el PAT **aún no** se ha rotado/ampliado |
+| Reporte | este archivo (copia en worktree y en workspace principal, mismo contenido) |
+| Reintentos | **detenidos** a petición del supervisor; nada que reintentar hasta que el token cambie |
+
+Cuando el usuario confirme el nuevo permiso (o el Lead publique la rama), la secuencia es:
+push → PR por MCP → esperar run → verificar check → actualizar este reporte con run id/URL →
+avisar a `dev-edge-functions` y QA. No hace falta rehacer el trabajo ni volver a validar el
+YAML: el commit `960d8d3` ya está listo y la validación local (58/58) está registrada en §2.
+
+## Anexo A — Cuerpo propuesto del PR (listo para usar al desbloquear)
+
+**Título:** `ci(F1-19): job Deno (fmt/lint/check/test _shared) — task-44`
+
+**Cuerpo:**
+
+```markdown
+## Tarea y evidencia
+- Tarea: `task-44` (F1 · Deno job en CI; en paralelo a `task-13` pgTAP/Postgres)
+- Evidencia: `hidria_coding_team/reports/F1/F1-19_devops_ci_deno.md`
+- Fase: F1 — **bloqueante de G1**
+- Base: `main@20b6c50`
+
+## Qué cambia
+Añade el job `functions` («Edge Functions (Deno)») a `.github/workflows/ci.yml`:
+`denoland/setup-deno@v2` con Deno **v2.9.6** y `deno fmt --check`, `deno lint`,
+`deno check` y `deno test` sobre `supabase/functions/_shared`.
+No modifica los jobs «Guardas de repositorio» ni «Cliente»; `permissions: contents: read`
+se mantiene. Sin `secrets.*` (los JWT de prueba son sintéticos).
+
+## Validación local (Deno 2.9.6, `main@20b6c50`)
+- `deno fmt --check supabase/functions/_shared` → exit 0 (`Checked 4 files`)
+- `deno lint supabase/functions/_shared` → exit 0
+- `deno check supabase/functions/_shared` → exit 0
+- `deno test supabase/functions/_shared` → **`ok | 58 passed | 0 failed (48ms)`**
+
+## Criterios task-44
+- [x] Job reproducible con el insumo acordado por `dev-edge-functions`.
+- [x] Falla si un test Deno falla (runner ejecuta `deno test`; exit != 0 rompe el job).
+- [x] No relaja los jobs existentes ni el ruleset.
+- [x] Sin secretos.
+- [ ] Run de CI verde con run id (se anexa al desbloquear el permiso `workflow`).
+
+## Revisión
+- `dev-edge-functions`: revisar pin/rutas y 58/58.
+- QA: actualizar matriz SEC-04 (unitario ejecutado en CI).
+- Merge: `supervisor-hidria` (squash).
+```
