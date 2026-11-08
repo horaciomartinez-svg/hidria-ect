@@ -9,7 +9,8 @@
  * `a1000000-…006` se agrega en `20261108020020_f1_01a_fix_roles.sql`):
  *   001 coordinador_srhds · 002 equipo · 003 empresa · 004 observador
  *   005 admin_institucional · 006 invitado
- * Diagnósticos `c1000000-…001` (D1) y `c1000000-…002` (D2); organización `b1000000-…001`.
+ * Diagnósticos `c1000000-…001` (D1) y `c1000000-…002` (D2), pertenecientes a la organización
+ * semilla `00000000-…001` (ver F0-14/F1-01a; `b1000000-…001` es una empresa sintética).
  */
 
 import {
@@ -53,8 +54,11 @@ const USER_EMPRESA = "a1000000-0000-4000-8000-000000000003";
 const USER_OBSERVADOR = "a1000000-0000-4000-8000-000000000004";
 const USER_ADMIN = "a1000000-0000-4000-8000-000000000005";
 const USER_INVITADO = "a1000000-0000-4000-8000-000000000006";
-const ORG_ID = "b1000000-0000-4000-8000-000000000001";
-const ORG_B_ID = "b1000000-0000-4000-8000-000000000002";
+// Organización semilla real (F0-14 / F1-01a): `00000000-…001` (`b1000000-…001` es una
+// EMPRESA sintética, no la organización).
+const ORG_ID = "00000000-0000-4000-8000-000000000001";
+// Organización B sintética: solo para tokens de prueba de precedencia/aislamiento.
+const ORG_B_ID = "00000000-0000-4000-8000-000000000002";
 const DIAGNOSTIC_ID = "c1000000-0000-4000-8000-000000000001";
 const DIAGNOSTIC_B_ID = "c1000000-0000-4000-8000-000000000002";
 const LOGBOOK_ENTRY_ID = "d1000000-0000-4000-8000-000000000001";
@@ -267,23 +271,67 @@ Deno.test("SEC-04: JWT sin claim de tenant ⇒ 401 AUTH_INVALID", async () => {
   assertEquals(error.details, { reason: "claim_tenant_ausente" });
 });
 
-Deno.test("SEC-04: organization_id y tenant_id inconsistentes ⇒ 401", async () => {
+Deno.test("ADR-005: organization_id tiene precedencia si tenant_id difiere (no se rechaza)", async () => {
+  // Semántica alineada con `current_org_id()` de F1-01a: precedencia + no rechazo.
   const token = await signToken(
     buildClaims({ organization_id: ORG_ID, tenant_id: ORG_B_ID }),
   );
-  const error = await expectApiError(
-    authenticateWithToken(token),
+  const context = await authenticateWithToken(token);
+  assertEquals(context.organizationId, ORG_ID);
+  assertEquals(context.tenantId, ORG_ID);
+});
+
+Deno.test("ADR-005/F1-01a: si organization_id no es UUID se usa tenant_id (respaldo)", async () => {
+  const token = await signToken(
+    buildClaims({ organization_id: "no-es-uuid", tenant_id: ORG_ID }),
+  );
+  const context = await authenticateWithToken(token);
+  assertEquals(context.organizationId, ORG_ID);
+});
+
+Deno.test("SEC-04: sin ningún claim de tenant utilizable ⇒ 401 AUTH_INVALID", async () => {
+  const token = await signToken(
+    buildClaims({ organization_id: "no-es-uuid", tenant_id: "tampoco" }),
+  );
+  await expectApiError(authenticateWithToken(token), "AUTH_INVALID", 401);
+});
+
+Deno.test("BLOQUEANTE B1: firma base64url malformada ⇒ 401 AUTH_INVALID, nunca 500", async () => {
+  const token = await signToken(buildClaims());
+  const [header, payload] = token.split(".");
+
+  await expectApiError(
+    authenticateWithToken(`${header}.${payload}.`),
     "AUTH_INVALID",
     401,
   );
-  assertEquals(error.details, { reason: "tenant_inconsistente" });
+
+  const error = await expectApiError(
+    authenticateWithToken(`${header}.${payload}.%%%`),
+    "AUTH_INVALID",
+    401,
+  );
+  assertEquals(error.details, { reason: "formato_token" });
 });
 
-Deno.test("SEC-04: claim de tenant con formato inválido ⇒ 401", async () => {
-  const token = await signToken(
-    buildClaims({ organization_id: "no-es-uuid", tenant_id: null }),
-  );
-  await expectApiError(authenticateWithToken(token), "AUTH_INVALID", 401);
+Deno.test("BLOQUEANTE B1: withAuth con firma malformada responde 401 canónico, no 500", async () => {
+  const token = await signToken(buildClaims());
+  const [header, payload] = token.split(".");
+  let handlerCalled = false;
+  const wrapped = withAuth(() => {
+    handlerCalled = true;
+    return new Response("no debería ejecutarse");
+  }, { jwtSecret: TEST_SECRET });
+
+  const response = await wrapped(requestWith(`${header}.${payload}.%%%`));
+  assertEquals(handlerCalled, false);
+  assertEquals(response.status, 401);
+  const body = await response.json() as {
+    error: { code: string; message: string; ref?: string };
+  };
+  assertEquals(body.error.code, "AUTH_INVALID");
+  assertEquals(body.error.ref, undefined);
+  assertNotIncludes(JSON.stringify(body), "stack");
 });
 
 Deno.test("SEC-04: sub ausente o inválido ⇒ 401 AUTH_INVALID", async () => {
@@ -820,13 +868,27 @@ Deno.test("guardEndpoint: recurso inexistente o de otro tenant ⇒ 403 FORBIDDEN
   );
 });
 
-Deno.test("guardEndpoint: falta el parámetro de ruta ⇒ 500 INTERNAL_ERROR", async () => {
+Deno.test("MAYOR M2: parámetro de cliente faltante ⇒ 422 VALIDATION_*, nunca 500", async () => {
   const context = await authenticateWithToken(await signToken(buildClaims()));
-  await expectApiError(
+  const error = await expectApiError(
     guardEndpoint(context, "EF-01", {}, depsWithRole("coordinador")),
-    "INTERNAL_ERROR",
-    500,
+    "VALIDATION_PARAMETRO_REQUERIDO",
+    422,
   );
+  assertEquals(error.details, { param: "diagnostic_id" });
+});
+
+Deno.test("MAYOR M2: authorizeEndpoint EF-08 register sin body.diagnostic_id ⇒ 422", async () => {
+  const token = await signToken(buildClaims({ sub: USER_EMPRESA }));
+  const error = await expectApiError(
+    authorizeEndpoint(requestWith(token, `${URL_BASE}/documents/register`), {
+      auth: { jwtSecret: TEST_SECRET },
+      deps: depsWithRole("empresa"),
+    }),
+    "VALIDATION_PARAMETRO_REQUERIDO",
+    422,
+  );
+  assertEquals(error.details, { param: "diagnostic_id" });
 });
 
 Deno.test("guardEndpoint: alcance de recurso sin resolveDiagnosticId ⇒ 500", async () => {
@@ -955,6 +1017,9 @@ Deno.test("errors: VALIDATION_* ⇒ 422 y códigos catalogados con su HTTP", () 
   assertEquals(statusForErrorCode("AUTH_INVALID"), 401);
   assertEquals(statusForErrorCode("FORBIDDEN_ROLE"), 403);
   assertEquals(statusForErrorCode("GATE_BHE_BRECHA"), 409);
+  // Códigos de los contratos EF-04/EF-05 aunque no figuren en la tabla §8 (ver errors.ts).
+  assertEquals(statusForErrorCode("GATE_R2_FICHA"), 409);
+  assertEquals(statusForErrorCode("GATE_R3_FICHA"), 409);
   assertEquals(statusForErrorCode("CODIGO_NO_CATALOGADO"), 500);
 });
 

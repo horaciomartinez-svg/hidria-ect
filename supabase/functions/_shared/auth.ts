@@ -169,28 +169,38 @@ export function decodeJwt(token: string): DecodedJwt {
   if (parts.length !== 3) {
     throw authInvalid({ reason: "formato_token" });
   }
-  const [encodedHeader, encodedPayload, encodedSignature] = parts;
-  let header: unknown;
-  let claims: unknown;
   try {
-    header = JSON.parse(
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+    if (
+      encodedHeader.length === 0 || encodedPayload.length === 0 ||
+      encodedSignature.length === 0
+    ) {
+      throw authInvalid({ reason: "formato_token" });
+    }
+    const header: unknown = JSON.parse(
       new TextDecoder().decode(base64UrlDecode(encodedHeader)),
     );
-    claims = JSON.parse(
+    const claims: unknown = JSON.parse(
       new TextDecoder().decode(base64UrlDecode(encodedPayload)),
     );
-  } catch {
+    // La firma se decodifica DENTRO del try: una firma base64url malformada (`%%%`)
+    // lanza DOMException en `atob` y debe responder 401 AUTH_INVALID, nunca 500.
+    const signature = base64UrlDecode(encodedSignature);
+    if (!isPlainObject(header) || !isPlainObject(claims)) {
+      throw authInvalid({ reason: "formato_token" });
+    }
+    return {
+      header,
+      claims: claims as SupabaseJwtClaims,
+      signingInput: `${encodedHeader}.${encodedPayload}`,
+      signature,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
     throw authInvalid({ reason: "formato_token" });
   }
-  if (!isPlainObject(header) || !isPlainObject(claims)) {
-    throw authInvalid({ reason: "formato_token" });
-  }
-  return {
-    header,
-    claims: claims as SupabaseJwtClaims,
-    signingInput: `${encodedHeader}.${encodedPayload}`,
-    signature: base64UrlDecode(encodedSignature),
-  };
 }
 
 async function hmacKey(secret: string): Promise<CryptoKey> {
@@ -314,24 +324,15 @@ function buildAuthContext(
     throw authInvalid({ reason: "sub_ausente_o_invalido" });
   }
 
-  const canonicalTenant = claims.organization_id;
-  const legacyTenant = claims.tenant_id;
-  if (canonicalTenant !== undefined && !isUuid(canonicalTenant)) {
-    throw authInvalid({ reason: "organization_id_invalido" });
-  }
-  if (legacyTenant !== undefined && !isUuid(legacyTenant)) {
-    throw authInvalid({ reason: "tenant_id_invalido" });
-  }
-  if (
-    canonicalTenant !== undefined && legacyTenant !== undefined &&
-    canonicalTenant !== legacyTenant
-  ) {
-    // Token manipulado o perfil inconsistente: se niega (SEC-04).
-    throw authInvalid({ reason: "tenant_inconsistente" });
-  }
-  const organizationId = canonicalTenant ?? legacyTenant;
-  if (!isUuid(organizationId)) {
-    // SEC-04: JWT sin claim de tenant ⇒ 401 AUTH_INVALID.
+  // ADR-005 / F1-01a: `organization_id` es el claim canónico y `tenant_id` su alias de
+  // compatibilidad; la BD resuelve `current_org_id()` con esa precedencia (organization_id >
+  // tenant_id) y NO rechaza el token si ambos difieren. El middleware alinea esa semántica:
+  // se usa el primer valor con formato UUID válido (precedencia + respaldo), y solo se niega
+  // (401 AUTH_INVALID, SEC-04) si no queda ningún tenant utilizable.
+  const organizationId = [claims.organization_id, claims.tenant_id].find(
+    isUuid,
+  );
+  if (organizationId === undefined) {
     throw authInvalid({ reason: "claim_tenant_ausente" });
   }
 
@@ -650,12 +651,14 @@ export const ENDPOINTS: readonly EndpointDefinition[] = [
     ef: "EF-08",
     method: "POST",
     path: "/documents/presign",
-    // El contrato (docs/04 EF-08) aún no incluye `diagnostic_id` en el cuerpo de presign:
-    // solo autenticación + tenant. La membresía se exige en `register`.
+    // `docs/04` §4 exige «miembro del diagnóstico» en presign, pero su cuerpo no incluye
+    // `diagnostic_id` (llega en `register`). Decisión pendiente en **task-39** (ADR con el
+    // revisor + corrección de `docs/04`) antes de F1-05; mientras tanto la política es
+    // autenticado + tenant y la membresía se exige en `EF-08.register`.
     scope: null,
     policy: { kind: "authenticated" },
     tenantRequired: true,
-    docRef: "docs/04 §4 EF-08 (presign); Q-08 F1-01",
+    docRef: "docs/04 §4 EF-08 (presign); M1/Q-08 → task-39",
   },
   {
     id: "EF-08.register",
@@ -835,9 +838,13 @@ export async function guardEndpoint(
   }
   const resourceId = params[scope.param];
   if (resourceId === undefined || resourceId.length === 0) {
+    // Entrada incompleta del CLIENTE (no un fallo de configuración de la EF): 422
+    // `VALIDATION_*`, nunca 500. Los fallos de configuración (dependencias sin inyectar)
+    // se siguen reportando como 500 INTERNAL_ERROR.
     throw new ApiError(
-      "INTERNAL_ERROR",
-      `auth: falta el parámetro ${scope.param} para la guarda del endpoint.`,
+      "VALIDATION_PARAMETRO_REQUERIDO",
+      `Falta el parámetro obligatorio ${scope.param}.`,
+      { param: scope.param },
     );
   }
   if (!isUuid(resourceId)) {

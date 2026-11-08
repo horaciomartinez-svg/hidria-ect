@@ -7,6 +7,10 @@
  * envelope exacto del contrato, sin stack traces ni mensajes internos.
  *
  * Sin dependencias externas: solo APIs estándar de Deno/Web (Response, JSON, HeadersInit).
+ *
+ * Incluye `GATE_R2_FICHA` y `GATE_R3_FICHA`, usados por los contratos EF-04/EF-05 y por
+ * `docs/05` (CAT-03/BHE-04) aunque **no** figuren en la tabla de `docs/04` §8: se catalogan
+ * aquí con HTTP 409 y se documentan como hueco de `docs/04` para la tarea de docs (F1-18).
  */
 
 /** Códigos con HTTP fijo del catálogo §8 (`VALIDATION_*` se resuelve por prefijo: 422). */
@@ -19,8 +23,10 @@ export const HTTP_STATUS_BY_ERROR_CODE = {
   CONFLICT_IVOH_VERSION: 409,
   GATE_CHECKLIST_R1: 409,
   GATE_CAT_R2: 409,
+  GATE_R2_FICHA: 409,
   GATE_IIH_V1: 409,
   GATE_BHE_R3: 409,
+  GATE_R3_FICHA: 409,
   GATE_IVOH_R4: 409,
   GATE_BHE_BRECHA: 409,
   GATE_CUSTODIA: 409,
@@ -45,8 +51,12 @@ export const DEFAULT_ERROR_MESSAGES: Record<CanonicalErrorCode, string> = {
     "La versión del índice IVOH está vigente y es inmutable.",
   GATE_CHECKLIST_R1: "La lista de cotejo no está validada en R1.",
   GATE_CAT_R2: "El CAT no está validado en R2.",
+  GATE_R2_FICHA:
+    "La ficha de bitácora R2 no está cerrada o no registra el plan de resolución de los «No sé».",
   GATE_IIH_V1: "El IIH tiene activos sin verificar en V1.",
   GATE_BHE_R3: "El balance hídrico no está validado en R3.",
+  GATE_R3_FICHA:
+    "La ficha de bitácora R3 no está cerrada o no corresponde al balance.",
   GATE_IVOH_R4: "El IVOH no está validado en R4 (se requieren 6/6 factores).",
   GATE_BHE_BRECHA:
     "Un balance que no cierra no es un dato, es una tarea pendiente.",
