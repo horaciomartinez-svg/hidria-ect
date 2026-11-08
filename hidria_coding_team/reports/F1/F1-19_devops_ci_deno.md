@@ -231,3 +231,21 @@ se mantiene. Sin `secrets.*` (los JWT de prueba son sintéticos).
 - QA: actualizar matriz SEC-04 (unitario ejecutado en CI).
 - Merge: `supervisor-hidria` (squash).
 ```
+
+---
+
+## 8. Cierre post-merge (PR #13)
+
+- **PR #13 mergeado**: `main` = `24ae10d` (`ci(F1-19): job Deno para
+  supabase/functions/_shared (task-44) (#13)`).
+- **Run final del PR:** `42510294738` (`pull_request`, head `cf404ed`, conclusion
+  `success`) — 3/3 jobs verdes: «Guardas de repositorio», «Cliente (lint + typecheck +
+  build)» y **«Edge Functions (Deno)»** (`deno test` → **58 passed**).
+- El check «Edge Functions (Deno)» queda como parte del CI (4.º job tras sumar pgTAP en
+  task-13); no está en `required_status_checks` porque el ruleset está en `count=0`
+  (pendiente de que el usuario lo añada en UI).
+- **task-44 completada.** El bloqueo previo fue **solo de credencial** (el PAT no tenía el
+  scope `workflow` para publicar el YAML); el contenido del job no cambió entre el commit
+  preparado (`960d8d3`) y el mergeado.
+- Evidencia: §2 de este reporte (validación local Deno 2.9.6, 58/58) + run `42510294738` +
+  `reports/F1/F1-19_devops_pgtap_ci.md` (siguiente follow-up de CI).
