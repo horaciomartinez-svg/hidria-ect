@@ -249,6 +249,8 @@ post-merge `42514381567`, **5/5 checks**, E2E job success (`11 passed`) y artefa
 | F1-00 RES-1: `docs/02` intacto, alcance migraciones/tests/reportes, sin secretos; residual UPDATE (incl. folio) → task-59 aceptada | **✓** | `PR-19_qa.md` §5–§6 |
 | F1-00 task-59 (PR #26 `5d84a20`): `diagnostics_update_lock` folio inmutable y gate/estado solo `service_role`/EF; `fase_actual` por gate F2; INSERT RES-1 intacto | **✓ estático + pgTAP** | `reports/qa/PR-26_qa.md` §1–§2 |
 | F1-00 task-59: suite `050` plan **28**, total **133/133** en CI (20 migraciones; run 42515152096/42515136929) | **✓** | `PR-26_qa.md` §2–§3 |
+| F1-00 task-66 (PR #28 `434089f`): contrato `auth.uid() is null` (solo `service_role`/EF; RPC definer autenticado no válido), tests folio `service_role` + 5 gates restantes, sign-off ADR-010, notas docs/01 §5/docs/04 §2.5 | **✓ estático + pgTAP** | `reports/qa/PR-28_qa.md` §1–§2 |
+| F1-00 task-66: suite `050` plan **34**, total **139/139** en CI (sin migraciones nuevas; 20) | **✓** | runs 42516247234 / 42516233947; `PR-28_qa.md` §2–§3 |
 
 **Ninguna fila de la matriz cambia a `verde` con esta evidencia**: es verificación SQL
 equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las suites.
@@ -302,3 +304,9 @@ equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las sui
   en ADR. Condiciones no bloqueantes en **task-66** (contrato RPC/EF vs trigger, tests de
   folio con service_role/gates restantes, sign-off ADR-010) antes de M2/F1-04. Sin verdes de
   reglas R-* (evidencia BD).
+- **F1-00 task-66 (PR #28, head `434089f`): VERDE** — cierre de condiciones de task-59:
+  contrato alineado (`auth.uid() is null` ⇒ solo `service_role`/EF; RPC `security definer`
+  autenticado no es ruta válida), tests de folio con `service_role` y de los 5 gates
+  restantes → 42501, sign-off en ADR-010 y notas `docs/01` §5/`docs/04` §2.5. Suite `050`
+  plan **34**, total **6 suites/139/139**; sin migraciones nuevas (20), `docs/02` intacto.
+  **task-66 cerrada**; sin verdes de reglas R-* (evidencia BD).
