@@ -10,6 +10,7 @@
 - **CI:** **4/4 check runs ✅** sobre `4b057b3` (runs `42433979462` / `42433977733`: Guardas + Cliente, PR + push)
 - **Post-review (PR-4_spec m2/m5):** M-06 añadido a la suite pgTAP `040` y este reporte actualizado en commit de corrección; el HEAD final se consulta en GitHub.
 - **Delta seguridad (VETO task-14):** SEC-PR4-01/02/05/06 corregidos en la migración forward-only `20261108010800_f1_00_security_fix.sql`; detalle en `F1-00_delta_seguridad.md`. Sin editar migraciones aplicadas ni `docs/02`.
+- **Estado final (post-merge):** head mergeado **`4e2341d`** (CI 4/4, runs 42435395966/42435399700); squash **`b4fbc83`**; F1-00 cerrada. Los heads `4b057b3`/`b0bbabe` de arriba son el registro histórico de la revisión inicial.
 - **Modo de aplicación:** MCP Supabase `apply_migration` (tool oficial) + verificación SQL. Las migraciones son **forward-only**; **no** se editó `20261031000000_base_hidria_mdohi.sql` ni `docs/02`.
 
 ## Resultado: VERDE

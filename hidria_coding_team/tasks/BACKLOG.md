@@ -15,7 +15,7 @@
 | F0-03 | `.env`, `.gitignore` y secret scanning | seguridad-privacidad | — | hecha (VERDE) |
 | F0-04 | Esquema, RLS, vistas y seeds en Supabase | arquitecto-bd | F0-02 | hecha (VERDE; hallazgo grants DML → F1-00) |
 | F0-05 | Banco de preguntas (`quiz_questions` / `v_quiz_questions`) | seguridad-privacidad | F0-04 | hecha (VERDE; hallazgo grants → F1-00) |
-| F0-06 | Protección de `main` verificada | supervisor-hidria | F0-01 | **AMARILLO** — NO protegida; token sin Administration; acción del usuario (ADR-004 E1) |
+| F0-06 | Protección de `main` verificada | supervisor-hidria | F0-01 | **hecha (VERDE)** — ruleset `proteccion-main` activo (id 26780941; count=0 final, required checks, non_fast_forward); E1 cerrada |
 | F0-07 | CI mínima en verde | devops-github-cloudflare | F0-08 | hecha (VERDE) |
 | F0-08 | Estructura del monorepo + `.env.example` | lead (creador) | — | hecha (VERDE) |
 | F0-09 | Cloudflare: R2 (`hidria-docs`, `hidria-reports`) y Pages | devops-github-cloudflare | F0-01 | hecha (VERDE; `hidria-staging.pages.dev` HTTP 200) |
@@ -27,8 +27,8 @@
 
 | ID | Tarea | Dueño | Deps | Estado |
 |---|---|---|---|---|
-| F1-00 | Migraciones correctivas + grants DML PostgREST (`M-01…M-08`: idempotencia, auditoría, folio, RPC BHE, Realtime, RPC rol, default perfil, completitud) | arquitecto-bd | F0-12 | pendiente (P0; habilita todo F1) |
-| F1-01 | Auth con custom claims y roles | arquitecto-bd + dev-edge-functions | F1-00 | pendiente |
+| F1-00 | Migraciones correctivas + grants DML PostgREST (`M-01…M-08`: idempotencia, auditoría, folio, RPC BHE, Realtime, RPC rol, default perfil, completitud) | arquitecto-bd | F0-12 | **hecha** — PR #4 squash `b4fbc83` (2026-11-08); 12 migraciones aplicadas, CI 4/4, spec APROBADO, seguridad sin veto, QA AMARILLO con excepción pgTAP (task-13) |
+| F1-01 | Auth con custom claims y roles | arquitecto-bd + dev-edge-functions | F1-00 | pendiente (P0; siguiente) |
 | F1-02 | Shell PWA (router, layout, sesión, tema) | dev-frontend-pwa | F1-01 | pendiente |
 | F1-03 | M1 — Registro de empresas | dev-frontend-pwa | F1-02 | pendiente |
 | F1-04 | M2/M11 — Diagnósticos, gates y Kanban (EF-01) | dev-edge-functions + dev-frontend-pwa | F1-03 | pendiente |
@@ -80,10 +80,24 @@
 
 ## Siguiente tarea
 
-`F1-00 — Migraciones correctivas y grants` (arquitecto-bd; incluye M-05 Realtime, M-06 RPC
-de rol y M-08 completitud), luego `F1-01 — Auth`. Realtime (F1-17) es Fase 1 según ADR-006.
-**F0 cerrada:** PR #2 mergeado con squash (`1da64d0`, 2026-11-07) tras spec APROBADO,
-seguridad sin veto, QA VERDE y CI 4/4 en `ffcbaf6`; evidencia en
-`reports/F0/00-supervisor_estado.md`.
-Bloqueo de usuario vigente: protección de `main` (ADR-004 E1), proyecto Supabase staging
-(E2) y activación del auth hook (E3).
+`F1-01 — Auth con custom claims y roles` (arquitecto-bd + dev-edge-functions), deps F1-00 ya
+cumplida. Después, la ola F1-02…F1-18 según `ADR-003`/`ADR-006` (F1-17 Realtime es Fase 1).
+
+**Estado de cierre F1-00:** PR #4 mergeado con squash (**`b4fbc83`**, 2026-11-08); `main` =
+`b4fbc83`, 12 migraciones, 5 suites pgTAP, CI post-merge 2/2 verde. Aprobaciones: spec
+APROBADO (`reports/reviews/PR-4_spec_delta.md`), seguridad VETO LEVANTADO
+(`reports/security/PR-4_security_delta.md`), QA AMARILLO con excepción pgTAP
+(`reports/qa/PR-4_qa.md`).
+
+**Condiciones de seguimiento abiertas (no bloquean F1-01):**
+- `task-13` — pgTAP en CI con Postgres, **antes de G1**.
+- `task-18` — RES-1 (`diagnostics_write` sin INSERT de diagnóstico) + residuales de vistas/DML,
+  **antes de F1-04/M2**.
+- `task-15` — `privacy_requests`/PII ARCO restringido, antes del buzón ARCO (F2).
+
+**F0 cerrada:** PR #2 (`1da64d0`), #3 (`8008a64`) y #5 (`afffb6c`); E1 resuelta por el usuario
+(ruleset `proteccion-main`, count=0 desde 2026-11-07 19:50). Evidencia:
+`reports/F0/00-supervisor_estado.md`, `reports/F0/F0-06_supervisor_branch_protection.md`,
+`reports/F0/F0-13_verificacion_ruleset_e1.md`.
+Pendientes de usuario: **E2** proyecto Supabase staging, **E3** activación del auth hook,
+**E4** acta de validación de contenido.

@@ -51,17 +51,18 @@
 
 - Se desbloquea PostgREST/EF para Fase 1 sin abrir fuga entre tenants (vistas
   `security_invoker`) ni exponer el banco de preguntas.
-- `docs/01`/`docs/02` deberán actualizarse para reflejar los grants y `security_invoker`
-  (PR de docs posterior); las migraciones aplicadas no se editan. La tarea `F1-18` define el
-  mecanismo: `docs/02` sigue siendo la **base congelada** (byte-idéntica a la migración base,
-  guarda 3) y los objetos de F1-00 se documentan en `docs/01` + una sección adenda de
-  `docs/02` **sin modificar el archivo base** (ver `F1-18`).
+- `docs/01`/`docs/02` deberán actualizarse para reflejar los grants, `security_invoker` y
+  los objetos nuevos (PR de docs posterior); las migraciones aplicadas no se editan. La tarea
+  `F1-18` (M2) decide la estrategia para **no romper la guarda 3**: `docs/02` sigue siendo la
+  **base congelada** byte-idéntica a la migración base y los objetos de F1-00 se documentan en
+  `docs/01` + un **documento complementario** (`docs/02b` o similar), **nunca** editando el
+  archivo base.
 - `F1-00` es prerequisito de `F1-01` y de toda la ola F1.
 
 ## 4. Aprobación
 
 | Rol | Nombre | Estado | Evidencia |
 |---|---|---|---|
-| Supervisor | `supervisor-hidria` | aprobado | merge de PR #2 (`1da64d0`) |
-| Revisor | `revisor-especificaciones` | aprobado | re-revisión exprés `09998ef` |
-| Seguridad | `seguridad-privacidad` | aprobado con condiciones | `PR-2_security.md` §4 y confirmación delta |
+| Supervisor | `supervisor-hidria` | aprobado | merge de PR #2 (`1da64d0`) y PR #4 (`b4fbc83`) |
+| Revisor | `revisor-especificaciones` | aprobado | re-revisión exprés `09998ef`, re-revisión #4 `PR-4_spec_delta.md` y #5 `PR-5_spec.md` |
+| Seguridad | `seguridad-privacidad` | aprobado (veto levantado) | `PR-2_security.md` §4, `PR-4_security_delta.md` (head `4e2341d`) |

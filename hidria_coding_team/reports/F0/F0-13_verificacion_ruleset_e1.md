@@ -61,3 +61,8 @@ de administración: `PUT /rulesets/26780941` → **403**); lo aplica el usuario 
 
 Hasta que se aplique, PR #5 y PR #4 siguen `blocked`. Después: CI obligatorio + cuórum del
 equipo + squash del supervisor.
+
+**Aplicado y verificado el 2026-11-07 19:51:** `required_approving_review_count = 0`,
+`enforcement: active`, `protected:true`, required checks y `non_fast_forward` intactos. PR #5
+pasó a `mergeable_state: "clean"`. El control humano queda por auditoría de reportes y
+comentarios de revisión.
