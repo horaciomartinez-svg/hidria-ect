@@ -5,8 +5,9 @@
 - **Tarea:** `hidria_coding_team/tasks/F1/F1-00_migraciones_correctivas.md`
 - **Rama:** `feature/F1-00-migraciones` (desde `main` `8008a64`)
 - **Entorno:** proyecto `zucalshlfcxejpukshxl` usado como dev/staging con **datos sintéticos** (ADR-004 E2)
-- **Commit:** `b0bbabe` (commit de implementación; el SHA final del PR se muestra en GitHub)
+- **Commit:** `b0bbabe` (implementación); HEAD del PR `72551fa` (ver GitHub)
 - **PR:** [#4](https://github.com/horaciomartinez-svg/hidria-ect/pull/4) (`feature/F1-00-migraciones` → `main`)
+- **CI:** `Guardas de repositorio` ✅ y `Cliente (lint + typecheck + build)` ✅ sobre `72551fa`
 - **Modo de aplicación:** MCP Supabase `apply_migration` (tool oficial) + verificación SQL. Las migraciones son **forward-only**; **no** se editó `20261031000000_base_hidria_mdohi.sql` ni `docs/02`.
 
 ## Resultado: VERDE
