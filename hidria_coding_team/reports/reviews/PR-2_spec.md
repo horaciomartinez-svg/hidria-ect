@@ -264,3 +264,119 @@ Mientras existan B1–B3 **no procede squash merge ni cierre de G0**. Si el Lead
 ---
 
 *Fin de la revisión. No se ejecutaron cambios en el PR, no se aprobó formalmente y no se modificó código.*
+
+---
+
+# Re-revisión (f01e303)
+
+- **Revisor:** `revisor-especificaciones` (agente 06)
+- **Fecha:** 2026-11-07 18:26 (America/Mexico_City)
+- **Commit revisado:** `f01e303edf1daf743bcac4c7308f2b0117da18b0` (head) · **Base:** `main` `f6b99ce10d8f71e9b0f08e70debeea6e5f630a87`
+- **Delta desde la revisión anterior:** 43 archivos, **+4738/−105** sobre `90c77ab`; total del PR: 92 archivos, +11912/−19, 3 commits.
+- **CI en `f01e303`:** 4/4 *check runs* en `success` (runs `42429533362` y `42429528870`, disparos `pull_request` + `push`); `mergeable_state: clean` (MCP GitHub).
+- **Alcance de esta re-revisión:** solo B1–B3, ADR-003/004/005, alineación TEAM/agentes/backlog y regresión de contrato con `docs/04`/`docs/05`/`docs/07`. No se re-revisa el resto del diff salvo regresión.
+- **Veredicto de esta re-revisión:** **CAMBIOS SOLICITADOS.** B1/B2/B3 quedan **cerrados**; hay **1 BLOQUEANTE residual (B4)** y 4 MAYORES (M1–M4). No mergeable hasta corregir B4 y cumplir la condición de cuórum M3.
+- La revisión anterior (§1–§5 de este documento) se conserva como registro histórico; **el veredicto vigente es el de esta sección**.
+
+## R1. B1–B3: cerrados
+
+| Hallazgo previo | Corrección aplicada | Verificación del revisor |
+|---|---|---|
+| **B1 — G1 inalcanzable** | `ADR-003` incorpora los prerrequisitos de matriz 10/10: `F1-13` (custodia 3 transferencias), `F1-14` (laboratorio con dictamen manual), `F1-15` (alternativas validadas R4); `F1-12` depende de `F1-10, F1-11, F1-13, F1-14, F1-15` | `ADR-003:28-40,72-74`; `BACKLOG.md:42-48`; `F1-12:9`; `F1-13/14/15` cubren `p4_custodia`, `p6_lab` y `p9_alternativas` de `docs/02:725-746`. **E2E-07 es alcanzable** en Fase 1. ✅ |
+| **B2 — Re-fase sin ADR / tres planes** | `ADR-003` fija el plan operativo y se alinean `TEAM.md` §13, `agents/03`, `agents/04`, `BACKLOG.md` y `tasks/F1/*`: EF-11/M12 solo en G2/F2; EF-12 en F2; EF-05/06/09 en F1; EF-11/M12 ya no se duplican | `TEAM.md:291-294` (G1 sin EF-11; G2 con EF-11+M12); `agents/03:34-46`; `agents/04:40-47`; `BACKLOG.md:29-62`. Una sola versión del plan. ✅ |
+| **B3 — Idempotencia obligatoria vs contrato** | `agents/03:50-56` y `supabase/functions/README.md:19` pasan a **opcional** según `docs/04` §2.3; obligatorio solo para la cola offline | Coincide con `docs/04:74-77` (§2.3) y `docs/04:428` (§6, regla 4: gates no offline). ✅ |
+
+## R2. Hallazgo residual BLOQUEANTE
+
+### B4 — Realtime: Fase 1 exige eventos, pero el plan lo difiere a F2 y falta el prerrequisito `M-05`
+
+| Campo | Contenido |
+|---|---|
+| **Severidad** | **BLOQUEANTE** (contradice `docs/07` §3 Fase 1 y el propio criterio G1 de ADR-003) |
+| **Archivos:línea** | `docs/07:65` (Fase 1.3 Realtime) · `BACKLOG.md:61` (F2-06 Realtime) · `F1-04:24,31` · `F1-06:24` · `F1-07:25` · `F1-09:33` · `F1-11:25` · `docs/05:251` (E2E-01) · `ADR-003:39` (G1 incluye E2E-01) · `F1-00:23-31` |
+| **Qué se espera** | `docs/07` §3 Fase 1.3: «Realtime: canales `diagnostic:{id}`, `org:{id}`, `user:{id}` — RT-01/02 en verde». G1 exige E2E-01 verde y su criterio en `docs/05` incluye «evento Realtime». La publicación `supabase_realtime` y las políticas de topics (M-05) deben existir en F1. |
+| **Qué hay** | El backlog mueve Realtime a **`F2-06` (Fase 2)**, pero `F1-04` mantiene como entregable «Evento Realtime `phase_changed`» y criterio «Realtime recibido»; `F1-06` (`checklist_updated`), `F1-07` (`cat_validated`), `F1-09` (`bhe_validated`) y `F1-11` (`logbook_closed`) exigen sus eventos. `F1-00` no incluye `M-05`. |
+| **Evidencia MCP (solo lectura)** | `pg_publication` contiene `supabase_realtime` con **0 tablas publicadas** (`pg_publication_tables` vacío) y **0 políticas** en el esquema `realtime`. Sin `M-05`, los eventos del §7 no se entregan con seguridad (RT-02 exige rechazo por RLS). |
+| **Corrección esperada (una de)** | (a) pasar `F2-06` a F1 (p. ej. dependiente de `F1-04`) y añadir `M-05` a `F1-00`; o (b) ADR-006 que difiera formalmente Realtime a F2 y ajuste en consecuencia `docs/07` §3 1.3, el criterio G1/E2E-01 y los entregables de F1-04/F1-06/F1-07/F1-09/F1-11. La opción (a) es la que preserva `docs/07` y el alcance declarado. |
+
+## R3. Hallazgos MAYORES residuales
+
+### M1 — `M-05`, `M-06` y `M-08` (P0 del informe F1-01) sin tarea que los asigne
+
+- **Evidencia:** `reports/F1/F1-01_dev-edge-functions_contrato.md:22` («AMARILLO → ROJO si no se migran 8 objetos P0»), `:614-617` (checklist `M-05` publicación Realtime + políticas, `M-06` RPC de rol/membresía para `service_role`, `M-08` `fn_completeness` + alineación TD-4), `:736` (recomendación: `M-05/M-06/M-08` «en la siguiente»).
+- **Qué hay:** `F1-00:23-31` cubre `M-01…M-04`, `M-07`, grants, `security_invoker`, semilla, hook y H-5, pero **no** `M-05`, `M-06` ni `M-08`; el `BACKLOG` no crea una tarea posterior para ellos (`BACKLOG.md:30-46`).
+- **Impacto:** `M-05` es el prerrequisito de B4; `M-06` es necesario para resolver rol por diagnóstico en todas las EF (`F1-01` informe, `:259-266`); `M-08` sostiene EF-07/TD-4 (`Q-03`). Sin tarea, F1-04/F1-01/F1-12 pueden quedar bloqueadas en ejecución.
+- **Corrección esperada:** añadir `M-05`, `M-06` y `M-08` al alcance de `F1-00` (o crear `F1-17` con dueño `arquitecto-bd`, deps y criterios) antes de iniciar la ola F1.
+
+### M2 — El informe F1-01 contradice las correcciones B3/m11 y deja `Q-01/Q-02/Q-03` sin resolver
+
+- **Evidencia:** `reports/F1/F1-01_…contrato.md:343` recomienda `Q-01`: «obligatorio en las operaciones mutantes de negocio… actualizar `docs/04` §2.3»; `:687-688` propone «Obligatorio…» y «Adoptar 120/min (docs/05 es gate de release)»; `:689` `Q-03` (tres definiciones de la matriz 10/10) y `:618` exige ADR Q-01/Q-02/Q-03 aceptados.
+- **Contradicción:** `agents/03:50-53` y `supabase/functions/README.md:19` ya corrigen a **opcional** (B3) y `agents/03:73` fija **100 req/min** (m11), coherentes con la precedencia `docs/04` > `docs/05` (`TEAM.md:65-67`). El PR contiene ahora dos recomendaciones incompatibles para el mismo contrato.
+- **Resolución del revisor (para que el Lead la registre):**
+  - `Q-01`: **opcional** en el contrato (`docs/04` §2.3), obligatorio solo en la cola offline; el informe F1-01 debe anotarse como resuelto, no proponer lo contrario.
+  - `Q-02`: **100 req/min** por precedencia de `docs/04` §8; corregir `docs/05` API-04 (120) en la tarea de docs (m5). El informe F1-01 debe reflejarlo.
+  - `Q-03`: prevalecen `docs/02` (`v_diagnostic_completeness`) + seed + arquitectura (7/10 coinciden); `docs/04` TD-4 se corrige en la tarea de docs y `M-08` (`reporte_emitible`) se añade a `F1-00` (M1). Es consistente con `ADR-003:35-38`, que ya usa `p4/p6/p9` de la vista.
+- **Corrección esperada:** nota de resolución en el informe F1-01 (o ADR-006) para que no queden dos verdades en el mismo PR.
+
+### M3 — Aprobaciones de seguridad y QA son del head `90c77ab`, no de `f01e303` (condición de cuórum)
+
+- **Evidencia:** `reports/security/PR-2_security.md:6,174` («Head revisado: `90c77ab…`», firma para ese head); `reports/qa/PR-2_qa.md:6,182` («en el commit `90c77ab`»); el propio supervisor fijó como condición «si hay commit nuevo → CI re-ejecutada verde y revisiones sobre el nuevo SHA» (`reports/F0/00-supervisor_estado.md:62-63`). El head actual es `f01e303` (43 archivos nuevos).
+- **Impacto:** el cuórum de `TEAM.md` §6/§7 (spec + seguridad + QA) no está formalmente completo para el SHA a mergear. La delta es documental/configuración (ADR, reportes, `ci.yml`, `docs/07`, `qa/trazabilidad.md`), sin código de producto, pero incluye un cambio de CI y de reglas de plan.
+- **Corrección esperada:** que `seguridad-privacidad` y `qa-tester` confirmen el delta en `f01e303` (basta una nota de re-revisión en sus reportes o un comentario en el PR) antes del squash; no requiere repetir toda la revisión.
+
+### M4 — `reports/F0/00-supervisor_estado.md` está desactualizado y no registra E1–E4/ADR-004
+
+- **Evidencia:** el reporte comiteado en `f01e303` mantiene `Commit: 90c77ab…` (`:8`), «Resultado: AMARILLO (G0 NO cerrado)» (`:10`), «solo existe evidencia de F0-06… los reportes F0-01…F0-05 y F0-07…F0-11 están siendo producidos» (`:13-16`) —cuando en el mismo commit ya están todos—, y no menciona ADR-004 ni E1–E4. `ADR-004:49-50` afirma que ese reporte «registra E1–E4»; `TEAM.md:300` dice que F0 ya está «cerrada con excepciones» antes del merge.
+- **Corrección esperada:** el supervisor actualiza `00-supervisor_estado.md` a `f01e303` al cerrar G0 (checklist con E1–E4, estado AMARILLO-OPERATIVO y acción del usuario) y ajusta la redacción de `TEAM.md` §14 a «F0 cerrada tras el merge»; dejar constancia de que ADR-004 lo exige.
+
+## R4. MENORES residuales (no bloquean por sí solos)
+
+| # | Archivo:línea | Hallazgo |
+|---|---|---|
+| m5 | `ADR-003:66-71`; `ADR-005:49-50`; `BACKLOG.md` (sin tarea) | Ambos ADR difieren la actualización de `docs/07` §3 y `docs/01/02` a un «PR de docs posterior» sin crear la tarea. El agente 06 §5 pide actualizar `docs/` en el mismo PR o en uno de docs previo: añadir una tarea de docs (p. ej. `F1-17`) o una nota en `docs/07` que remita a ADR-003/005 antes de G1. |
+| m6 | `docs/07:100`; `.github/workflows/ci.yml:16-44` | La edición de `docs/07` afirma que «la aplicación limpia desde cero se valida además en CI con pgTAP (docs/05 §7)». La CI actual solo tiene `guardas` y `cliente` (sin job pgTAP): la frase es falsa en presente; marcarla como «se validará en CI (F1)» o añadir el job en F1-16. |
+| m7 | `ADR-005:42`; `BACKLOG.md:33` | Dice «cerrar H-5 en las migraciones de `F1-00`/`F1-02`»; `F1-02` es Shell PWA (no migraciones). Debe ser `F1-00`/`F1-01` (o solo `F1-00`). |
+| m8 | `reports/F0/F0-07_devops_ci.md:97-105` vs `F1-00:23-31`/`F1-01` informe `:610-617` | Colisión de identificadores: `M-01…M-09` son mejoras de CI en el reporte de DevOps y `M-01…M-08` son migraciones correctivas de BD en F1-00/F1-01/ADR-005. Renombrar uno de los dos juegos (`CI-M-xx`) para evitar asignaciones erróneas. |
+| m9 | `hidria_coding_team/.env.example:16` | Sigue documentando el ref real `zucalshlfcxejpukshxl` pese a la cabecera «SIN VALORES REALES»; ADR-004 E2 solo cambió la etiqueta a «dev/staging sintético». No es un secreto (URL pública), pero el inventario debe ir por entorno o sin valor; la guarda #4 no escanea este archivo anidado (ya previsto en F0-07 `M-06`). |
+| m10 | `ADR-004:51-52`; `BACKLOG.md` | Afirma «Se crean tareas de seguimiento: protección de `main`, proyecto staging, activación del hook, acta 0.6», pero no existe ninguna tarea de seguimiento en el backlog. Crearlas o registrarlas como «pendientes de usuario» en el reporte del supervisor. |
+| m11 | `TEAM.md:304` vs `BACKLOG.md:82` | TEAM.md dice que la siguiente tarea asignada es `F1-01`; el backlog y el reporte de creación dicen `F1-00` primero (`F1-01` depende de `F1-00`). Alinear la redacción. |
+| m12 | `F1-13:9`, `F1-14:9`, `F1-15:9` (y demás `app/**`) | Los write scopes `app/**` se solapan entre tareas F1 que pueden ejecutarse en paralelo (`F1-08`, `F1-11`, `F1-13/14/15` con dep `F1-04`). Es advisory, pero contradice el criterio de scopes disjuntos de `agents/01` §6; usar rutas por módulo (`app/src/routes/m7/**`, etc.). |
+| m13 | Cuerpo del PR en GitHub | Sigue describiendo «65 archivos, +7279/−19», «22 reglas» y «ADR-000…002»; el head real tiene 92 archivos, 32 reglas y ADR-000…005. Actualizar la descripción del PR para que la evidencia del merge sea coherente. |
+
+## R5. Aprobación de ADR (para las tablas del Lead)
+
+| ADR | Dictamen del revisor | Condiciones / observaciones |
+|---|---|---|
+| **ADR-002** — estructura del monorepo | **APROBADO** | Ya no atribuye aprobación previa y corrige `seed.sql`/ruta real (`ADR-002:3-4,22-28`). El Lead puede pasarlo a `aceptada` citando este informe y el cierre de G0. |
+| **ADR-003** — plan de fases operativo | **APROBADO CON CONDICIONES** | B1/B2 quedan resueltos con este plan (`ADR-003:28-40`). Condiciones: (1) resolver B4 (Realtime a F1 o ADR-006 explícito); (2) añadir la tarea de actualización de `docs/07` §3 (m5); (3) asignar `M-05/M-06/M-08` (M1). |
+| **ADR-004** — excepciones de Fase 0 | **APROBADO CON OBSERVACIONES** | El modelo G0 AMARILLO-OPERATIVO con E1–E4 y datos sintéticos es correcto (`ADR-004:26-44`) y no declara VERDE pleno. Observaciones: actualizar el reporte del supervisor (M4), registrar las acciones del usuario como tareas/pendientes (m10) y mantener la prohibición de datos reales hasta separar staging↔piloto. |
+| **ADR-005** — claims, grants y correcciones | **APROBADO CON CONDICIONES** | Los hechos H-1…H-7 están **verificados en la base** (ver R7). Condiciones: (1) `M-05/M-06/M-08` en `F1-00` o tarea nueva (M1); (2) corregir «`F1-02`»→«`F1-01`» (m7); (3) tarea de actualización de `docs/01/02` (m5); (4) visto bueno de `seguridad-privacidad` (es su tabla de aprobación) y revisión de que los grants a `anon` se limiten a objetos realmente públicos. |
+
+## R6. Condiciones para el merge y siguiente paso
+
+1. **B4 (bloqueante):** mover `F2-06` (Realtime) a F1 y añadir `M-05` a `F1-00`, o abrir ADR-006 que difiera Realtime y ajuste `docs/07` §3 1.3, G1/E2E-01 y los entregables de F1-04/F1-06/F1-07/F1-09/F1-11.
+2. **M1:** asignar `M-05/M-06/M-08` a `F1-00` (o `F1-17`).
+3. **M2:** anotar en el informe F1-01 la resolución de `Q-01/Q-02/Q-03` (opcional/100/vista-seed) para eliminar la doble recomendación.
+4. **M3 (cuórum):** confirmación de `seguridad-privacidad` y `qa-tester` sobre `f01e303` (delta documental/config, sin código de producto).
+5. **M4:** supervisor actualiza `00-supervisor_estado.md` y registra E1–E4 al cerrar G0, tras el merge.
+6. Menores m5–m13 pueden resolverse en el mismo commit de corrección o como tareas de seguimiento; ninguno bloquea por sí solo.
+
+Con B4 corregido y las condiciones 2–4 cumplidas, esta re-revisión puede pasar a **APROBADO** sin repetir el análisis completo (solo verificación de B4 + regresión).
+
+## R7. Evidencia MCP de ADR-005 (positiva, solo lectura)
+
+| Claim de ADR-005 | Verificación |
+|---|---|
+| H-1: sin grants DML para `authenticated`/`service_role` | Confirmado: `authenticated` solo tiene `REFERENCES/SELECT/TRIGGER/TRUNCATE` y un único `SELECT` sobre `v_quiz_questions`; `service_role` tiene **0** privilegios DML. 44 tablas sin DML. |
+| H-2: 5 vistas analíticas sin `security_invoker` | Confirmado: `reloptions` es `NULL` en las 6 vistas (`v_balance_indicators`, `v_bhe_monthly`, `v_bhe_summary`, `v_diagnostic_completeness`, `v_ivoh_score`, `v_quiz_questions`). |
+| H-3: semilla de `organizations` con nombre prohibido | Confirmado: `organizations.name = 'Secretaría de Recursos Hidráulicos y Desarrollo Sustentable — Programa EHR'` (nombre antiguo prohibido). |
+| H-4: `profiles.global_role default 'user'` fuera del CHECK | Confirmado: default `'user'::text`; CHECK solo admite `admin_institucional/coordinador_srhds/equipo/empresa/observador/invitado`. |
+| H-5: brechas de enforcement | Confirmado: `check_phase_gate` F6 exige **1** evaluación `validado_r4` (debe ser 6/6); `trg_custody_gate` cuenta transferencias sin exigir firma no nula; no hay índice único parcial de `ivoh_index_versions.vigente`; `trg_audit_hash` lee el último `id` sin `pg_advisory_xact_lock`. |
+| H-6: `tenant_id` vs `organization_id` | Confirmado: `is_tenant_member` usa `auth.jwt() ->> 'tenant_id'`, frente a `docs/04` §2.1/`docs/00`/`docs/07` que usan `organization_id`. |
+| B4: Realtime sin infraestructura | Confirmado: publicación `supabase_realtime` con 0 tablas y 0 políticas en `realtime`. |
+
+**Sin secretos:** el delta `90c77ab..f01e303` no contiene patrones de JWT/tokens/claves privadas (barrido con los mismos patrones de `scripts/ci/guardas.sh`); los únicos valores largos son hashes SHA-256 de verificación.
+
+---
+
+*Fin de la re-revisión. No se ejecutaron comandos Git de escritura, no se mergeó y no se modificó ningún archivo del PR; el único archivo escrito es este reporte.*

@@ -39,7 +39,7 @@
    editar la migración aplicada).
 6. **`profiles.global_role`:** default corregido a un valor válido (`observador`) o sin
    default + provisión explícita en el trigger de alta.
-7. **Enforcement:** cerrar H-5 en las migraciones de `F1-00`/F1-02 con pruebas pgTAP.
+7. **Enforcement:** cerrar H-5 en las migraciones de `F1-00` con pruebas pgTAP.
 8. Todo se implementa en **`F1-00`** (migraciones correctivas) y se valida en `F1-01`.
 
 ## 3. Consecuencias

@@ -1,9 +1,9 @@
 # ADR-002 — Estructura del monorepo (Fase 0)
 
-- **Estado:** propuesta (aprobación pendiente de la re-revisión del PR #2)
+- **Estado:** aceptada (aprobada por `revisor-especificaciones` en la re-revisión `f01e303` de `reports/reviews/PR-2_spec.md`)
 - **Fecha:** 2026-11-08
 - **Autor:** Lead (creación del equipo)
-- **Aprobado por:** pendiente (`supervisor-hidria` + `revisor-especificaciones`)
+- **Aprobado por:** `revisor-especificaciones` (re-revisión `f01e303`); pendiente de registro del supervisor
 - **Documentos afectados:** `docs/07` §0.3
 
 ## Contexto

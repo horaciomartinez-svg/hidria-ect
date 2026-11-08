@@ -46,10 +46,11 @@ credenciales adicionales, y (d) depende de la Coordinación (humano).
 ## Consecuencias
 
 - El equipo avanza a Fase 1 con datos sintéticos y controles compensatorios.
-- El reporte de creación y `reports/F0/00-supervisor_estado.md` registran E1–E4 y la acción
-  requerida del usuario.
-- Se crean tareas de seguimiento: protección de `main` (usuario/DevOps), proyecto staging
-  (usuario), activación del hook (usuario/Arquitecto), acta 0.6 (Coordinación).
+- El reporte de creación (`reports/F0/00-LEAD-creacion-equipo.md`) registra E1–E4 y la
+  acción requerida del usuario; `reports/F0/00-supervisor_estado.md` se actualizará al
+  cierre de G0 (PR de seguimiento tras el merge).
+- Las acciones de usuario quedan como pendientes abiertos en el reporte de creación y en la
+  tarea `F0-12`; no se crean tareas nuevas de producto para ellas.
 
 ## Aprobación
 

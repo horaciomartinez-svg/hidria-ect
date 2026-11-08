@@ -11,6 +11,11 @@
 > **Nota de nomenclatura:** el ID `F1-01` de este archivo es el primer entregable del **agente 03** en Fase 1
 > (readiness de Edge Functions), no la tarea de backlog `tasks/F1/F1-01_auth_claims.md`. Este reporte es
 > insumo directo de esa tarea (auth/claims) y de `F1-04…F1-12`.
+>
+> **Resolución de inconsistencias (ADR-006, 2026-11-08):** Q-01 **Idempotency-Key opcional**
+> (docs/04 §2.3; obligatorio solo en la cola offline), Q-02 **100 req/min** (docs/04 §8),
+> Q-03 prevalece la definición de `docs/02` (`v_diagnostic_completeness`, 10 requisitos).
+> Ver `decisions/ADR-006-realtime-y-consistencias.md`; no hay dos verdades en este PR.
 
 ---
 

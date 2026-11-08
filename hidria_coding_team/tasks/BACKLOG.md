@@ -27,7 +27,7 @@
 
 | ID | Tarea | Dueño | Deps | Estado |
 |---|---|---|---|---|
-| F1-00 | Migraciones correctivas + grants DML PostgREST (`M-01…M-04`, `M-07`) | arquitecto-bd | F0-12 | pendiente (P0; habilita todo F1) |
+| F1-00 | Migraciones correctivas + grants DML PostgREST (`M-01…M-08`: idempotencia, auditoría, folio, RPC BHE, Realtime, RPC rol, default perfil, completitud) | arquitecto-bd | F0-12 | pendiente (P0; habilita todo F1) |
 | F1-01 | Auth con custom claims y roles | arquitecto-bd + dev-edge-functions | F1-00 | pendiente |
 | F1-02 | Shell PWA (router, layout, sesión, tema) | dev-frontend-pwa | F1-01 | pendiente |
 | F1-03 | M1 — Registro de empresas | dev-frontend-pwa | F1-02 | pendiente |
@@ -44,6 +44,8 @@
 | F1-14 | M7 mínimo — resultados de laboratorio con dictamen manual | dev-frontend-pwa | F1-13 | pendiente |
 | F1-15 | M9 mínimo — cartera de alternativas validada en R4 | dev-frontend-pwa | F1-04 | pendiente |
 | F1-16 | Deploy a staging (Pages + Supabase + R2) y verificación | devops-github-cloudflare + qa-tester | F1-12 | pendiente |
+| F1-17 | Realtime — canales `diagnostic:{id}`, `org:{id}`, `user:{id}` (RT-01/02) | dev-frontend-pwa + arquitecto-bd | F1-04 | pendiente |
+| F1-18 | Sincronización documental (docs/07 §3, docs/01/02/04/05) | revisor-especificaciones + arquitecto-bd | F1-00 | pendiente |
 
 > **Nota ADR-003:** F1-13/F1-14/F1-15 son los **prerrequisitos mínimos** de la matriz
 > 10/10 (`p4_custodia`, `p6_lab`, `p9_alternativas`) para que EF-07/E2E-07 sean alcanzables
@@ -58,7 +60,6 @@
 | F2-03 | EF-11 + M12 — Aula MD-OHI, examen server-side e insignia OB3 | dev-edge-functions + dev-frontend-pwa | F2 |
 | F2-04 | EF-12 — reprogramación de hitos y semáforo de atraso | dev-edge-functions + dev-frontend-pwa | F2 |
 | F2-05 | M9 completo — reportes y Plan de Acción (Gantt) | dev-edge-functions + dev-frontend-pwa | F2 |
-| F2-06 | Realtime (canales `diagnostic:{id}`, `org:{id}`, `user:{id}`) | dev-frontend-pwa + arquitecto-bd | F2 |
 
 ## Fase 3 — Piloto (G3)
 
@@ -79,6 +80,7 @@
 
 ## Siguiente tarea
 
-`F1-00 — Migraciones correctivas y grants` (arquitecto-bd), luego `F1-01 — Auth`.
+`F1-00 — Migraciones correctivas y grants` (arquitecto-bd; incluye M-05 Realtime, M-06 RPC
+de rol y M-08 completitud), luego `F1-01 — Auth`. Realtime (F1-17) es Fase 1 según ADR-006.
 Bloqueo de usuario vigente: protección de `main` (ADR-004 E1), proyecto Supabase staging
 (E2) y activación del auth hook (E3).

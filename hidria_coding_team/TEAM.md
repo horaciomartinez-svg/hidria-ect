@@ -301,9 +301,9 @@ Un entregable está **Hecho** cuando:
   `F1 — MVP núcleo` según `ADR-003`.
 - **Tablero:** ver `tasks/BACKLOG.md`.
 - **Última actualización:** 2026-11-08 — creación del equipo, Fase 0 ejecutada y ADR-003/004.
-- **Siguiente tarea asignada:** `F1-01 — Auth con custom claims y roles` (dueño:
-  Arquitecto BD + Dev Edge Functions), precedida por las migraciones correctivas
-  `M-01/M-02/M-03/M-04/M-07` y los grants DML de PostgREST.
+- **Siguiente tarea asignada:** `F1-00 — Migraciones correctivas y grants` (dueño:
+  Arquitecto BD), seguida de `F1-01 — Auth con custom claims y roles` (Arquitecto BD +
+  Dev Edge Functions).
 
 ---
 
