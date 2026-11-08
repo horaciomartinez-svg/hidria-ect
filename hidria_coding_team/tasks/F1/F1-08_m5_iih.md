@@ -1,7 +1,7 @@
 ---
 id: F1-08
 fase: F1
-titulo: M5 — IIH y EF-09 (importador XLSX)
+titulo: M5 — IIH y EF-09 (importador XLSX, kind='iih')
 owner: dev-edge-functions + dev-frontend-pwa
 estado: pendiente
 prioridad: P1
@@ -20,9 +20,10 @@ manual e importación XLSX validada (EF-09), auditoría de mapeo y verificación
 ## Entregables
 
 - UI IIH (alta/edición/verificación) con folios de evidencia.
-- EF-09 para IIH (mapeo, errores canónicos, nunca valida el gate).
+- EF-09 para IIH (`kind='iih'`; el `kind='bhe'` se implementa en F1-09), mapeo, errores
+  canónicos, nunca valida el gate.
 - Importador con vista previa y reporte de filas rechazadas.
-- Pruebas XLS-* y unitarias de parser.
+- Pruebas XLS-01 (plantilla IIH) y unitarias de parser.
 
 ## Criterios de aceptación
 

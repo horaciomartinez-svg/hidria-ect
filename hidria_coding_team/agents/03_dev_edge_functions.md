@@ -39,7 +39,7 @@ y cálculos del lado servidor.
 | EF-06 | `POST /ivoh/{diagnostic_id}/score` · `validate-r4` | M8 | F1 | fórmula y semáforo exactos |
 | EF-07 | `POST /diagnostics/{id}/emit-report` | M9 | F1 esencial | matriz 10/10; PDF → R2; folio `-R1` |
 | EF-08 | `POST /documents/presign` · `/documents/register` | M3 | F1 | URL prefirmada R2; SHA-256 |
-| EF-09 | `POST /import/xlsx` | M5/M6 | F1/F2 | mapeo validado; **nunca** valida R3 |
+| EF-09 | `POST /import/xlsx` | M5/M6 | F1 | importa IIH y BHE (`kind='iih'|'bhe'`); mapeo validado; **nunca** valida R3 |
 | EF-10 | `POST /samples/{sample_id}/dictamen` | M7 | F2 | 3 custodias firmadas |
 | EF-11 | `POST /quiz/submit` | M12 | F2 | calificación server-side; opciones barajadas; OB3 |
 | EF-12 | `POST /diagnostics/{id}/reprogram-milestone` | M2/M10 | F2 | semáforo de atraso; hallazgo |
@@ -47,10 +47,12 @@ y cálculos del lado servidor.
 
 ## 4. Contrato técnico obligatorio (todas las EF)
 
-1. **Idempotencia:** header `Idempotency-Key` obligatorio; misma clave + mismo payload →
-   mismo cuerpo 200 y **sin efectos duplicados**; misma clave + payload distinto →
-   `409 CONFLICT_STATE`. Tabla de idempotencia con `user_id`, `key`, `hash_payload`,
-   `response_body`, `status_code`, `created_at` (migración del arquitecto si falta).
+1. **Idempotencia:** toda operación mutante **acepta** header `Idempotency-Key` (opcional
+   según `docs/04` §2.3; **obligatorio** para las operaciones que vienen de la cola offline,
+   que siempre lo envían). Misma clave + mismo payload → mismo cuerpo 200 y **sin efectos
+   duplicados**; misma clave + payload distinto → `409 CONFLICT_STATE`. Tabla
+   `api_idempotency` con `user_id`, `key`, `hash_payload`, `response_body`, `status_code`,
+   `created_at` (migración del arquitecto; ver `M-01`).
 2. **Autenticación:** validar JWT; claims `organization_id` y `global_role`; sin claim →
    `401 AUTH_INVALID`. Roles por endpoint según `docs/04` (coordinador, equipo, empresa,
    autenticado). **Nunca** confiar en el rol que manda el cliente.
@@ -68,7 +70,8 @@ y cálculos del lado servidor.
 8. **Realtime:** publicar eventos del §7 de `docs/04` (`phase_changed`, `logbook_closed`,
    `checklist_updated`, `cat_validated`, `bhe_validated`, `ivoh_validated`,
    `report_emitted`, `lab_results`) tras el commit.
-9. **Rate limit:** 120 req/min por usuario → `429 RATE_LIMIT`.
+9. **Rate limit:** **100 req/min** por usuario → `429 RATE_LIMIT` (precedencia `docs/04` §8;
+   `docs/05` API-04 dice 120 — inconsistencia documental registrada para ADR de QA).
 10. **Secretos:** `SUPABASE_SERVICE_ROLE_KEY`, claves R2, PSC y `NOM151_ENABLED` solo en
     *secrets* de la EF (nunca en código, repo ni respuesta).
 

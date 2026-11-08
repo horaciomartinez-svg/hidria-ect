@@ -6,7 +6,7 @@ owner: seguridad-privacidad
 estado: pendiente
 prioridad: P0
 deps: []
-write_scope: ["reports/F0/F0-03_*", "scripts/ci/guardas.sh"]
+write_scope: ["reports/F0/F0-03_*"]
 evidencia: ["reports/F0/F0-03_seguridad_secretos.md"]
 ---
 

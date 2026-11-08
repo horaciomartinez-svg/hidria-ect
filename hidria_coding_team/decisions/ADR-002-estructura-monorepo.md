@@ -1,9 +1,9 @@
 # ADR-002 — Estructura del monorepo (Fase 0)
 
-- **Estado:** aceptada
+- **Estado:** propuesta (aprobación pendiente de la re-revisión del PR #2)
 - **Fecha:** 2026-11-08
 - **Autor:** Lead (creación del equipo)
-- **Aprobado por:** supervisor-hidria (gate G0) y revisor-especificaciones
+- **Aprobado por:** pendiente (`supervisor-hidria` + `revisor-especificaciones`)
 - **Documentos afectados:** `docs/07` §0.3
 
 ## Contexto
@@ -18,18 +18,20 @@
 ├── docs/                      # fuente única de verdad (paquete v1.0)
 ├── app/                       # cliente React 18 + TS + Vite + Tailwind (PWA)
 ├── supabase/
-│   ├── migrations/            # migraciones aplicadas (forward-only)
+│   ├── migrations/            # migraciones aplicadas (forward-only), incluida la semilla
 │   ├── functions/             # Edge Functions EF-01…EF-13
-│   ├── tests/                 # pgTAP
-│   └── seed.sql               # (a crear en F1) contenido de docs/03
+│   └── tests/                 # pgTAP
 ├── tests/                     # unitarias/E2E del cliente (QA)
 ├── qa/                        # matriz de trazabilidad
-├── scripts/
-│   ├── ci/                    # guardas de CI
-│   └── phase0_verify.ps1      # verificación local de Fase 0
-├── hidria_coding_team/        # gobierno y backlog del equipo autónomo
+├── scripts/ci/                # guardas de CI
+├── hidria_coding_team/        # gobierno, backlog y evidencia del equipo autónomo
+│   └── scripts/phase0_verify.ps1  # verificación local de Fase 0
 └── .github/workflows/ci.yml   # CI mínima
 ```
+
+- **Semillas:** la semilla de catálogos vive en la migración ya aplicada
+  `supabase/migrations/20261031001000_seed_catalogos.sql` (contenido de `docs/03`); **no**
+  se crea un `supabase/seed.sql` que la duplique (evita doble fuente de verdad).
 
 - `hidria_coding_team/` se versiona en el repo para que el equipo comparta instrucciones,
   backlog y evidencia.

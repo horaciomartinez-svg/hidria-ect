@@ -6,7 +6,7 @@ owner: lead (creador)
 estado: en_progreso
 prioridad: P0
 deps: []
-write_scope: ["app/**", "supabase/functions/**", "supabase/tests/**", "scripts/**", ".env.example", "README.md"]
+write_scope: ["app/**", "supabase/functions/**", "supabase/tests/**", "scripts/**", ".github/**", ".env.example", "hidria_coding_team/.env.example", "package.json", "package-lock.json", "README.md", "docs/07-Plan-de-Migracion-y-Despliegue-HIDRIA-MD-OHI.md"]
 evidencia: ["reports/F0/F0-08_lead_monorepo.md"]
 ---
 

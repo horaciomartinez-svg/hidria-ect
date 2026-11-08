@@ -37,11 +37,11 @@ UI de CAT/IIH/BHE/IVOH, bitácora, aula y Kanban. Cada pantalla consume el contr
 | M2 Diagnósticos | expediente, fases S1–S6, gates, reprogramación | F1 |
 | M3 Repositorio documental | carga con URL prefirmada, checklist documental, versiones | F1 |
 | M4 CAT | 47 preguntas A–H, borrador offline, envío y validación R2 | F1 |
-| M5 IIH | inventario `USO-nn`, importador XLSX | F2 |
-| M6 BHE | 12 meses, flujos, indicadores, brecha, importador XLSX | F1/F2 |
-| M7 Muestreo/custodia | muestras, 3 transferencias, dictamen | F2 |
+| M5 IIH | inventario `USO-nn`, importador XLSX | F1 |
+| M6 BHE | 12 meses, flujos, indicadores, brecha, importador XLSX | F1 |
+| M7 Muestreo/custodia | muestras, 3 transferencias; captura mínima en F1, dictamen completo en F2 | F1 (mínimo) / F2 |
 | M8 IVOH | fichas por factor, radial, semáforo, validación R4 | F1 |
-| M9 Reporte | matriz 10/10, emisión, PDF, folio `-R1`, Plan de Acción | F1/F3 |
+| M9 Reporte | matriz 10/10, emisión, PDF, folio `-R1`; esencial en F1, completo en F3 | F1 esencial / F3 |
 | M10 Bitácora | 8 fichas V1–V3/R1–R5, agendas, evidencias, cierre ≤ 24 h | F1 |
 | M11 Kanban | tarjetas por fase, semáforo, próximos hitos | F1 |
 | M12 Aula | curso 8 módulos, examen, badge OB3 | F2 |

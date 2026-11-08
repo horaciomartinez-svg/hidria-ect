@@ -16,7 +16,8 @@ supabase/functions/
 
 Reglas obligatorias (detalle en `hidria_coding_team/agents/03_dev_edge_functions.md`):
 
-1. `Idempotency-Key` obligatorio; mismo payload → mismo cuerpo; distinto → 409.
+1. `Idempotency-Key` **opcional** en `docs/04` §2.3; **obligatorio** en las operaciones que
+   vienen de la cola offline (siempre lo envían). Mismo payload → mismo cuerpo; distinto → 409.
 2. Folios **solo** server-side (`MDOHI-AAAA-NNN`, `-R1`, ARCO).
 3. `audit_log` con hash encadenado en la **misma transacción**.
 4. Errores canónicos de `docs/04` §8; sin stack traces.

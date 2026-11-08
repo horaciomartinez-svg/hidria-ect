@@ -116,9 +116,9 @@ de excepción aprobado por el supervisor **y** el revisor de especificaciones.
 | 02 | **Arquitecto BD** | `agents/02_arquitecto_bd.md` | DDL, migraciones idempotentes, RLS, triggers, pgTAP, vistas | `supabase/migrations/**`, `supabase/tests/**`, `supabase/seed.sql` | No toca cliente ni EF |
 | 03 | **Dev Edge Functions** | `agents/03_dev_edge_functions.md` | EF-01…EF-13 según `docs/04`: idempotencia, folios server-side, errores canónicos, auditoría en la misma transacción | `supabase/functions/**` | No modifica esquema sin migración del arquitecto |
 | 04 | **Dev Frontend PWA** | `agents/04_dev_frontend_pwa.md` | React PWA M1–M13: CAT/IIH/BHE/IVOH UI, bitácora, aula, Dexie sync, Realtime | `app/**` | No inventa endpoints ni reglas; consume contratos |
-| 05 | **QA Tester** | `agents/05_qa_tester.md` | Ejecuta `docs/05`: pgTAP en CI, contrato, unitarias, E2E Playwright; mantiene matriz de trazabilidad | `tests/**`, `supabase/tests/**` (solo lectura si es del arquitecto), `qa/**`, `.github` (solo lectura) | No corrige producto; reporta |
+| 05 | **QA Tester** | `agents/05_qa_tester.md` | Ejecuta `docs/05`: pgTAP en CI, contrato, unitarias, E2E Playwright; mantiene matriz de trazabilidad | `tests/**`, `supabase/tests/**` (solo lectura si es del arquitecto), `qa/**`, `reports/qa/**`, `.github` (solo lectura) | No corrige producto; reporta |
 | 06 | **Revisor de Especificaciones** | `agents/06_revisor_especificaciones.md` | Revisa cada PR contra `docs/04` y docs metodológicos; aprueba/rechaza **con evidencia** | `reports/reviews/**`, `decisions/**` | **No programa** |
-| 07 | **DevOps GitHub/Cloudflare** | `agents/07_devops_github_cloudflare.md` | CI/CD, Pages/R2/WAF (`npx wrangler`), secretos de EF (`supabase secrets set`), runbooks `docs/07` | `.github/**`, `infra/**`, `wrangler.toml`, `scripts/**` | No mergea a `main` |
+| 07 | **DevOps GitHub/Cloudflare** | `agents/07_devops_github_cloudflare.md` | CI/CD, Pages/R2/WAF (`npx wrangler`), secretos de EF (`supabase secrets set`), runbooks `docs/07` | `.github/**`, `infra/**`, `wrangler.toml`, `scripts/**`, `reports/deploy/**` | No mergea a `main` |
 | 08 | **Seguridad y Privacidad** | `agents/08_seguridad_privacidad.md` | Revisión de seguridad por PR: RLS, secret scanning, nada de `service_role` en cliente, cumplimiento `docs/06` | `reports/security/**` | **No programa**; puede **vetar** merges |
 
 **Cuórum mínimo de revisión de un PR:** 1 aprobación del **Revisor de Especificaciones** +
@@ -167,7 +167,8 @@ El supervisor **no** programa; si detecta un defecto, abre tarea para el dueño.
   `docs/02` byte-idéntico a la migración base + nomenclatura prohibida + lint/typecheck/build
   del cliente. Debe estar **verde** para mergear.
 - **Secret scanning:** cada PR ejecuta la guarda de secretos; además, antes de cada push el
-  autor ejecuta `scripts/phase0-verify.ps1` (o `scripts/ci/guardas.sh` en CI).
+  autor ejecuta `hidria_coding_team/scripts/phase0_verify.ps1` (local) o
+  `scripts/ci/guardas.sh` (CI/Linux).
 
 ---
 
@@ -176,8 +177,13 @@ El supervisor **no** programa; si detecta un defecto, abre tarea para el dueño.
 | Entorno | Supabase | Cloudflare | Datos | Uso |
 |---|---|---|---|---|
 | `local` | CLI/Docker o proyecto de desarrollo | — | sintéticos | desarrollo y pruebas |
-| `staging` | proyecto dedicado | Pages `*.pages.dev`, R2 `hidria-staging` | sintéticos (30 empresas / 60 diagnósticos) | contratos, E2E, offline |
+| `staging` | proyecto dedicado *(pendiente: requiere credencial de Supabase; ver ADR-004)* | Pages `*.pages.dev`, R2 `hidria-staging` | sintéticos (30 empresas / 60 diagnósticos) | contratos, E2E, offline |
 | `piloto` | proyecto del Programa (`zucalshlfcxejpukshxl`) | Pages/R2 SDFI | **reales** `restringido_nda` | aceptación CAP-01…04 |
+
+> **Estado F0 (ADR-004):** no existe todavía un proyecto Supabase de `staging` separado del
+> `piloto`. Mientras el usuario lo provisione, el proyecto `zucalshlfcxejpukshxl` se usa
+> como **dev/staging con datos sintéticos**; queda **prohibido cargar datos reales**
+> (`restringido_nda`) hasta la separación staging↔piloto.
 
 - `.env` vive solo en `C:\Proyectos\hidria\.env` (ignorado por git). Plantilla sin valores:
   `.env.example` (raíz) e inventario del equipo `hidria_coding_team/.env.example`.
@@ -282,20 +288,22 @@ Un entregable está **Hecho** cuando:
 
 | Gate | Criterio de salida |
 |---|---|
-| **G0 — Fase 0** | Entorno validado: MCP operativos, `.env` OK, 3 migraciones, seeds, RLS 44/44, branch protection, CI, monorepo, `.env.example` |
-| **G1 — MVP núcleo** | EF-01…EF-04, EF-05…EF-09 (esencial), EF-11 + M1–M4, M6, M8, M10–M12 + E2E-01/02/05/07/08 verdes |
-| **G2 — Completa** | Custodia/laboratorios, reportes completos, aula/EF-11, insignia OB3, EF-10/EF-12 |
-| **G3 — Piloto** | EF-07 completo (matriz 10/10, M9 avanzado), EF-13 tras `NOM151_ENABLED`, CAP-01…04 |
+| **G0 — Fase 0** | Entorno validado: MCP operativos, `.env` OK, 3 migraciones, seeds, RLS 44/44, CI, monorepo, `.env.example`. **Estado real: AMARILLO-OPERATIVO** con excepciones E1–E4 de `ADR-004` (branch protection, proyecto staging, auth hook activo, acta 0.6) y acción requerida del usuario |
+| **G1 — MVP núcleo** | **ADR-003:** M1–M8 + M9 mínimo + M10–M11; EF-01…EF-09 (EF-07 esencial con folio `-R1`) + captura mínima de custodia/lab/alternativas (F1-13/F1-14/F1-15); E2E-01/02/03/05/07/08, SEC-01…05, API-00…04 verdes |
+| **G2 — Completa** | EF-10 (custodia/laboratorio completo), EF-11 + M12 (aula), EF-12 (reprogramación), insignia OB3, reportes completos (M9 avanzado), M7 completo |
+| **G3 — Piloto** | EF-07 completo (matriz 10/10 con M9 avanzado), EF-13 tras `NOM151_ENABLED`, CAP-01…04 |
 
 ---
 
 ## 14. Estado actual y siguiente tarea
 
-- **Fase:** `F0 — Validación` (en curso).
+- **Fase:** `F0 — Validación` cerrada con excepciones (G0 AMARILLO-OPERATIVO, `ADR-004`);
+  `F1 — MVP núcleo` según `ADR-003`.
 - **Tablero:** ver `tasks/BACKLOG.md`.
-- **Última actualización:** 2026-11-08 — creación del equipo y arranque de Fase 0.
+- **Última actualización:** 2026-11-08 — creación del equipo, Fase 0 ejecutada y ADR-003/004.
 - **Siguiente tarea asignada:** `F1-01 — Auth con custom claims y roles` (dueño:
-  Arquitecto BD + Dev Edge Functions), una vez cerrado G0.
+  Arquitecto BD + Dev Edge Functions), precedida por las migraciones correctivas
+  `M-01/M-02/M-03/M-04/M-07` y los grants DML de PostgREST.
 
 ---
 
