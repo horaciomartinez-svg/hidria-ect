@@ -97,7 +97,8 @@ supabase/migrations/
 ```
 
 - **Aplicación:** `supabase db push` (CLI) o pegado en SQL Editor para ejecución manual puntual; el pipeline aplica automáticamente en staging con cada merge a `develop` y en piloto con cada release a `main`.
-- **Idempotencia:** los tres archivos pueden reaplicarse sin error (verificado en doc `01`); el addendum incluye `create sequence if not exists` y `drop trigger if exists`.
+- **Idempotencia:** los tres archivos pueden reaplicarse sin error en una base **donde ya fueron aplicados** (la operación `create or replace` / `if not exists` lo permite); el addendum incluye `create sequence if not exists` y `drop trigger if exists`. La aplicación **limpia desde cero** se validará en CI con pgTAP (job de Fase 1, docs/05 §7) sobre una base vacía.
+- **Corrección 2026-11-08 (bug real detectado en primera aplicación):** la migración base original creaba tres funciones `language sql` (`my_diagnostic_role`, `is_diagnostic_member`, `is_logbook_entry_member`) **antes** de las tablas que referencian; PostgreSQL valida el cuerpo de las funciones SQL al crearlas (`42P01`), por lo que la migración abortaba en un proyecto limpio. Fix publicado: esas funciones se crean ahora en la sección 4b, **después** de las tablas (`supabase/migrations/20261031000000_base_hidria_mdohi.sql` y `docs/02` actualizados; mismo contenido, mismo orden de aplicación).
 - **Correcciones:** nunca se edita un archivo aplicado; se agrega migración nueva (ej. la corrección del banco de preguntas `v_quiz_questions` ya incorporada en el archivo base publicado el 2026-11-08).
 
 ### Migración desde la plataforma ECT v1.0

@@ -25,6 +25,16 @@ coverage/
 reference/
 
 # ---------------------------------------------------------------------------
+# Supabase CLI, Wrangler y artefactos de pruebas
+# ---------------------------------------------------------------------------
+supabase/.temp/
+.wrangler/
+.playwright/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
 # Sistema operativo / editores
 # ---------------------------------------------------------------------------
 .DS_Store
