@@ -289,12 +289,18 @@ condiciones de seguridad aplicables. F1-02b va en PR de secuencia aparte.
 
 ## 11. Estado de la corrección (SHA y CI)
 
-> Completar al publicar: commit(s) de corrección, head final, runs de CI y re-revisión acotada.
-
-- Commit de corrección: _pendiente al publicar_
-- Head final del PR: _pendiente al publicar_
-- CI: _pendiente al publicar_ (Guardas + Cliente)
-- Re-revisión acotada solicitada: **spec (B1/M1/menores)** + **delta de seguridad
-  (SEC-PR12-01/05/06/07)** + **delta de QA (smoke 24/24, sin E2E de Playwright todavía)**.
+- **Head final del PR:** `32a1da8` (`32a1da808659491c0be42ac3f100544300a974b6`), 2 commits sobre
+  `5cc56ed` sin reescribir historia.
+- **Delta de corrección:** 12 archivos, +500/−249 (sólo `app/**` y este reporte).
+- **CI en `32a1da8`:** **5/5 job runs verdes** — run `42510516213` (Guardas de repositorio + Edge
+  Functions (Deno) + Cliente lint/typecheck/build) y run `42510511667` (Guardas + Cliente);
+  `mergeable_state: clean`.
+- **Evidencia local:** lint/typecheck/build **0** (también sin `.env`); build-time guard de clave
+  pública probado en negativo; **smoke E2E CDP 24/24** sobre el build de producción (3 escenarios
+  negativos de B1, 6 variantes de redirect malicioso rechazadas + control positivo, shell/guardas,
+  logout).
+- **Re-revisión acotada solicitada:** **task-52** spec (B1+M1+m1–m5), **task-53** delta de
+  seguridad (SEC-PR12-01/05/06/07), **task-54** re-QA delta. El código a revisar es `32a1da8`; el
+  único delta posterior es este reporte.
 
 *Reporte de `dev-frontend-pwa` para F1-02a (corrección de revisión de PR #12).*
