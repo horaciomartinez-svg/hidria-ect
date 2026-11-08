@@ -145,7 +145,8 @@ rollback;
 - **PR:** [#7](https://github.com/horaciomartinez-svg/hidria-ect/pull/7) — `feature/F1-01a-auth-claims` → `main`
 - **Commit de implementación inicial:** `ff0c657b5d9a49535fc5f94218b94fd7be813e97`
 - **Commit fix B1/M2 (task-26):** `41976020da7f4735fc58b7c00de667ae7fa508f1`
-- **CI:** 4/4 `success` sobre `4197602` (Guardas + Cliente; runs `42437594209` / `42437598913`).
+- **Commit fix residual B1 (array[NULL]) + E3 instance_id:** `26d3788eafaff645bf295acdda37a77ba3dbcb63`
+- **CI:** 4/4 `success` sobre `26d3788` (Guardas + Cliente; runs `42438187497` / `42438192447`).
 - **Base:** `main` `6b95be0`; mergeable sin conflictos.
 - El merge corresponde al supervisor; no se ejecutó merge ni rebase.
 
