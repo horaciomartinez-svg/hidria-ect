@@ -2,7 +2,7 @@
 --          auth hook y Realtime (políticas + publicación)
 begin;
 
-select plan(9);
+select plan(15);
 
 insert into public.organizations (id, name, org_type)
 values ('11111111-1111-4111-8111-111111111111','Org pgTAP H5','srhds');
@@ -21,6 +21,9 @@ insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_ini
 values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
   'cccccccc-cccc-4ccc-8ccc-cccccccccccc','inicial','2026-01-01','2026-02-12',5,
   'validado_r2','00000000-0000-4000-8000-0000000000a1');
+insert into public.project_members (diagnostic_id, user_id, organization_id, role)
+values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  '11111111-1111-4111-8111-111111111111','equipo');
 insert into public.document_checklist_items (diagnostic_id, item_code, estado)
 values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','layout','validado_r1');
 insert into public.water_balances (id, organization_id, diagnostic_id, periodo_anio,
@@ -67,6 +70,24 @@ select lives_ok($sql$
   insert into public.lab_results (sample_id, param_code, valor, unidad, dictamen)
   values ('23232323-2323-4232-8232-232323232323','DQO',12.5,'mg/L',true)
 $sql$, 'con 3 firmas el dictamen procede');
+
+-- M-06: RPC de rol/membresía para service_role (equivalente a las de auth.uid())
+select ok(not has_function_privilege('authenticated','public.fn_diag_role(uuid,uuid)','EXECUTE'),
+  'authenticated no puede ejecutar fn_diag_role');
+select ok(has_function_privilege('service_role','public.fn_diag_role(uuid,uuid)','EXECUTE'),
+  'service_role puede ejecutar fn_diag_role');
+select is(public.fn_diag_role('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'), 'equipo',
+  'fn_diag_role devuelve el rol del miembro');
+select is(public.fn_diag_role('99999999-9999-4999-8999-999999999999',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'), NULL::text,
+  'fn_diag_role devuelve NULL si el usuario no es miembro');
+select is(public.fn_is_diag_member('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'), true,
+  'fn_is_diag_member devuelve true para un miembro');
+select is(public.fn_is_diag_member('99999999-9999-4999-8999-999999999999',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'), false,
+  'fn_is_diag_member devuelve false para un no miembro');
 
 -- H-5: una sola versión vigente del índice IVOH
 select throws_ok($sql$
