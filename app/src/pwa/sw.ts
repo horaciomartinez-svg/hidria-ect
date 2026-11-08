@@ -1,30 +1,59 @@
-﻿/// <reference lib="webworker" />
+/// <reference lib="webworker" />
 /**
- * HIDRIA â€” service worker (F1-02b).
+ * HIDRIA — service worker (F1-02b).
  *
- * PolÃ­tica de cachÃ© (sign-off de seguridad):
- *  - SÃ³lo se precachea el **shell pÃºblico** (index.html, assets con hash, iconos, manifest,
- *    offline.html). La cachÃ© NO contiene datos de usuario.
- *  - Default = passthrough de red (Workbox sÃ³lo intercepta rutas registradas).
- *  - `NetworkOnly` explÃ­cito para Supabase (REST/Functions) y R2: respuestas autenticadas,
- *    tokens y URLs prefirmadas de documentos `restringido_nda` jamÃ¡s se almacenan.
- *  - El SW no lee `localStorage`/IndexedDB y no transporta tokens; el Ãºnico mensaje aceptado
- *    es `{ type: 'SKIP_WAITING' }` de un cliente del mismo origen.
- *  - La actualizaciÃ³n se aplica sÃ³lo cuando la UI lo pide (nunca `skipWaiting` automÃ¡tico).
+ * Política de caché (sign-off de seguridad):
+ *  - Sólo se precachea el **shell público** (index.html, assets con hash, iconos, manifest,
+ *    offline.html). La caché NO contiene datos de usuario.
+ *  - Default = passthrough de red (Workbox sólo intercepta rutas registradas).
+ *  - `NetworkOnly` explícito para Supabase (REST/Functions) y R2: respuestas autenticadas,
+ *    tokens y URLs prefirmadas de documentos `restringido_nda` jamás se almacenan.
+ *  - El SW no lee `localStorage`/IndexedDB y no transporta tokens; el único mensaje aceptado
+ *    es `{ type: 'SKIP_WAITING' }` de un cliente del **mismo origen exacto**.
+ *  - La actualización se aplica sólo cuando la UI lo pide (nunca `skipWaiting` automático).
+ *
+ * Caché versionada: `hidria-shell-<vX.Y.Z>-<build>`; al activar se eliminan las cachés de
+ * versiones anteriores de HIDRIA para no acumularlas.
  */
-import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
+import { PrecacheController, PrecacheRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { NetworkOnly } from 'workbox-strategies';
 
 declare let self: ServiceWorkerGlobalScope;
 
-precacheAndRoute(self.__WB_MANIFEST);
-cleanupOutdatedCaches();
+// Inyectadas por `vite define` también en el build del SW (ver `dist/sw.js`).
+declare const __APP_VERSION__: string;
+declare const __APP_BUILD__: string;
 
-// NavegaciÃ³n SPA: shell precacheado (funciona sin red). Se excluyen documentos y estÃ¡ticos
+/** Nombre de caché versionado: `hidria-shell-<vX.Y.Z>-<build>`. */
+const PRECACHE_NAME = `hidria-shell-${__APP_VERSION__}-${__APP_BUILD__}`;
+
+const precacheController = new PrecacheController({ cacheName: PRECACHE_NAME });
+precacheController.addToCacheList(self.__WB_MANIFEST);
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(precacheController.install(event));
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      await precacheController.activate(event);
+      // Limpieza de precaches de versiones anteriores de HIDRIA.
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter((name) => name.startsWith('hidria-shell-') && name !== PRECACHE_NAME)
+          .map((name) => caches.delete(name)),
+      );
+    })(),
+  );
+});
+
+// Navegación SPA: shell precacheado (funciona sin red). Se excluyen documentos y estáticos
 // que deben servirse tal cual (no como shell) y el propio SW.
 registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+  new NavigationRoute(precacheController.createHandlerBoundToURL('/index.html'), {
     denylist: [
       /^\/offline\.html$/,
       /^\/sw\.js$/,
@@ -36,6 +65,9 @@ registerRoute(
   }),
 );
 
+// Precaching de assets/iconos solicitados directamente (no sólo por navegación).
+registerRoute(new PrecacheRoute(precacheController));
+
 // Nunca cachear Supabase (REST/Functions) ni R2 (documentos y URLs prefirmadas de 15 min).
 registerRoute(({ url }) => url.hostname.endsWith('.supabase.co'), new NetworkOnly());
 registerRoute(
@@ -44,8 +76,8 @@ registerRoute(
   new NetworkOnly(),
 );
 
-// ActualizaciÃ³n: sÃ³lo un cliente del **mismo origen exacto** (no por prefijo: `startsWith`
-// aceptarÃ­a `https://origen.evil.example`) y con el mensaje exacto, sin payload.
+// Actualización: sólo un cliente del **mismo origen exacto** (no por prefijo: `startsWith`
+// aceptaría `https://origen.evil.example`) y con el mensaje exacto, sin payload.
 self.addEventListener('message', (event) => {
   const source = event.source;
   const sourceUrl = source && 'url' in source ? source.url : '';
@@ -55,7 +87,7 @@ self.addEventListener('message', (event) => {
   try {
     sourceOrigin = new URL(sourceUrl).origin;
   } catch {
-    return; // URL de cliente invÃ¡lida: se descarta el mensaje
+    return; // URL de cliente inválida: se descarta el mensaje
   }
   if (sourceOrigin !== self.location.origin) return;
 
