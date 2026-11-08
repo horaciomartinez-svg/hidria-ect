@@ -102,7 +102,7 @@ select throws_ok($sql$
   insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
     fecha_fin, index_version_id, fase_actual, estado, avance_pct, cat_estado,
     bitacora_cerrada, ivoh_actual, brecha_pct, semaforo_atraso, reporte_document_id)
-  values ('ahahahah-ahah-4hah-8hah-ahahahahahah','11111111-1111-4111-8111-111111111111',
+  values ('a0a0a0a0-a0a0-4a0a-8a0a-a0a0a0a0a0a0','11111111-1111-4111-8111-111111111111',
     '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
     '00000000-0000-4000-8000-0000000000a1',6,'reportado',100,'validado_r2',
     true,9.9,99.0,'rojo','11111111-1111-4111-8111-111111111111')
@@ -131,12 +131,13 @@ $sql$, '42501', NULL, 'INSERT diagnostics con company de otro tenant rechazado')
 select throws_ok($sql$
   update public.diagnostics set fase_actual=6
    where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
-$sql$, 'P0001', 'Gate F6: el IVOH no está validado en R4 (se requieren 6/6 factores).',
-  'UPDATE a fase 6 sin IVOH bloqueado por trigger');
-select is((with upd as (
+$sql$, 'P0001', 'Gate F2: la lista de cotejo (layout) no está validada en R1.',
+  'UPDATE a fase 6 desde fase 1: gate F2 bloquea');
+with upd as (
   update public.profiles set full_name='Admin cambiado'
    where user_id='abababab-abab-4bab-8bab-abababababab' returning 1
-) select count(*) from upd), 0::bigint,
+)
+select is((select count(*) from upd), 0::bigint,
   'coordinador no puede UPDATE perfil admin_institucional');
 select throws_ok($sql$
   insert into public.profiles (user_id, organization_id, full_name, email, global_role)
@@ -154,7 +155,7 @@ set local request.jwt.claims = '{"sub":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","t
 select lives_ok($sql$
   insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
     fecha_fin, index_version_id, fase_actual)
-  values ('ajajajaj-ajaj-4jaj-8jaj-ajajajajajaj','11111111-1111-4111-8111-111111111111',
+  values ('a2a2a2a2-a2a2-4a2a-8a2a-a2a2a2a2a2a2','11111111-1111-4111-8111-111111111111',
     '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
     '00000000-0000-4000-8000-0000000000a1',1)
 $sql$, 'equipo SÍ puede INSERTAR diagnostics fase 1');
@@ -178,7 +179,7 @@ $sql$, 'admin_institucional sí puede actualizar perfil admin');
 select throws_ok($sql$
   insert into public.diagnostics (id, organization_id, company_id, tipo, fecha_inicio,
     fecha_fin, index_version_id, fase_actual)
-  values ('agagagag-agag-4gag-8gag-agagagagagag','11111111-1111-4111-8111-111111111111',
+  values ('a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1','11111111-1111-4111-8111-111111111111',
     '12121212-1212-4212-8212-121212121212','inicial','2026-01-01','2026-02-12',
     '00000000-0000-4000-8000-0000000000a1',1)
 $sql$, '42501', NULL, 'admin_institucional no puede INSERTAR diagnostics (docs/01 §5)');
@@ -192,9 +193,10 @@ select is((select count(*) from public.companies), 1::bigint,
 
 -- DELETE de diagnostics sigue sujeto a my_diagnostic_role(id).
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"coordinador_srhds"}';
-select is((with del as (
+with del as (
   delete from public.diagnostics where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' returning 1
-) select count(*) from del), 1::bigint,
+)
+select is((select count(*) from del), 1::bigint,
   'coordinador puede DELETEAR diagnóstico de su tenant');
 
 reset role;
