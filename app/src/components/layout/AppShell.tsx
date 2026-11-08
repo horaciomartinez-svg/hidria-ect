@@ -25,8 +25,8 @@ function ConnectivityBanner({ online }: { online: boolean }) {
       aria-live="polite"
       data-offline-banner="true"
     >
-      Sin conexión: los cambios de captura se conservan en este dispositivo y las
-      validaciones que requieren conexión permanecen deshabilitadas (docs/04 §6.4).
+      Sin conexión: las validaciones que requieren conexión permanecen deshabilitadas
+      (docs/04 §6.4). La captura offline se habilita con los módulos de campo (M4/M6/M10).
     </div>
   );
 }
@@ -87,9 +87,12 @@ function SessionMenu() {
     setBusy(true);
     try {
       await signOut();
-      navigate('/login', { replace: true });
+    } catch {
+      // SEC-PR12-05: aunque `signOut()` rechace (p. ej. red caída), se navega a login;
+      // el SDK limpia la sesión local y el guard de login la revalida.
     } finally {
       setBusy(false);
+      navigate('/login', { replace: true });
     }
   };
 

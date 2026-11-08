@@ -8,6 +8,9 @@ import { ConfigMissingPage, ForbiddenPage, LoadingPage } from '../../routes/Stat
  * Guarda de rutas protegidas: sin sesión se redirige a `/login` recordando el
  * destino. El cliente **no** sustituye a RLS ni a las guardas de las EF: sólo
  * evita navegar a pantallas que el usuario no puede operar.
+ *
+ * Falla cerrada (B1): una sesión con claims de HIDRIA ausentes o inválidos
+ * (`invalid_claims`) **no monta el shell**; se envía a login con la explicación.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -15,9 +18,18 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (status === 'unconfigured') return <ConfigMissingPage />;
   if (status === 'loading') return <LoadingPage label="Comprobando sesión…" />;
-  if (status === 'anonymous') {
+  if (status === 'anonymous' || status === 'invalid_claims') {
     const from = `${location.pathname}${location.search}${location.hash}`;
-    return <Navigate to="/login" replace state={{ from }} />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from,
+          error: status === 'invalid_claims' ? 'invalid_claims' : undefined,
+        }}
+      />
+    );
   }
   return <>{children}</>;
 }

@@ -19,9 +19,9 @@ export function SincronizacionPage() {
         Estado de sincronización
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-slate-700">
-        La captura en campo se guarda primero en el dispositivo y se sincroniza con
-        <code> Idempotency-Key</code> por operación. Las validaciones de la metodología
-        requieren conexión y no se encolan.
+        Diseño previsto (aún no implementado en F1-02): la captura en campo se guardará
+        primero en el dispositivo y se sincronizará con <code>Idempotency-Key</code> por
+        operación. Las validaciones de la metodología requieren conexión y no se encolan.
       </p>
 
       <dl className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -36,16 +36,30 @@ export function SincronizacionPage() {
         </div>
         <div className="rounded-lg border border-line bg-panel p-4">
           <dt className="text-xs uppercase tracking-wide text-slate-500">Operaciones en cola</dt>
-          <dd className="mt-1 text-sm font-semibold text-slate-700">0</dd>
+          <dd
+            className="mt-1 text-sm font-semibold text-slate-500"
+            data-placeholder="true"
+            title="Sin implementar en F1-02a: la cola Dexie ops_queue se habilita con M4/M6/M10"
+          >
+            — no implementado
+          </dd>
           <dd className="mt-1 text-[11px] text-slate-500">
-            Cola Dexie <code>ops_queue</code> habilitada en M4/M6/M10.
+            La cola Dexie <code>ops_queue</code> se habilita con M4/M6/M10; en F1-02a no
+            existe y no se simulan valores.
           </dd>
         </div>
         <div className="rounded-lg border border-line bg-panel p-4">
           <dt className="text-xs uppercase tracking-wide text-slate-500">Conflictos por campo</dt>
-          <dd className="mt-1 text-sm font-semibold text-slate-700">0</dd>
+          <dd
+            className="mt-1 text-sm font-semibold text-slate-500"
+            data-placeholder="true"
+            title="Sin implementar en F1-02a: el merge LWW llega con la cola offline"
+          >
+            — no implementado
+          </dd>
           <dd className="mt-1 text-[11px] text-slate-500">
-            LWW por campo; un conflicto se muestra, nunca se pisa en silencio.
+            LWW por campo cuando exista la cola: un conflicto se muestra, nunca se pisa en
+            silencio.
           </dd>
         </div>
       </dl>

@@ -4,9 +4,30 @@ import { useAuth } from '../lib/auth/AuthProvider';
 import { APP_VERSION } from '../lib/config';
 import { ConfigMissingPage } from './StatePages';
 
+function decodeSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/** ¿Es una ruta interna segura? (SEC-PR12-06 / CWE-601 GHSA-wrjc-x8rr-h8h6). */
+function isSafeInternalPath(value: string): boolean {
+  if (!value.startsWith('/')) return false;
+  if (value.startsWith('//')) return false;
+  if (value.includes('\\')) return false;
+  if (value.includes(':')) return false;
+  if ([...value].some((char) => char.charCodeAt(0) < 0x20)) return false;
+  return true;
+}
+
 function safeRedirect(state: unknown): string {
   const from = (state as { from?: unknown } | null)?.from;
-  return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/';
+  if (typeof from !== 'string') return '/';
+  // Se valida la forma cruda y la decodificada para cubrir `%5c`/`%2f%2f` y variantes.
+  if (!isSafeInternalPath(from) || !isSafeInternalPath(decodeSafe(from))) return '/';
+  return from;
 }
 
 /**
@@ -17,18 +38,23 @@ function safeRedirect(state: unknown): string {
  * `custom_access_token_hook`. El cliente no autoriza nada por sí mismo.
  */
 export function LoginPage() {
-  const { status, signIn } = useAuth();
+  const { status, signIn, signOut } = useAuth();
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const locationError = (location.state as { error?: unknown } | null)?.error;
+  const invalidClaims = status === 'invalid_claims' || locationError === 'invalid_claims';
+
   useEffect(() => {
     document.title = 'Iniciar sesión · HIDRIA';
   }, []);
 
   if (status === 'unconfigured') return <ConfigMissingPage />;
+  // Sólo una sesión con claims válidos (ADR-005) sale de login; si los claims
+  // faltan o son inválidos, el usuario se queda aquí con la explicación (B1).
   if (status === 'authenticated') return <Navigate to={safeRedirect(location.state)} replace />;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -82,6 +108,31 @@ export function LoginPage() {
           <p className="mt-1 text-sm text-slate-600">
             Acceso con credenciales institucionales (Supabase Auth).
           </p>
+
+          {invalidClaims && (
+            <div
+              role="alert"
+              data-invalid-claims="true"
+              className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
+            >
+              <p className="font-semibold">
+                Tu sesión no incluye la organización o el rol requeridos
+              </p>
+              <p className="mt-1 leading-relaxed">
+                El token de acceso no trae los claims <code>organization_id</code> (UUID) y{' '}
+                <code>global_role</code> válidos (ADR-005). Por seguridad no se abre la
+                plataforma. Cierra sesión y vuelve a entrar; si persiste, contacta a la
+                Coordinación SRHDS.
+              </p>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="mt-2 rounded border border-amber-400 px-2 py-1 font-semibold"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          )}
 
           <form className="mt-6 space-y-4" onSubmit={(event) => void handleSubmit(event)} noValidate>
             <div>

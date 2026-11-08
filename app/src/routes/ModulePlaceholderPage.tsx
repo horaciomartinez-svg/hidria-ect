@@ -10,6 +10,7 @@ export function ModulePlaceholderPage({ module }: { module: ModuleDef }) {
     <div className="mx-auto max-w-3xl">
       <p className="text-xs font-semibold uppercase tracking-widest text-hidria-600">
         {module.id} · Fase prevista {module.phase}
+        {module.phaseNote ? ` · ${module.phaseNote}` : ''}
       </p>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight text-hidria-900">
         {module.title}

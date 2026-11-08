@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useRouteError } from 'react-router-dom';
 import { APP_VERSION, SERVICE_ROLE_LEAK_DETECTED } from '../lib/config';
 import { GLOBAL_ROLE_LABEL, type GlobalRole } from '../lib/auth/claims';
@@ -153,16 +154,31 @@ export function PrivacyPage() {
 
 export function RouteErrorPage() {
   const error = useRouteError();
-  const message =
-    error instanceof Error ? error.message : 'Ocurrió un error inesperado en el cliente.';
+
+  // SEC-PR12-07: en producción no se expone el mensaje de error real (puede filtrar
+  // detalles internos); se registra en consola y se muestra un mensaje genérico.
+  // En desarrollo se incluye el detalle para depurar.
+  useEffect(() => {
+    console.error('[HIDRIA] Error de ruta:', error);
+  }, [error]);
+
+  const detail =
+    import.meta.env.DEV && error instanceof Error ? error.message : null;
+
   return (
     <Shell>
       <h1 className="text-2xl font-semibold tracking-tight text-hidria-900">
         No se pudo mostrar esta pantalla
       </h1>
       <p className="rounded-lg border border-line bg-panel p-4 text-sm text-slate-700" role="alert">
-        {message}
+        Ocurrió un error inesperado en el cliente. Intenta recargar; si persiste, contacta a
+        la Coordinación SRHDS indicando la ruta y la hora.
       </p>
+      {detail && (
+        <p className="rounded-lg border border-line bg-panel p-4 font-mono text-xs text-slate-500">
+          Detalle (sólo desarrollo): {detail}
+        </p>
+      )}
       <div className="flex gap-4 text-sm font-semibold">
         <button
           type="button"

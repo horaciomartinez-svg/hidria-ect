@@ -35,6 +35,11 @@ export interface ModuleDef {
   short: string;
   summary: string;
   phase: Phase;
+  /**
+   * Matiz cuando ADR-003 reparte el módulo entre dos fases (p. ej. M7 mínimo en F1 y
+   * dictamen completo en F2). No sustituye a `phase`: la aclara en la UI.
+   */
+  phaseNote?: string;
   /** Contrato consumido, citado de `docs/04` / `docs/02`. */
   contract: string;
   roles: readonly GlobalRole[];
@@ -115,7 +120,7 @@ export const MODULES: readonly ModuleDef[] = [
     title: 'Inventario de infraestructura hidráulica',
     short: 'IIH',
     summary: 'Activos por etapa con folio, verificación en V1 y resumen F5.',
-    phase: 'F2',
+    phase: 'F1',
     contract: 'EF-09 import/xlsx · iih_assets',
     roles: EQUIPO,
   },
@@ -135,7 +140,8 @@ export const MODULES: readonly ModuleDef[] = [
     title: 'Muestreo y cadena de custodia',
     short: 'Muestreo',
     summary: 'Muestras, tres transferencias firmadas y dictamen de laboratorio.',
-    phase: 'F2',
+    phase: 'F1',
+    phaseNote: 'captura mínima en F1 · dictamen completo en F2',
     contract: 'EF-10 samples/dictamen · custody_transfers',
     roles: EQUIPO,
   },
@@ -156,6 +162,7 @@ export const MODULES: readonly ModuleDef[] = [
     short: 'Reporte',
     summary: 'Matriz de completitud 10/10, emisión con folio -R1 y Plan de Acción.',
     phase: 'F1',
+    phaseNote: 'esencial en F1 · avanzado en F3',
     contract: 'EF-07 emit-report · v_diagnostic_completeness',
     roles: TODOS,
   },

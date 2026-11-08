@@ -12,12 +12,23 @@ import { supabase } from '../supabase';
 import { isSupabaseConfigured } from '../config';
 import { readClaims, type HidriaClaims } from './claims';
 
-export type AuthStatus = 'unconfigured' | 'loading' | 'anonymous' | 'authenticated';
+/**
+ * Estado de sesión.
+ *
+ * `invalid_claims` = hay token de Supabase Auth pero sus claims de HIDRIA
+ * (`sub` UUID, `organization_id` UUID y `global_role` del enum; ADR-005) faltan o no
+ * son válidos. La app **falla cerrada**: no monta el shell y redirige a login con
+ * explicación (B1 de la revisión de PR #12).
+ */
+export type AuthStatus =
+  | 'unconfigured'
+  | 'loading'
+  | 'anonymous'
+  | 'invalid_claims'
+  | 'authenticated';
 
 export interface SessionProfile {
   fullName: string | null;
-  /** `profiles.global_role` (informativo; el JWT es la fuente de autorización). */
-  globalRole: string | null;
   organizationName: string | null;
 }
 
@@ -44,13 +55,14 @@ function asText(value: unknown): string | null {
 /**
  * Sesión de Supabase Auth + claims de HIDRIA (ADR-005).
  *
- * Los claims se derivan **del access token** (no de datos mutables del cliente):
- * `organization_id` con precedencia sobre `tenant_id`, más `global_role`. El
- * perfil y el nombre de la organización son sólo presentación y su lectura está
- * acotada por RLS; cualquier fallo se degrada a `null` sin romper la sesión.
+ * Los claims se derivan **del access token** (no de datos mutables del cliente) y se
+ * validan de forma estricta: sin `sub`/`organization_id` UUID/`global_role` del enum
+ * la sesión queda en `invalid_claims` y no se monta el shell. El perfil y el nombre de
+ * la organización son sólo presentación (fallos de RLS/red se degradan a `null`).
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [claims, setClaims] = useState<HidriaClaims | null>(null);
   const [status, setStatus] = useState<AuthStatus>(
     isSupabaseConfigured ? 'loading' : 'unconfigured',
   );
@@ -63,7 +75,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const applySession = (nextSession: Session | null) => {
       if (!active) return;
       setSession(nextSession);
-      setStatus(nextSession ? 'authenticated' : 'anonymous');
+      if (!nextSession) {
+        setClaims(null);
+        setStatus('anonymous');
+        return;
+      }
+      const parsed = readClaims(nextSession.access_token);
+      if (!parsed) {
+        setClaims(null);
+        setStatus('invalid_claims');
+        return;
+      }
+      setClaims(parsed);
+      setStatus('authenticated');
     };
 
     void supabase.auth
@@ -81,8 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const claims = useMemo(() => readClaims(session?.access_token), [session?.access_token]);
-
   useEffect(() => {
     if (!supabase || !session || !claims) {
       setProfile(null);
@@ -91,32 +113,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     void (async () => {
       let fullName: string | null = null;
-      let globalRole: string | null = null;
       let organizationName: string | null = null;
       try {
         const profileResult = await supabase
           .from('profiles')
-          .select('full_name, global_role')
+          .select('full_name')
           .eq('user_id', claims.sub)
-          .maybeSingle<{ full_name?: unknown; global_role?: unknown }>();
+          .maybeSingle<{ full_name?: unknown }>();
         fullName = asText(profileResult.data?.full_name);
-        globalRole = asText(profileResult.data?.global_role);
       } catch {
         /* RLS o red: el perfil es opcional para operar. */
       }
       try {
-        if (claims.organizationId) {
-          const orgResult = await supabase
-            .from('organizations')
-            .select('name')
-            .eq('id', claims.organizationId)
-            .maybeSingle<{ name?: unknown }>();
-          organizationName = asText(orgResult.data?.name);
-        }
+        const orgResult = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', claims.organizationId)
+          .maybeSingle<{ name?: unknown }>();
+        organizationName = asText(orgResult.data?.name);
       } catch {
         /* idem */
       }
-      if (active) setProfile({ fullName, globalRole, organizationName });
+      if (active) setProfile({ fullName, organizationName });
     })();
     return () => {
       active = false;

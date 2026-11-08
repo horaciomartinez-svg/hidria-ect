@@ -113,6 +113,9 @@ export function PanelPage() {
                   <span className="mt-1 text-sm font-semibold text-hidria-900">
                     {module.title}
                   </span>
+                  {module.phaseNote && (
+                    <span className="text-[10px] text-slate-500">{module.phaseNote}</span>
+                  )}
                   <span className="mt-1 text-xs leading-relaxed text-slate-600">
                     {module.summary}
                   </span>
