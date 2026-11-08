@@ -145,14 +145,22 @@ queda cubierta por el guard existente + su prueba determinista en CI.
 | 6 | fixtures negativos (audit + dist) | **exit 1** como se espera |
 | 7 | `node --check` de los 3 scripts | exit 0 |
 
-## 5. Evidencia CI (se completa con run id)
+## 5. Evidencia CI — run verde
 
 | Dato | Valor |
 |---|---|
-| Job nuevo | `Seguridad (dependencias y bundle)` |
-| Checks esperados | **6/6** — 5 existentes + `Seguridad` |
-| Run CI | _pendiente_ |
-| Artefactos | ninguno (job de validación) |
+| Run PR | [42516304140](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42516304140) (`pull_request`, head `55ff6ef`, **success**) |
+| Run push | `42516279218` (`push`, mismo head, **success**) |
+| Checks | **6/6**: Guardas · Cliente · Deno · pgTAP (20 migraciones/133) · E2E · **Seguridad (dependencias y bundle)** |
+| Job `Seguridad` | [128839963195](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42516304140/job/128839963195) — 18 s; audit producción **0 high/critical** (2 moderate documentados), guard build-time **4/4**, bundle scan **OK** (8 archivos, sin credenciales) |
+
+Salida CI relevante:
+```text
+[npm-audit] Producción (--omit=dev): 2 vulnerabilidades (critical=0, high=0, moderate=2, low=0, info=0).
+[npm-audit] OK: sin high/critical de producción bloqueantes (0 high aceptadas por allowlist).
+[build-guard] OK anon-publica/sb-secret/jwt-service-role/jwt-ilegible (4/4).
+[dist-scan] 8 archivos escaneados; sin claves secretas/JWT de servicio (3 avisos de literal).
+```
 
 ## 6. Seguridad y límites
 
@@ -168,11 +176,14 @@ queda cubierta por el guard existente + su prueba determinista en CI.
 
 ## 7. Pendientes / siguiente paso
 
-- [ ] Publicar PR y verificar **6/6 checks** verdes (run id en §5).
+- [x] **PR #29 publicado y verde**: **6/6 checks** en run `42516304140` (PR) y `42516279218`
+      (push); job `Seguridad (dependencias y bundle)` success.
 - [ ] Proponer `Seguridad (dependencias y bundle)` como required cuando el usuario lo añada.
 - [ ] task-53: evaluar react-router 7.18.5 y retirar la allowlist si procede.
 
 ## Veredicto
 
-**VERDE local** — job de hardening implementado y probado con fixtures; pendiente el run de CI
-para el VERDE definitivo. Sin secretos ni relajación de los checks existentes.
+**VERDE CI** — run **42516304140** (6/6, job `Seguridad` `128839963195`): audit de producción
+sin high/critical, guard build-time 4/4, bundle sin credenciales; 5 checks previos intactos.
+Pendiente solo el squash del PR #29 y, opcionalmente, que el usuario marque el check como
+required. Sin secretos.
