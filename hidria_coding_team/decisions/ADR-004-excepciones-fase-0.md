@@ -49,6 +49,20 @@ equipo): (a) añadir un `bypass_actor` para el rol admin o para `horaciomartinez
 (b) `required_approving_review_count = 0` manteniendo checks + PR + non-fast-forward; o
 (c) añadir un segundo colaborador que apruebe.
 
+### Remediación elegida por el usuario (2026-11-07 19:50)
+
+El usuario eligió la salida **(b): `required_approving_review_count = 0`**, manteniendo
+`required_status_checks`, `pull_request`, `deletion` y `non_fast_forward`. El equipo **no
+tiene permiso de administración** para aplicarlo (`PUT /rulesets/26780941` → **403**); debe
+aplicarlo el usuario en GitHub UI (*Settings → Rules → Rulesets → `proteccion-main` →
+Edit → Required approvals = 0 → Save*).
+
+Mientras el ruleset conserve `required_approving_review_count = 1`, **ningún PR es
+mergeable**. Tras aplicarlo, el merge lo autorizan el **CI obligatorio** (2 checks) + el
+**cuórum del equipo** (spec + seguridad + QA en `reports/`) y lo ejecuta el supervisor
+(squash). La protección de rama, los checks obligatorios y la prohibición de force push se
+mantienen.
+
 ## Decisión
 
 1. **G0 se cierra con las excepciones E2–E4 documentadas** (E1 resuelta) y controles

@@ -161,10 +161,12 @@ El supervisor **no** programa; si detecta un defecto, abre tarea para el dueño.
   obligatorio, **1 aprobación de review de GitHub**, required checks
   `Guardas de repositorio` + `Cliente (lint + typecheck + build)`, sin force push, sin
   borrado. `bypass_actors: []`.
-- **Aprobación humana obligatoria:** la aprobación de GitHub la da **el usuario**; los
-  agentes no pueden auto-aprobar (el autor es el único colaborador). El cuórum del equipo
-  (spec + seguridad + QA en `reports/`) es **adicional** y no sustituye la aprobación de
-  GitHub. El supervisor **no mergea** hasta que el usuario apruebe el PR.
+- **Aprobación de GitHub:** configuración inicial del ruleset = 1 aprobación. El usuario
+  eligió **`required_approving_review_count = 0`** (2026-11-07 19:50) para desbloquear los
+  merges sin una segunda identidad, **manteniendo** los required checks y la prohibición de
+  force push. Hasta que se aplique, **ningún PR es mergeable**; tras aplicarlo, el merge lo
+  autorizan el CI obligatorio + el cuórum del equipo (spec + seguridad + QA en `reports/`) y
+  lo ejecuta el supervisor. El cuórum del equipo sigue siendo obligatorio.
 - **Si el usuario no dispone de segunda identidad:** debe ajustar el ruleset (bypass actor,
   `required_approving_review_count = 0`, o segundo colaborador). Es una acción del usuario,
   no del equipo.

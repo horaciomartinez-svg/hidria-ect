@@ -50,3 +50,14 @@ es `horaciomartinez-svg`, que es el autor de los PRs; GitHub prohíbe la auto-ap
 
 - El usuario debe aprobar el PR documental de cierre y, cuando esté corregido, el PR #4.
 - Re-verificar `GET /branches/main` (`protected:true`) antes de cada merge.
+
+## Remediación elegida por el usuario (2026-11-07 19:50)
+
+Para desbloquear los merges sin una segunda identidad, el usuario eligió
+**`required_approving_review_count = 0`**, manteniendo `required_status_checks`,
+`pull_request`, `deletion` y `non_fast_forward`. El equipo no puede aplicarlo (sin permiso
+de administración: `PUT /rulesets/26780941` → **403**); lo aplica el usuario en
+*Settings → Rules → Rulesets → `proteccion-main`*.
+
+Hasta que se aplique, PR #5 y PR #4 siguen `blocked`. Después: CI obligatorio + cuórum del
+equipo + squash del supervisor.
