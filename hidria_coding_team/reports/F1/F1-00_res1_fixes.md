@@ -8,17 +8,21 @@
   - `20261108030000_f1_00_res1_fixes.sql`
   - `20261108030010_f1_00_res1_fixes2.sql` (candado fase 1 y retiro de admin)
   - `20261108030020_f1_00_res1_hardening.sql` (estado inicial + folio server-side + retiro de empresa)
-  - Aplicadas vía MCP.
-- **Entorno:** `zucalshlfcxejpukshxl` (dev/staging sintético, ADR-004 E2); `schema_migrations = 19`.
+  - `20261108030030_f1_00_res1_folio_immutable.sql` — no aplicada (B2 pasó a task-59)
+  - `20261108040000_f1_00_task59_update_lock.sql` (task-59: folio inmutable en UPDATE + candado de gate/estado)
+  - Aplicadas vía MCP (la 003030 no se aplicó; ver task-59).
+- **Entorno:** `zucalshlfcxejpukshxl` (dev/staging sintético, ADR-004 E2); `schema_migrations = 20`.
 - **Alcance:** solo DB (`supabase/migrations/**`, `supabase/tests/**`, reportes F1-00). Sin tocar `supabase/functions/**`, `app/**`, `docs/02` ni docs/01.
 
 ## Resultado: VERDE (DB)
 
 RES-1 resuelto con **INSERT separado** y endurecido: roles `coordinador_srhds`/`equipo`, tenant,
 `company_id` del mismo tenant, `fase_actual=1` y **trigger BEFORE INSERT** que fija el folio
-server-side y rechaza cualquier estado inicial inyectado. `admin_institucional` y `empresa`
+server-side en INSERT y rechaza cualquier estado inicial inyectado. `admin_institucional` y `empresa`
 quedan fuera del INSERT (M1 y falta de ownership M2, respectivamente). `UPDATE`/`DELETE` siguen
-con `my_diagnostic_role(id)`; el residual de campos de estado en UPDATE queda en **task-59**.
+con `my_diagnostic_role(id)`; el residual de campos de estado en UPDATE queda cerrado por
+**task-59** (ADR-010, trigger `diagnostics_update_lock`; folio inmutable y gate/estado solo vía
+EF/`service_role`).
 Residuales de vistas, `profiles_write`, PG≥16 y SHA corregidos.
 
 ## 1. RES-1 — `diagnostics` (M2)
@@ -34,8 +38,9 @@ Residuales de vistas, `profiles_write`, PG≥16 y SHA corregidos.
 
 ### Trigger `diagnostics_initial_state` (BEFORE INSERT)
 
-- Asigna **folio server-side** con `diagnostics_folio_seq` y formato `MDOHI-AAAA-NNN`; cualquier
-  folio del cliente (`MDOHI-FAKE-999`) se sobrescribe.
+- Asigna **folio server-side en INSERT** con `diagnostics_folio_seq` y formato `MDOHI-AAAA-NNN`;
+  cualquier folio del cliente (`MDOHI-FAKE-999`) se sobrescribe. En **UPDATE** el folio es
+  inmutable por `diagnostics_update_lock` (task-59, ADR-010); test específico en `050`.
 - Para `auth.uid() != null` (API autenticada) **rechaza** (42501) si el INSERT intenta inyectar:
   `fase_actual != 1`, `estado != 'activo'`, `avance_pct != 0`, `cat_estado != 'no_enviado'`,
   `bitacora_cerrada != false`, `ivoh_actual`/`brecha_pct`/`reporte_document_id` no nulos,
@@ -66,20 +71,20 @@ Verificación en vivo (claims sintéticos + `ROLLBACK`):
 - **`profiles_write.USING`:** coordinador no puede UPDATE/DELETE perfiles `admin_institucional`;
   admin conserva acceso. Verificado 0/1 filas.
 - **SHA truncado:** `F1-00_delta_seguridad.md` corregido (`1fb4ae45c61adc065adecc074630b7f14497d2d5`).
-- **Residual conocido (fuera de #19):** `diagnostics_upd` permite a coordinador/equipo cambiar
-  `estado`, `reporte_document_id`, `bitacora_cerrada` sin candado específico (el trigger solo
-  controla fases). Queda en **task-59** (ADR + candado o EF-only) antes de M2/F1-04; no usar con
-  datos reales hasta cerrarlo.
+- **Residual B2 (resuelto en task-59):** `diagnostics_upd` permitía a coordinador/equipo cambiar
+  `estado`, `reporte_document_id`, `bitacora_cerrada`, `avance_pct`, `cat_estado` y `folio` sin
+  candado específico. Cerrado con `diagnostics_update_lock` (ADR-010): folio inmutable en UPDATE
+  y campos de gate/estado solo vía `service_role`/EF; test específico en `050`.
 
 ## 3. pgTAP y CI
 
 | Suite | Cambio | Plan |
 |---|---|---|
 | `010_f1_00_grants_views.sql` | DML de 5 vistas + PG≥16 | `18 → 21` |
-| `050_f1_00_security_delta.sql` | positivos coordinador/equipo, folio, estado inyectado, empresa/admin/cross-tenant, UPDATE/DELETE, perfiles | `11 → 24` |
+| `050_f1_00_security_delta.sql` | positivos coordinador/equipo, folio, estado inyectado, empresa/admin/cross-tenant, UPDATE/DELETE, perfiles, folio inmutable (task-59) | `11 → 28` |
 
 - pglast 8.7: migraciones/tests modificados OK.
-- Total previsto de la suite: **129 aserciones** (21+9+9+15+24+51); el job pgTAP de CI
+- Total previsto de la suite: **133 aserciones** (21+9+9+15+28+51); el job pgTAP de CI
   (task-13/PR #14, ya mergeado) aplica las migraciones desde archivos y ejecuta las 6 suites.
 - Aserciones equivalentes ejecutadas vía MCP (§1/§2).
 
