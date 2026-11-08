@@ -123,9 +123,9 @@ Ningún agente mergeó, hizo push ni aplicó DDL en Fase 0.
 
 | # | Excepción | Impacto | Acción requerida del usuario |
 |---|---|---|---|
-| E1 | ~~`main` sin protección~~ **RESUELTA 2026-11-07 19:24** — ruleset `proteccion-main` activo (PR + checks + no force push). El usuario eligió `required_approving_review_count = 0` (19:50) para desbloquear merges; **pendiente de aplicar en GitHub UI** | Mientras el conteo siga en 1, ningún PR es mergeable (autor único, auto-aprobación prohibida) | Aplicar el ruleset con **Required approvals = 0** (Settings → Rules → Rulesets → `proteccion-main`); después solo CI + cuórum del equipo |
-| E2 | Sin proyecto Supabase `staging` separado | Se usa el proyecto disponible como dev/staging **sintético** | Provisionar proyecto staging + `SUPABASE_ACCESS_TOKEN` |
-| E3 | Auth hook no activado / JWT no verificado | `F1-01` lo entrega y lo activa | Aportar `SUPABASE_ACCESS_TOKEN` o activarlo en dashboard |
+| E1 | ~~`main` sin protección~~ **RESUELTA 2026-11-07 19:24** — ruleset `proteccion-main` activo (PR + checks + no force push). **`required_approving_review_count = 0` aplicado 19:51** (verificado por API); PR #5 pasó a `clean` | Ya no bloquea merges; el merge lo autorizan CI + cuórum del equipo | Ninguna (control humano por auditoría de reportes) |
+| E2 | Sin proyecto Supabase `staging` separado | Se usa el proyecto disponible como dev/staging **sintético** | Provisionar proyecto staging |
+| E3 | ~~Auth hook no activado~~ **RESUELTA 2026-11-07 20:30** — Management API: `hook_custom_access_token_enabled=true`, URI `pg-functions://postgres/public/custom_access_token_hook`; JWT real con `organization_id`/`tenant_id`/`global_role`; usuario sin perfil → 403 | Ya no bloquea; SEC-04 en middleware EF (F1-01b) | Ninguna; evidencia en [F0-14](hidria_coding_team/reports/F0/F0-14_activacion_auth_hook.md) |
 | E4 | Acta de validación 0.6 | Pendiente de firma | Coordinación SDFI/UCI |
 
 ## 5. PR #2 — estado final (mergeado)

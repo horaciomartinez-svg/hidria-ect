@@ -14,7 +14,9 @@
 
 Los dos bloqueantes del VETO quedaron corregidos con **una migración nueva** y verificados en
 vivo con `SET LOCAL ROLE authenticated` + fixtures sintéticos en transacciones con `ROLLBACK`.
-El PR queda a la espera de la **re-revisión de seguridad del delta** y de CI sobre el nuevo head.
+La re-revisión de seguridad del delta levantó el VETO sobre el head **`4e2341d`**
+(`reports/security/PR-4_security_delta.md`) y el PR #4 fue mergeado con squash **`b4fbc83`**
+(CI 4/4 en `4e2341d`).
 
 ## 1. SEC-PR4-01 — DML de `authenticated` en `v_quiz_questions`
 

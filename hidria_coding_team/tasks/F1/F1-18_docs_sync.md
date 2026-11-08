@@ -43,10 +43,15 @@ migración base.
   añadir §2.3 al alcance (hoy solo estaba TD-4) o ADR que lo respalde.
 - **m1 — default `global_role = 'invitado'`** (ADR-005 cita `observador` como ejemplo):
   documentar la elección (más restrictiva) en ADR-005 y/o aquí.
-- **B1 — nombre de la semilla:** ADR-005 §2.5 debe fijar de forma única el nombre de
-  despliegue (`SRHDS — Programa HIDRIA`, sigla oficial en `docs/00:13`) o, si se mantiene el
-  nombre completo, exigir una migración `M-09` forward-only con el nombre completo. Decisión
-  del Lead/Revisor; sin editar la migración aplicada.
+- **B1 — RESUELTO en `main` (PR #5 `afffb6c`):** `ADR-005` §2.5 fija
+  `organizations.name = «SRHDS — Programa HIDRIA»` como nombre de despliegue (sigla oficial en
+  `docs/00:13`); el nombre completo se reserva a textos legales/`docs/06`; **sin `M-09`** y sin
+  editar la migración aplicada.
+- **o3 (security delta) — `companies_write` vs `docs/01` §5:** misma brecha que RES-1
+  (`diagnostics_write`): revisar `WITH CHECK` de INSERT por tenant/rol al documentar
+  `docs/01` §5 y ajustar política o ADR EF-only (coordinar con `task-18`).
+- **o4 (security delta) — `MAINTAIN` revocado:** requiere PostgreSQL ≥ 16; documentar el
+  requisito de runtime en `docs/07`/`docs/01` y la guarda de CI (`task-13`).
 - Nomenclatura institucional (SDFI/SRHDS/UCI) en todo el paquete.
 
 ## Criterios de aceptación

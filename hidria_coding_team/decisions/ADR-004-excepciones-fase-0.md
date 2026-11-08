@@ -20,7 +20,7 @@ credenciales adicionales, y (d) depende de la Coordinación (humano).
 |---|---|---|---|---|
 | E1 | `main` **protegida** con el ruleset `proteccion-main` (id 26780941) | (1) `GET /branches/main` → `protected:true`; (2) `GET /rulesets` → 1 ruleset `active`; (3) `GET /rulesets/26780941` → PR + checks + non-fast-forward; (4) PR #4 → `mergeable_state:"blocked"` | **RESUELTA el 2026-11-07 19:24** (acción del usuario); introduce una restricción operativa de aprobación (§E1) | `reports/F0/F0-13_verificacion_ruleset_e1.md`, `reports/F0/F0-06_supervisor_branch_protection.md` |
 | E2 | Sin proyecto Supabase `staging` | (1) MCP Supabase solo expone `zucalshlfcxejpukshxl`; (2) no hay `SUPABASE_ACCESS_TOKEN` en `.env`; (3) `npx supabase projects list` no puede autenticarse | No se puede crear/consultar otro proyecto | `reports/F0/F0-02_arquitecto-bd_supabase.md`, `reports/F1/F1-01_dev-edge-functions_contrato.md` (B-02) |
-| E3 | Auth hook sin activar / JWT no verificado | (1) `custom_access_token_hook` ausente en `pg_proc`; (2) sin Management API token; (3) sin dashboard/CLI autenticado | Función solo documentada, no activada | `reports/F0/F0-10_arquitecto-bd_auth_hook.md` |
+| E3 | ~~Auth hook sin activar~~ **RESUELTA** con Management API (`hook_custom_access_token_enabled: true`, URI `pg-functions://postgres/public/custom_access_token_hook`); JWT real con claims verificados | (1) `custom_access_token_hook` ausente; (2) sin Management API token; (3) sin dashboard/CLI | **RESUELTA el 2026-11-07 20:30**; hook activo y verificado end-to-end; usuario sin perfil → 403 (fallo cerrado) | `reports/F0/F0-14_activacion_auth_hook.md` |
 | E4 | Acta de validación 0.6 | Requiere firma de la Coordinación (humano) | Pendiente | `tasks/F0/F0-12` |
 
 ### E1 — RESUELTA: ruleset `proteccion-main` (2026-11-07 19:24)
@@ -58,14 +58,29 @@ aplicarlo el usuario en GitHub UI (*Settings → Rules → Rulesets → `protecc
 Edit → Required approvals = 0 → Save*).
 
 Mientras el ruleset conserve `required_approving_review_count = 1`, **ningún PR es
-mergeable**. Tras aplicarlo, el merge lo autorizan el **CI obligatorio** (2 checks) + el
+mergeable**. El usuario **aplicó el cambio el 2026-11-07 19:51** (verificado por API:
+`count = 0`); desde entonces el merge lo autorizan el **CI obligatorio** (2 checks) + el
 **cuórum del equipo** (spec + seguridad + QA en `reports/`) y lo ejecuta el supervisor
 (squash). La protección de rama, los checks obligatorios y la prohibición de force push se
-mantienen.
+mantienen. El control humano es por **auditoría de reportes/comentarios**, no por aprobación
+formal de GitHub.
+
+### E3 — RESUELTA: `custom_access_token_hook` activo (2026-11-07 20:30)
+
+El usuario aportó `SUPABASE_ACCESS_TOKEN` y se activó el hook por **Management API**:
+`PATCH /v1/projects/zucalshlfcxejpukshxl/config/auth` con
+`hook_custom_access_token_enabled: true` y
+`hook_custom_access_token_uri: "pg-functions://postgres/public/custom_access_token_hook"`.
+Verificación posterior (`GET`): ambos valores correctos.
+
+Verificación **end-to-end** con un usuario real creado por Admin API y su `profiles`:
+el JWT emitido contiene `organization_id`, `tenant_id` (alias) y `global_role` correctos.
+Un usuario **sin** perfil recibe **403** del hook (fallo cerrado). Los usuarios/perfiles de
+prueba se eliminaron después. Evidencia: `reports/F0/F0-14_activacion_auth_hook.md`.
 
 ## Decisión
 
-1. **G0 se cierra con las excepciones E2–E4 documentadas** (E1 resuelta) y controles
+1. **G0 se cierra con las excepciones E2 y E4 documentadas** (E1 y E3 resueltas) y controles
    compensatorios. El estado del gate es **AMARILLO-OPERATIVO**: habilita Fase 1 con datos
    **sintéticos únicamente**.
 2. **Protección de `main` (E1):** **RESUELTA** con el ruleset `proteccion-main`. Se eliminan
@@ -76,18 +91,18 @@ mantienen.
    proyecto `zucalshlfcxejpukshxl` se usa como **dev/staging con datos sintéticos**; queda
    **prohibido cargar datos reales** (`restringido_nda`) hasta la separación staging↔piloto.
    `TEAM.md` §9 se ajusta para reflejarlo.
-4. **Auth hook (E3):** la función se entregará como migración forward-only en `F1-01` y se
-   activará cuando el usuario aporte `SUPABASE_ACCESS_TOKEN` o lo haga desde el dashboard;
-   entretanto, los tests SEC-04 se ejecutan con claims simulados y `SET LOCAL ROLE`.
+4. **Auth hook (E3):** **RESUELTA**. El hook está activo por Management API y los JWT de
+   sesión llevan `organization_id`, `tenant_id` y `global_role`; SEC-04 se implementa en el
+   middleware EF (`F1-01b`, `_shared/auth.ts`). Pruebas con claims reales y simulados.
 5. **Acta 0.6 (E4):** se solicita a la Coordinación; no bloquea el desarrollo sintético.
-6. **G1 no se cierra** hasta resolver E2/E3/E4 y tener las suites de `docs/05` de Fase 1 en
+6. **G1 no se cierra** hasta resolver E2/E4 y tener las suites de `docs/05` de Fase 1 en
    verde (la excepción de pgTAP de `F1-00` obliga a `task-13` antes de G1).
 
 ## Consecuencias
 
 - El equipo avanza a Fase 1 con datos sintéticos.
-- E1 queda cerrada; las acciones de usuario pendientes son **E2** (proyecto staging), **E3**
-  (activación del auth hook) y **E4** (acta 0.6).
+- E1 y E3 quedan cerradas; las acciones de usuario pendientes son **E2** (proyecto staging) y
+  **E4** (acta 0.6).
 - El reporte de creación (`reports/F0/00-LEAD-creacion-equipo.md`) registra E1–E4;
   `reports/F0/F0-06_supervisor_branch_protection.md` y `00-supervisor_estado.md` reciben el
   anexo E1-resuelta por el supervisor.

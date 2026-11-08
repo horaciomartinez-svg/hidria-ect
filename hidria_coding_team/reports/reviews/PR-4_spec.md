@@ -10,6 +10,11 @@
 - **Estado GitHub observado:** `mergeable_state: blocked` en la consulta MCP del revisor (el supervisor reportó `clean`; no hay reviews registradas). Ver §6, observación O-1: verificar protección/requisitos antes del merge.
 - **Veredicto:** **CAMBIOS SOLICITADOS.** 1 BLOQUEANTE **documental** (B1: nombre de la semilla vs ADR-005) y 3 MAYORES de sincronización documental/contrato (M1–M3); el resto son MENORES. La implementación de esquema está bien construida, es forward-only/idempotente y coincide con el estado real de la base verificado por el revisor.
 
+> **Nota histórica:** este informe refleja el estado del head `4b057b3`. B1 se cerró en
+> `main` con `ADR-005` §2.5 (PR #5, `afffb6c`), M1–M3 quedaron asignados a `F1-18` y el
+> **veredicto vigente para el merge es APROBADO** en
+> [`PR-4_spec_delta.md`](PR-4_spec_delta.md) (head `4e2341d`; squash `b4fbc83`).
+
 ---
 
 ## 1. Alcance y método
