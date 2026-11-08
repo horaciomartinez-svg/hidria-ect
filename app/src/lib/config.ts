@@ -8,9 +8,6 @@
 /** Versión de `app/package.json` inyectada en build por `vite define`. */
 export const APP_VERSION: string = __APP_VERSION__;
 
-/** SHA de build (CI) o `dev`; visible en `/acerca` y en el nombre de caché. No es sensible. */
-export const APP_BUILD: string = __APP_BUILD__;
-
 const rawUrl = (import.meta.env.VITE_SUPABASE_URL ?? '').trim();
 const rawAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
 

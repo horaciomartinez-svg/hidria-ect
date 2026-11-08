@@ -70,9 +70,6 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, envDir, 'VITE_');
   assertPublicClientKey(env.VITE_SUPABASE_ANON_KEY);
 
-  // Identificador de build visible en /acerca y en el nombre de caché (sin secretos).
-  const appBuild = (process.env.GITHUB_SHA ?? process.env.BUILD_ID ?? 'dev').slice(0, 12);
-
   return {
     plugins: [
       react(),
@@ -96,7 +93,6 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
-      __APP_BUILD__: JSON.stringify(appBuild),
     },
     server: {
       port: 5173,
