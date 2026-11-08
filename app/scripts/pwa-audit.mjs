@@ -216,6 +216,17 @@ async function main() {
   // E3 — SW controlando
   const controlled = await evaluate(cdp, 'navigator.serviceWorker.controller !== null');
   check('E3 service worker controlando la página', controlled === true);
+
+  // E3b — nombre de caché versionado `hidria-shell-<vX.Y.Z>-<build>`
+  const cacheNames = await evaluate(cdp, "caches.keys()");
+  const names = Array.isArray(cacheNames) ? cacheNames : [];
+  const versionedCache = names.find((name) => /^hidria-shell-\d+\.\d+\.\d+-.+$/.test(name));
+  check(
+    'E3b caché versionada hidria-shell-<version>-<build>',
+    typeof versionedCache === 'string',
+    names.join(', ') || 'sin cachés',
+  );
+
   // E4 — caché del shell (sólo estáticos same-origin; sin Supabase/R2 ni tokens)
   const cacheEntries = await evaluate(
     cdp,

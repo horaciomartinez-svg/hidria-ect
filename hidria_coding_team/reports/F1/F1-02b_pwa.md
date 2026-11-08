@@ -8,7 +8,7 @@
 | **Ramas** | **A** `feature/F1-02b-pwa` (PWA instalable base) · **B** `feature/F1-02b-pwa-ui` (UI de actualización/instalación + evidencia) |
 | **Heads** | A: `4b41f7e` · B: _pendiente al publicar_ (§10) |
 | **Secuencia** | El diff total (~900 líneas de código/config) supera el umbral de ~400: se entrega en **2 PRs** encadenados (A base → B UI/evidencia), sin reescribir historia |
-| **Conclusión** | **VERDE** — PWA instalable verificada con evidencia CDP (10/10), sin secretos en artefactos y con la política de caché del sign-off de seguridad |
+| **Conclusión** | **VERDE** — PWA instalable verificada con evidencia CDP (11/11), sin secretos en artefactos y con la política de caché del sign-off de seguridad |
 
 ---
 
@@ -16,7 +16,7 @@
 
 - **App instalable y offline:** manifest es-MX + iconos 192/512/maskable/180 + service worker
   (Workbox `injectManifest`) con precache del shell público y `NetworkOnly` para Supabase/R2.
-- **Evidencia CDP (ADR-008):** `npm run pwa:audit` → **10/10 OK** con Chrome 156: manifest servido y
+- **Evidencia CDP (ADR-008):** `npm run pwa:audit` → **11/11 OK** con Chrome 156: manifest servido y
   completo, `Page.getInstallabilityErrors` **vacío**, SW registrado/activo y controlando, 11 entradas
   de caché **todas same-origin** (sin Supabase/R2), arranque offline con banner, `offline.html` sin
   red y versión/build visibles.
@@ -55,7 +55,7 @@
 | Hooks | `app/src/pwa/usePwaState.ts`, `useInstallPrompt.ts` | Estado reactivo del SW y del prompt de instalación |
 | Integración | `AppShell.tsx`, `StatePages.tsx` (`/acerca`) | Banner en el layout; versión + **build** y sección de instalación en `/acerca` |
 | Fases | `app/src/routes/registry.tsx` | M5 → F2; M7 → F1 con `phaseNote` «F1 mínimo / F2 completo» |
-| Evidencia reproducible | `app/scripts/pwa-audit.mjs` (`npm run pwa:audit`) | Auditoría CDP E1–E9 conforme a ADR-008; registra versión de Chrome/CDP |
+| Evidencia reproducible | `app/scripts/pwa-audit.mjs` (`npm run pwa:audit`) | Auditoría CDP (E1, E1b, E2, E3, E3b, E4, E5, E7, E9) conforme a ADR-008; registra versión de Chrome/CDP |
 
 ---
 
@@ -78,7 +78,8 @@
 
 ## 4. Evidencia CDP (ADR-008) — `npm run pwa:audit`
 
-Ejecutado contra `vite preview` del build de producción (Chrome 156.0.8078.80, CDP local):
+Ejecutado contra `vite preview` del build de producción (Chrome 156.0.8078.80, CDP local;
+`BUILD_ID=f1-02b-b2`, registrado en `/acerca` y en el nombre de caché):
 
 ```
 Chrome/CDP: Chrome/156.0.8078.80
@@ -89,13 +90,14 @@ OK   E1 manifest servido con campos e iconos requeridos — 200 manifest.webmani
 OK   E1b Page.getAppManifest sin errores de parseo
 OK   E2 Page.getInstallabilityErrors vacío
 OK   E3 service worker controlando la página
+OK   E3b caché versionada hidria-shell-<version>-<build> — hidria-shell-0.1.0-f1-02b-b2
 OK   E7 caché sólo shell público same-origin — 11 entradas, 0 ajenas
 OK   E7 la app está en línea antes de la prueba offline
 OK   E4 shell arranca sin red y muestra banner offline
 OK   E5 offline.html se sirve sin red
 OK   E9 versión y build visibles en /acerca
 
-RESUMEN: 10/10 comprobaciones OK
+RESUMEN: 11/11 comprobaciones OK
 ```
 
 **Aviso de versión (E6):** con `BUILD_ID` distinto y `registration.update()` se verificó
@@ -136,6 +138,7 @@ npm run build      → tsc … && vite build ........................... EXIT 0
 | PWA-04 | `offline.html` sin red | OK (E5) |
 | PWA-05 | Aviso de versión nueva | Banner verificado; aplicación → task-49/F1-16 |
 | PWA-06 | Caché sólo same-origin | OK (E7) |
+| PWA-06b | Caché versionada `hidria-shell-<v>-<build>` | OK (E3b: `hidria-shell-0.1.0-f1-02b-b2`) |
 | PWA-07 | Sin secretos en artefactos | OK (§5) |
 | PWA-08 | Versión + build en `/acerca` | OK (E9) |
 | PWA-09 | a11y de banners/offline (320 px, contraste) | Revisión manual: `role=status`, `aria-live`, contraste AA, sin scroll horizontal |
@@ -201,9 +204,19 @@ A hace la app instalable y offline; B cierra el aviso de versión, la instalaci�
 
 ### 10.1 Verificación del head de B/2
 
+- Base: `main` = `057ad79` (A/2 mergeada en `7cc84a2`; #26 incluido). Rama `feature/F1-02b-pwa-ui`
+  actualizada por merge (sin reescritura de historia).
+- `npm ci`: **OK** (514 paquetes; conserva `@playwright/test` y Workbox).
+- `lint` **0**; `typecheck` (cliente + SW) **0**; `build` **0**; `check:sw` ejecutado en build.
+- **Auditoría CDP local: 11/11** (Chrome 156.0.8078.80) — incluye E3b con caché versionada
+  `hidria-shell-0.1.0-f1-02b-b2`; el build id queda visible en `/acerca`.
+- **Head de B/2 y CI:** _pendiente al publicar_ (§10.2).
+- Revisión solicitada: spec (alcance B/2 y fases), seguridad (SW/caché/secretos/APP_BUILD) y
+  QA (auditoría CDP E1–E10 + offline).
+
+### 10.2 Head y CI del PR de B/2
+
 - Head: _pendiente al publicar_.
 - CI: _pendiente al publicar_ (Guardas + Cliente + Edge Functions Deno + pgTAP + E2E Playwright).
-- Auditoría CDP (`npm run pwa:audit`): _pendiente al publicar_ (Chrome 156 registrado).
-- `npm ci` / `lint` / `typecheck` / `build`: verificados localmente antes del push.
 
 *Reporte de `dev-frontend-pwa` para F1-02b.*
