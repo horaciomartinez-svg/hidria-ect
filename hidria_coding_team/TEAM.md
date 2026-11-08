@@ -144,7 +144,7 @@ PLAN → ASSIGN → IMPLEMENT → PR → SPEC REVIEW → SECURITY REVIEW → QA 
 | **SPEC REVIEW** | Revisor | Aprobación o cambios solicitados, con cita a la sección del documento |
 | **SECURITY REVIEW** | Seguridad | Aprobación o veto, con evidencia (RLS, secretos, `docs/06`) |
 | **QA** | QA Tester | Suite aplicable en verde + trazabilidad actualizada |
-| **MERGE** | Supervisor | Squash merge a `main` (o `develop` cuando exista) tras CI verde y 2 aprobaciones |
+| **MERGE** | Supervisor | Squash merge a `main` (o `develop` cuando exista) tras CI verde, 2 revisiones del equipo **y la aprobación humana que exige el ruleset** |
 | **DEPLOY STAGING** | DevOps | Pages + Supabase staging + R2; URL y versión en `reports/` |
 | **VERIFY** | QA + Supervisor | Smoke/E2E de staging; si falla, se revierte y se abre incidente |
 
@@ -156,8 +156,18 @@ El supervisor **no** programa; si detecta un defecto, abre tarea para el dueño.
 ## 8. Ramas, commits, PRs y CI
 
 - **Ramas:** `feature/F1-07-cat-m4`, `fix/F0-06-branch-protection`, `chore/F0-fundacion`,
-  `docs/…`, `test/…`. Siempre desde `main` actualizado. `main` protegida: PR obligatorio,
-  ≥ 1 aprobación, sin force push. (La protección se verifica en F0-06.)
+  `docs/…`, `test/…`. Siempre desde `main` actualizado.
+- **`main` protegida (ruleset `proteccion-main`, activo desde 2026-11-07 19:24):** PR
+  obligatorio, **1 aprobación de review de GitHub**, required checks
+  `Guardas de repositorio` + `Cliente (lint + typecheck + build)`, sin force push, sin
+  borrado. `bypass_actors: []`.
+- **Aprobación humana obligatoria:** la aprobación de GitHub la da **el usuario**; los
+  agentes no pueden auto-aprobar (el autor es el único colaborador). El cuórum del equipo
+  (spec + seguridad + QA en `reports/`) es **adicional** y no sustituye la aprobación de
+  GitHub. El supervisor **no mergea** hasta que el usuario apruebe el PR.
+- **Si el usuario no dispone de segunda identidad:** debe ajustar el ruleset (bypass actor,
+  `required_approving_review_count = 0`, o segundo colaborador). Es una acción del usuario,
+  no del equipo.
 - **Commits:** Conventional Commits en español/inglés estable:
   `feat(ef-07): emisión de reporte con folio -R1` · `fix(rls): política de tablas hijas` ·
   `test(pgtap): gate de fase` · `docs(07): …`. Un commit = un cambio coherente.
@@ -288,7 +298,7 @@ Un entregable está **Hecho** cuando:
 
 | Gate | Criterio de salida |
 |---|---|
-| **G0 — Fase 0** | Entorno validado: MCP operativos, `.env` OK, 3 migraciones, seeds, RLS 44/44, CI, monorepo, `.env.example`. **Estado real: AMARILLO-OPERATIVO** con excepciones E1–E4 de `ADR-004` (branch protection, proyecto staging, auth hook activo, acta 0.6) y acción requerida del usuario |
+| **G0 — Fase 0** | Entorno validado: MCP operativos, `.env` OK, 3 migraciones, seeds, RLS 44/44, CI, monorepo, `.env.example`. **Estado real: AMARILLO-OPERATIVO**; E1 **RESUELTA** (ruleset `proteccion-main`); excepciones abiertas **E2–E4** de `ADR-004` (staging, auth hook, acta 0.6) |
 | **G1 — MVP núcleo** | **ADR-003:** M1–M8 + M9 mínimo + M10–M11; EF-01…EF-09 (EF-07 esencial con folio `-R1`) + captura mínima de custodia/lab/alternativas (F1-13/F1-14/F1-15); **RT-01/02** (Realtime, F1-17); E2E-01/02/03/05/07/08, SEC-01…05, API-00…04 verdes |
 | **G2 — Completa** | EF-10 (custodia/laboratorio completo), EF-11 + M12 (aula), EF-12 (reprogramación), insignia OB3, reportes completos (M9 avanzado), M7 completo |
 | **G3 — Piloto** | EF-07 completo (matriz 10/10 con M9 avanzado), EF-13 tras `NOM151_ENABLED`, CAP-01…04 |
@@ -297,13 +307,13 @@ Un entregable está **Hecho** cuando:
 
 ## 14. Estado actual y siguiente tarea
 
-- **Fase:** F0 ejecutada; **G0 se cierra con el merge de #2** y el reporte del supervisor
-  (`ADR-004`, excepciones E1–E4); `F1 — MVP núcleo` según `ADR-003`.
+- **Fase:** F0 ejecutada y G0 cerrado AMARILLO-OPERATIVO (E1 resuelta; E2–E4 abiertas);
+  `F1 — MVP núcleo` en curso.
 - **Tablero:** ver `tasks/BACKLOG.md`.
-- **Última actualización:** 2026-11-08 — creación del equipo, Fase 0 ejecutada y ADR-003/004.
-- **Siguiente tarea asignada:** `F1-00 — Migraciones correctivas y grants` (dueño:
-  Arquitecto BD), seguida de `F1-01 — Auth con custom claims y roles` (Arquitecto BD +
-  Dev Edge Functions).
+- **Última actualización:** 2026-11-07 19:34 — E1 resuelta (ruleset `proteccion-main`),
+  PR #4 (F1-00) en revisión y bloqueado a la espera de aprobación humana del ruleset.
+- **Siguiente tarea asignada:** `F1-00` completada y en revisión; después
+  `F1-01 — Auth con custom claims y roles` (Arquitecto BD + Dev Edge Functions).
 
 ---
 

@@ -123,7 +123,7 @@ Ningún agente mergeó, hizo push ni aplicó DDL en Fase 0.
 
 | # | Excepción | Impacto | Acción requerida del usuario |
 |---|---|---|---|
-| E1 | `main` **sin protección** (token sin `Administration`) | Merge depende de política + CI, no de control técnico | Activar protección en GitHub UI (PR + 1 aprobación + required checks + no force push) **o** emitir PAT con `Administration: read & write` |
+| E1 | ~~`main` sin protección~~ **RESUELTA 2026-11-07 19:24** — ruleset `proteccion-main` activo (PR + 1 aprobación + checks + no force push) | El merge exige aprobación **humana**; con un solo colaborador (autor), GitHub no permite auto-aprobar → el usuario debe aprobar cada PR o ajustar el ruleset | Aprobar los PRs (segunda identidad) **o** ajustar el ruleset (bypass admin / `required_approving_review_count: 0` / segundo colaborador) |
 | E2 | Sin proyecto Supabase `staging` separado | Se usa el proyecto disponible como dev/staging **sintético** | Provisionar proyecto staging + `SUPABASE_ACCESS_TOKEN` |
 | E3 | Auth hook no activado / JWT no verificado | `F1-01` lo entrega y lo activa | Aportar `SUPABASE_ACCESS_TOKEN` o activarlo en dashboard |
 | E4 | Acta de validación 0.6 | Pendiente de firma | Coordinación SDFI/UCI |
@@ -140,20 +140,41 @@ Ningún agente mergeó, hizo push ni aplicó DDL en Fase 0.
 - **Merge:** **squash `1da64d0`** por `supervisor-hidria`; PR #2 `merged:true`
   (2026-11-08T00:42:16Z).
 
+### PR #4 — F1-00 migraciones correctivas (en revisión; no mergeable aún)
+
+- **Contenido:** 13 archivos, +1333/−0; 8 migraciones forward-only (M-01…M-08), 4 suites
+  pgTAP y el reporte de ejecución. Las 8 migraciones ya están aplicadas en el proyecto
+  Supabase (11 filas en `schema_migrations`: 3 base + 8 nuevas).
+- **CI:** 4/4 `success` en `4b057b3`.
+- **Spec review:** **CAMBIOS SOLICITADOS** (`reports/reviews/PR-4_spec.md`): B1 documental
+  (nombre de `organizations`) — **resuelto en este PR mediante `ADR-005`** — y M1–M3
+  asignados a `F1-18`.
+- **Security review:** **VETO** (`reports/security/PR-4_security.md`): SEC-PR4-01
+  (DML de `authenticated` sobre `v_quiz_questions`) y SEC-PR4-02 (`WITH CHECK` incompleto
+  en 7 políticas que permite escalada de rol). **Corrección forward-only en curso**
+  (M-09/M-10 + pgTAP); el reporte de seguridad se versionará **tras** el fix (divulgación
+  responsable).
+- **QA:** **AMARILLO** con excepción pgTAP documentada (`reports/qa/PR-4_qa.md`);
+  `task-13` (pgTAP en CI) es obligatoria antes de G1.
+- **Merge:** **bloqueado** por el ruleset `proteccion-main` (aprobación humana) **y** por el
+  veto de seguridad hasta el fix. No se mergea sin ambas condiciones.
+
 ## 6. Gate G0
 
 **AMARILLO-OPERATIVO, cerrado con el merge `1da64d0`.** Las 12 tareas F0 tienen evidencia;
-el estado no es VERDE pleno por las excepciones E1–E4 (credenciales/acta, `ADR-004`). Se
-autoriza **Fase 1 con datos sintéticos únicamente**; los datos reales (`restringido_nda`)
-quedan prohibidos hasta que exista staging separado de piloto. `00-supervisor_estado.md`
-registra el checklist final y las acciones de usuario.
+**E1 quedó resuelta** el 2026-11-07 19:24 con el ruleset `proteccion-main`. Persisten
+**E2–E4** (staging, auth hook, acta 0.6). Se autoriza **Fase 1 con datos sintéticos
+únicamente**; los datos reales (`restringido_nda`) quedan prohibidos hasta que exista staging
+separado de piloto. `00-supervisor_estado.md` registra el checklist final, E1 cerrada y las
+acciones de usuario restantes.
 
 ## 7. Siguiente tarea asignada
 
-1. **`F1-00` — Migraciones correctivas y grants DML** (`arquitecto-bd`, P0, **en curso**;
+1. **`F1-00` — Migraciones correctivas y grants DML** (`arquitecto-bd`, P0, **en revisión**;
    tarea compartida `task-9`): M-01…M-08 (idempotencia, auditoría, folio, RPC BHE, Realtime,
    RPC de rol, default de perfil, completitud), grants, `security_invoker`, semilla, auth
-   hook `public.*`, enforcement H-5.
+   hook `public.*`, enforcement H-5. **Fix de seguridad M-09/M-10 en curso** (revoke DML de
+   `v_quiz_questions` + `WITH CHECK` de las 7 políticas) para levantar el veto.
 2. **`F1-01` — Auth con custom claims y roles** (`arquitecto-bd` + `dev-edge-functions`),
    dependiente de F1-00.
 3. Después, la ola F1 en orden: F1-02 shell → F1-03 M1 → F1-04 M2/M11 → F1-05/F1-06 M3 →

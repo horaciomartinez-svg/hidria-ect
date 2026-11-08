@@ -10,31 +10,38 @@
 > Evidencia queda vacía; no se inventan resultados. Lo único ejecutado y verde en F0 es la
 > CI mínima y las guardas de repositorio (ver «Evidencia de Fase 0» y
 > `reports/F0/F0-07_qa_ci.md`).
+>
+> **Fase 1 (F1-00, PR #4):** se aplicaron 8 migraciones correctivas (11 en total) y se
+> entregaron 4 suites pgTAP (39 aserciones) que **no se ejecutaron** (el host no tiene
+> Docker y la CI no levanta Postgres). Las reglas se validaron con **aserciones SQL
+> equivalentes** contra el proyecto; eso no sustituye la ejecución pgTAP. **Ninguna fila
+> cambia a `verde`**: dictamen QA **AMARILLO con excepción documentada**
+> (`reports/qa/PR-4_qa.md`); la ejecución es condición de G1 vía **task-13**.
 
 | # | Regla / contrato | Documento | Casos de prueba | Estado | Evidencia |
 |---|---|---|---|---|---|
 | R-01 | Gates de fase F2–F6 (`check_phase_gate`; bloquea checklist R1, CAT R2, IIH V1, BHE R3, IVOH R4) | docs/04 TD-1, §1.2, EF-01; docs/05 §2, §3.1 | PG-01…PG-13; E2E-01; E2E-03; API-01 | pendiente | — |
 | R-02 | Transiciones de la lista de cotejo por rol y estado (TD-2) | docs/04 TD-2, EF-03; docs/05 §3.7 | DOC-01…DOC-06; E2E-09 | pendiente | — |
 | R-03 | CAT de 47 preguntas; envío/validación R2 y gate F3 | docs/04 EF-04; docs/05 §3.6 | CAT-01…CAT-03; E2E-02 | pendiente | — |
-| R-04 | Brecha BHE mensual > 10 % bloquea la validación R3; vistas `v_bhe_monthly`/`v_bhe_summary` | docs/04 TD-3, EF-05; docs/05 §3.2 | PG-07, PG-08; BHE-01…BHE-05; E2E-03 | pendiente | — |
+| R-04 | Brecha BHE mensual > 10 % bloquea la validación R3; vistas `v_bhe_monthly`/`v_bhe_summary` | docs/04 TD-3, EF-05; docs/05 §3.2 | PG-07, PG-08; BHE-01…BHE-05; E2E-03 | pendiente | F1-00: `fn_bhe_monthly`/`fn_bhe_summary` validados por SQL; EF-05/BHE-01…04 y pgTAP 030 pendientes (task-13) |
 | R-05 | IVOH requiere un BHE validado en R3 (`trg_ivoh_requires_bhe`) | docs/04 TD-6, §1.2; docs/05 §3.3 | IVOH-02 | pendiente | — |
 | R-06 | Fórmula IVOH `0.15F1+0.20F2+0.20F3+0.20F4+0.15F5+0.10F6` y semáforo <5 / 5–7.9 / ≥8 | docs/04 EF-06, TD-6; docs/05 §3.3 | IVOH-01, IVOH-03, IVOH-04; E2E-05 | pendiente | — |
-| R-07 | Reporte solo con matriz de completitud 10/10 (incluye 501 de EF-13 en fases 1–2) | docs/04 TD-4, EF-07; docs/05 §4.1 | RPT-01…RPT-04; E2E-06, E2E-07 | pendiente | — |
-| R-08 | Folio del Reporte `{folio_diagnostico}-R1` y versión inmutable | docs/04 EF-07, §2.5; docs/05 §4.1 | RPT-02; API-01 | pendiente | — |
-| R-09 | Dictamen de laboratorio solo con 3 transferencias de custodia firmadas | docs/04 TD-5, EF-10; docs/05 §3.4 | CUS-01…CUS-04; E2E-04 | pendiente | — |
+| R-07 | Reporte solo con matriz de completitud 10/10 (incluye 501 de EF-13 en fases 1–2) | docs/04 TD-4, EF-07; docs/05 §4.1 | RPT-01…RPT-04; E2E-06, E2E-07 | pendiente | F1-00: `fn_completeness`=10 filas y `reporte_emitible=false` validados por SQL; EF-07/pgTAP 030 no ejecutados |
+| R-08 | Folio del Reporte `{folio_diagnostico}-R1` y versión inmutable | docs/04 EF-07, §2.5; docs/05 §4.1 | RPT-02; API-01 | pendiente | F1-00: trigger `report_emission_folio` `-R1/-R2` validado por SQL; pgTAP 030 no ejecutado |
+| R-09 | Dictamen de laboratorio solo con 3 transferencias de custodia firmadas | docs/04 TD-5, EF-10; docs/05 §3.4 | CUS-01…CUS-04; E2E-04 | pendiente | F1-00: `trg_custody_gate` (firma no vacía) validado por SQL; EF-10/CUS-02…04 y pgTAP 040 no ejecutados |
 | R-10 | Cierre de bitácora ≤ 24 h; cierre tardío con `cerrada_razon`; ficha cerrada inmutable y versionada | docs/04 TD-8, EF-02; docs/05 §3.5 | LB-01…LB-08; E2E-08 | pendiente | — |
 | R-11 | Reprogramación de hito dentro de las 6 semanas con semáforo de atraso | docs/04 TD-1 (nota), EF-12; docs/05 §3.1 | PG-12; E2E-11 | pendiente | — |
 | R-12 | Folios solo del lado servidor (diagnóstico, BIT-Vx, IIH USO, fotos, `-R1`, ARCO) | docs/04 §2.5, §1.2; docs/05 §3.5 | LB-06, LB-08, RPT-02; API-01 | pendiente | — (`UNIT-*` citado por docs/05 §1.3 sin casos definidos: ver H-1) |
-| R-13 | Idempotencia con `Idempotency-Key`: misma clave+mismo payload → mismo cuerpo sin duplicar efectos | docs/04 §2.3; docs/05 §4.3 | API-00; OFF-04 | pendiente | — |
+| R-13 | Idempotencia con `Idempotency-Key`: misma clave+mismo payload → mismo cuerpo sin duplicar efectos | docs/04 §2.3; docs/05 §4.3 | API-00; OFF-04 | pendiente | F1-00: tabla `api_idempotency` + unique `(user,endpoint,key)` validada por SQL; API-00 (EF) y pgTAP 020 no ejecutados |
 | R-14 | Los gates no se encolan offline; botón deshabilitado y cero llamadas a EF | docs/04 §6 (regla 4); docs/05 §4.4 | OFF-01 | pendiente | — |
 | R-15 | Merge LWW por campo y conflicto visible en UI (nunca pisar en silencio) | docs/04 §6 (regla 3); docs/05 §4.4 | OFF-03 | pendiente | — |
-| R-16 | RLS multi-tenant (`is_tenant_member`) y por membresía/rol de diagnóstico (`my_diagnostic_role`) | docs/01 §RLS; docs/04 §1.1; docs/05 §4.2 | SEC-01, SEC-02, SEC-03; DOC-06; E2E-09 | pendiente | — |
-| R-17 | JWT con custom claims `organization_id`/`global_role`; sin claim → 401 `AUTH_INVALID` | docs/04 §2.1; docs/07 §3 (paso 0.5); docs/05 §4.2 | SEC-04 | pendiente | — |
-| R-18 | `quiz_questions` denegada a `authenticated`; `v_quiz_questions` sin `correcta`/retroalimentación | docs/04 §9, TD-7; docs/05 §4.2 | SEC-05; AUL-01 | pendiente | — |
-| R-19 | `audit_log` append-only con hash encadenado `prev_hash→hash` | docs/01; docs/04 §2.6; docs/05 §4.2 | SEC-06 | pendiente | — |
+| R-16 | RLS multi-tenant (`is_tenant_member`) y por membresía/rol de diagnóstico (`my_diagnostic_role`) | docs/01 §RLS; docs/04 §1.1; docs/05 §4.2 | SEC-01, SEC-02, SEC-03; DOC-06; E2E-09 | pendiente | F1-00: grants + `security_invoker` validados por SQL; aislamiento por filas probado con fixtures JWT en reporte del arquitecto (no pgTAP); SEC-01/02/03 pendientes |
+| R-17 | JWT con custom claims `organization_id`/`global_role`; sin claim → 401 `AUTH_INVALID` | docs/04 §2.1; docs/07 §3 (paso 0.5); docs/05 §4.2 | SEC-04 | pendiente | F1-00: hook presente con claims (no activo, E3); SEC-04 pendiente |
+| R-18 | `quiz_questions` denegada a `authenticated`; `v_quiz_questions` sin `correcta`/retroalimentación | docs/04 §9, TD-7; docs/05 §4.2 | SEC-05; AUL-01 | pendiente | F1-00: `authenticated` sin SELECT en tabla cruda y vista sin `correcta` (columnas) validado por SQL; pgTAP 010 no ejecutado; AUL-01 pendiente |
+| R-19 | `audit_log` append-only con hash encadenado `prev_hash→hash` | docs/01; docs/04 §2.6; docs/05 §4.2 | SEC-06 | pendiente | F1-00: cadena/hash, GENESIS, unique `prev_hash` y append-only validados por SQL (estructura); recálculo SHA-256/concurrencia y pgTAP 020 no ejecutados |
 | R-20 | Aviso de privacidad y ARCO verbatim; buzón ARCO con folio `ARCO-AAAA-NNNN` y plazos | docs/06 §5, §12; docs/05 no incluye PRIV | PRIV-01…PRIV-04 | pendiente | — (casos definidos solo en docs/06 §12: ver H-2) |
 | R-21 | Aula: calificación server-side, ≥ 80 %, insignia Open Badges 3.0 | docs/08; docs/04 TD-7, EF-11; docs/05 §4.7 | AUL-01…AUL-03; E2E-10 | pendiente | — |
-| R-22 | Realtime por canal `diagnostic:{id}`/`org:{org}` con RLS de suscripción | docs/04 §7; docs/05 §4.5 | RT-01, RT-02 | pendiente | — |
+| R-22 | Realtime por canal `diagnostic:{id}`/`org:{org}` con RLS de suscripción | docs/04 §7; docs/05 §4.5 | RT-01, RT-02 | pendiente | F1-00: 5 tablas publicadas + 3 políticas `hidria_rt_*` validadas por SQL (existencia); predicados/denegación y pgTAP 040 no ejecutados; RT-01/02 en F1-17 |
 | R-23 | Gate F4: todos los activos IIH con `verificado_v1=true` | docs/04 TD-1#3; docs/05 §3.1 | PG-05, PG-06 | pendiente | — |
 | R-24 | Sin saltos de fase y rol de diagnóstico requerido | docs/04 TD-1#7/#8; docs/05 §3.1 | PG-10, PG-11 | pendiente | — |
 | R-25 | Pesos y rúbricas del IVOH inmutables en la versión vigente | docs/04 TD-6, `trg_ivoh_version_immutable`; docs/05 §3.3 | IVOH-05 | pendiente | — |
@@ -70,6 +77,23 @@ Ninguna suite de producto es ejecutable: no hay implementación. Recuento de cas
 ejecutables en F0**. La cobertura de la matriz es de *definición* (regla → caso); no de
 *ejecución*.
 
+### Suites F1-00 (PR #4) — definidas, NO ejecutadas
+
+`supabase/tests/010…040` contienen **39 aserciones pgTAP** sobre la capa BD de F1-00. Se
+verificó estáticamente que `plan()` coincide (12/9/9/9) y que el esquema soporta sus
+aserciones (SQL de solo lectura), pero **0/39 ejecutadas**: no hay runner Postgres y la CI
+no levanta BD. La equivalencia con aserciones SQL vía MCP **no** se contabiliza como
+ejecución. Dictamen QA: **AMARILLO con excepción documentada** (`reports/qa/PR-4_qa.md`);
+**task-13** (pgTAP en CI, obligatoria antes de G1) debe ejecutarlas y publicar run id.
+
+| Archivo | Aserciones | Cobertura (capa BD) | Ejecutadas |
+|---|---|---|---|
+| `010_f1_00_grants_views.sql` | 12 | grants, `quiz_questions` vs vista, `security_invoker`, helper RLS | 0 |
+| `020_f1_00_idempotency_audit.sql` | 9 | M-01 unicidad, M-02 hash/cadena/acciones `reject`/`error` | 0 |
+| `030_f1_00_folio_bhe_completeness.sql` | 9 | folio `-R1/-R2`, BHE por RPC, completitud 10/10 | 0 |
+| `040_f1_00_enforcement_realtime.sql` | 9 | custodia firmada, F6 6/6, vigente único, hook, Realtime | 0 |
+| **Total** | **39** | capa BD (no E2E/EF) | **0** |
+
 ## Huecos de plan detectados (para el revisor de especificaciones; QA no inventa IDs)
 
 - **H-1.** `docs/05` §1.3 y el rol de QA (§3) citan pruebas `UNIT-*` (Vitest) pero el
@@ -88,6 +112,16 @@ ejecutables en F0**. La cobertura de la matriz es de *definición* (regla → ca
   ejecuta guardas + lint/typecheck/build. Se planifica en F1 (no es defecto de F0).
 - **H-7.** No hay casos por evento Realtime del §7 (solo RT-01/02 de entrega y
   aislamiento); los 9 payloads no tienen verificación dedicada.
+- **H-8.** `docs/05` no define casos de capa BD para grants, `security_invoker`, tabla
+  `api_idempotency`, `report_emissions` ni hook de claims. Las suites F1-00 se mapean a IDs
+  cercanos (SEC-05, SEC-06, API-00, BHE-05, RPT-02, CUS-01, RT-02) pero **sin IDs propios**;
+  al ejecutarlas en task-13 debe documentarse el mapeo y llevarse al plan (F1-18).
+- **H-9.** Las suites F1-00 **no son ejecutables en Postgres+pgtap genérico**: requieren el
+  baseline Supabase (roles `anon`/`authenticated`/`service_role`/`supabase_auth_admin`,
+  `auth.users`/`auth.uid()`, `realtime.messages`/`topic()`, publicación
+  `supabase_realtime`, esquemas `extensions`). Task-13 debe usar Supabase CLI local
+  (`supabase start` + `supabase db reset` + `supabase test db`) o un bootstrap equivalente;
+  un `services: postgres` pelado no basta.
 
 ## Evidencia de Fase 0 (no son casos de `docs/05`)
 
@@ -97,6 +131,21 @@ ejecutables en F0**. La cobertura de la matriz es de *definición* (regla → ca
 | `docs/02` byte-idéntico a la migración base | SHA-256 `2A7B6F8888040990B109F580F6BE50F7F03BF7D9FF7B2299D7BD50BC85442CB5` (local) + job «Guardas de repositorio» |
 | Estructura monorepo y scaffold compilable | `reports/qa/PR-2_qa.md`; `npm run lint/typecheck/build` exit 0 |
 
+## Evidencia de Fase 1 (en curso — F1-00 / PR #4)
+
+| Verificación F1-00 | Resultado | Evidencia |
+|---|---|---|
+| 11 migraciones aplicadas (3 base + 8 F1-00), sin editar la base ni `docs/02` | ✓ | `list_migrations` (11 filas); hash `docs/02` intacto; `reports/qa/PR-4_qa.md` §2 |
+| 46 tablas / 46 con RLS / 6 vistas / 105 políticas | ✓ | SQL de solo lectura (QA) |
+| 5/6 vistas con `security_invoker=true`; `v_quiz_questions` definer | ✓ | `pg_class.reloptions` |
+| Grants clave: `authenticated` sin `quiz_questions`/`api_idempotency`; `anon` sin datos; `service_role` audit INSERT sí/UPDATE no | ✓ | `has_table_privilege` |
+| Realtime: 5 tablas publicadas + 3 políticas `hidria_rt_*` | ✓ | `pg_publication_tables`/`pg_policies` |
+| Hook de claims presente (no activo, E3); default `invitado`; semilla institucional; única versión IVOH vigente | ✓ | SQL |
+| 4 suites pgTAP F1-00 (39 aserciones) | **✗ NO ejecutadas** | `reports/qa/PR-4_qa.md`; task-13 |
+
+**Ninguna fila de la matriz cambia a `verde` con esta evidencia**: es verificación SQL
+equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las suites.
+
 ## Reglas de actualización
 
 - Al implementar una regla, QA agrega los casos y cambia el estado con evidencia ejecutada
@@ -104,5 +153,8 @@ ejecutables en F0**. La cobertura de la matriz es de *definición* (regla → ca
 - Un `rojo` bloquea el merge/release de la fase (gate de `docs/05`).
 - Toda regla nueva de `docs/04`/`docs/06` debe aparecer aquí antes de cerrar el PR que la
   introduce.
-- Los huecos H-1…H-7 se escalan al revisor de especificaciones; QA no crea casos que los
+- Los huecos H-1…H-9 se escalan al revisor de especificaciones; QA no crea casos que los
   documentos no definen ni marca resultados no ejecutados.
+- **F1-00 (PR #4):** las 4 suites pgTAP están definidas pero sin ejecutar. La matriz no
+  cambia a verde hasta que **task-13** las ejecute en CI con Postgres; si fallan, el autor
+  (arquitecto-bd) las corrige y QA re-ejecuta.
