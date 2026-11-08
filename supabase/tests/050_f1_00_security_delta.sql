@@ -4,7 +4,7 @@
 -- el aislamiento multi-tenant A/B se mantiene.
 begin;
 
-select plan(24);
+select plan(28);
 
 insert into public.organizations (id, name, org_type) values
   ('11111111-1111-4111-8111-111111111111','Org Sec A','srhds'),
@@ -133,6 +133,20 @@ select throws_ok($sql$
    where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 $sql$, 'P0001', 'Gate F2: la lista de cotejo (layout) no está validada en R1.',
   'UPDATE a fase 6 desde fase 1: gate F2 bloquea');
+select throws_ok($sql$
+  update public.diagnostics set folio='MDOHI-FAKE-999'
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE de folio rechazado (folio inmutable, task-59)');
+select throws_ok($sql$
+  update public.diagnostics set estado='reportado',
+    reporte_document_id='11111111-1111-4111-8111-111111111111',
+    bitacora_cerrada=true, avance_pct=100, cat_estado='validado_r2'
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE de estado/reporte/bitácora/avance/cat rechazado');
+select lives_ok($sql$
+  update public.diagnostics set fecha_fin='2026-03-01'
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, 'UPDATE de campo no-gate sigue permitido');
 with upd as (
   update public.profiles set full_name='Admin cambiado'
    where user_id='abababab-abab-4bab-8bab-abababababab' returning 1
@@ -198,6 +212,15 @@ with del as (
 )
 select is((select count(*) from del), 1::bigint,
   'coordinador puede DELETEAR diagnóstico de su tenant');
+
+-- service_role (EF-01/EF-07) sí puede cambiar estado tras sus gates.
+reset role;
+reset request.jwt.claims;
+set local role service_role;
+select lives_ok($sql$
+  update public.diagnostics set estado='validado'
+   where id='acacacac-acac-4cac-8cac-acacacacacac'
+$sql$, 'service_role puede actualizar estado (ruta EF)');
 
 reset role;
 reset request.jwt.claims;
