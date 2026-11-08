@@ -4,7 +4,7 @@
 - **Fecha:** 2026-11-08 (America/Mexico_City)
 - **Repositorio:** `horaciomartinez-svg/hidria-ect` (público) · rama `chore/f0-fundacion` / PR **#2**
 - **Proyecto Supabase:** `zucalshlfcxejpukshxl` (us-east-1)
-- **Entorno Cloudflare:** cuenta `67bec4f06347f4a150e12b5b2f23f77b` · Pages **https://hidria-staging.pages.dev** (HTTP 200)
+- **Entorno Cloudflare:** cuenta `<ACCOUNT_ID>` · Pages **https://hidria-staging.pages.dev** (HTTP 200)
 - **Resultado:** **equipo constituido (8/8) · Fase 0 ejecutada · G0 AMARILLO-OPERATIVO**
   (con excepciones de credenciales documentadas y 3 acciones del usuario)
 

@@ -17,7 +17,7 @@ se publicó el build de `app/dist`. La URL de producción responde **HTTP 200** 
 HIDRIA. Quedan pendientes menores documentados (§6): versionado de R2 (no expuesto por la API
 disponible), headers de seguridad y aislamiento de cuenta antes del piloto.
 
-- Cuenta Cloudflare: `67bec4f06347f4a150e12b5b2f23f77b` (pública, no secreta) — `type: standard`
+- Cuenta Cloudflare: `<ACCOUNT_ID>` (identificador, no secreto) — `type: standard`
 - URL de staging: **https://hidria-staging.pages.dev** (HTTP 200 verificado)
 - URL del despliegue: https://d6a60970.hidria-staging.pages.dev (HTTP 200 tras propagación TLS)
 - Deployment id: `d6a60970-11c0-4f5c-a93b-c50014334ab5`
@@ -29,7 +29,7 @@ Comandos ejecutados en PowerShell leyendo el `.env` en memoria; el token nunca s
 
 | # | Consulta | HTTP | Resultado |
 |---|---|---|---|
-| 1 | `GET /accounts/<CLOUDFLARE_ACCOUNT_ID>` | **200** | `success=true`; cuenta `67bec4f06347f4a150e12b5b2f23f77b`, `name: "Horacio.martinez@cedconsultoria.com's Account"`, `type: standard`; el id del `.env` corresponde a la cuenta |
+| 1 | `GET /accounts/<CLOUDFLARE_ACCOUNT_ID>` | **200** | `success=true`; cuenta `<ACCOUNT_ID>`, `name: "<titular de la cuenta>"`, `type: standard`; el id del `.env` corresponde a la cuenta |
 | 2 | `GET /user/tokens/verify` | **401** | `{"success":false,"errors":[{"code":1000,"message":"Invalid API Token"}]}` — **no es un fallo de la credencial**: es un token *account-owned* (53 chars) y ese endpoint solo verifica tokens *user-owned*. La validez se demuestra con #1 y con las llamadas R2/Pages que siguen |
 | 3 | `GET /accounts/<id>/r2/buckets` (antes) | **200** | Solo `kriptonshare-ephemeral` (heredado); **no** existían `hidria-docs` ni `hidria-reports` |
 | 4 | `GET /accounts/<id>/pages/projects` (antes) | **200** | `[]` — no había proyectos Pages |
@@ -116,7 +116,7 @@ público, no se tocaron otros buckets ni cuentas).
    mientras la tarea F0-09 y otras secciones usan `hidria-docs`/`hidria-reports`. Se siguió la
    tarea (nombres definitivos); la discrepancia debe resolverla el revisor (ADR) antes de F1.
 6. **Cuenta personal, no institucional**: la cuenta es de la persona
-   (`Horacio.martinez@cedconsultoria.com's Account`, `standard`), no una cuenta SDFI de
+   (`<titular de la cuenta>`, `standard`), no una cuenta SDFI de
    staging/piloto. `docs/07` §2 exige cuentas separadas por entorno; con datos reales del
    piloto esto no es aceptable. Riesgo a resolver antes de F2/piloto.
 7. **Sin headers de seguridad** en Pages (`HSTS`, CSP, Referrer-Policy, Permissions-Policy):
