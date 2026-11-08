@@ -117,9 +117,20 @@ curl.exe -s -w "`nHTTP:%{http_code}`n" -H "Authorization: Bearer $tok" `
 
 ## Pendientes / siguiente paso
 
-- **Pendiente P0:** activar la protección (usuario) o ADR de excepción (supervisor +
-  revisor). Hasta entonces F0-06 queda **AMARILLO** y G0 no se cierra.
-- **Pendiente:** repetir la verificación tras la acción y anexar la salida con fecha.
-- **Siguiente paso del supervisor:** incorporar este estado al checklist G0
-  (`reports/F0/00-supervisor_estado.md`) y no mergear el PR #2 hasta que existan las 2
-  aprobaciones + QA verde (CI ya está verde).
+- **Pendiente P0:** activar la protección (usuario) o mantener la excepción **E1** de
+  ADR-004 (aprobada por el supervisor y el revisor). F0-06 queda **AMARILLO** y G0 se cierra
+  como **AMARILLO-OPERATIVO** con E1–E4.
+- **Pendiente:** repetir la verificación tras la acción del usuario y anexar la salida con
+  fecha.
+- **Siguiente paso del supervisor:** checklist G0 en `reports/F0/00-supervisor_estado.md`
+  (cerrado con excepciones) y re-verificación de protección en cada ciclo de merge.
+
+## Actualización post-merge (2026-11-07 18:42)
+
+- PR #2 mergeado con squash (`1da64d0`) el 2026-11-07 18:42; `main` = `1da64d0`.
+- Re-verificación inmediata: `GET /branches/main` → **`protected: false`**,
+  `protection.enabled: false`, `enforcement_level: "off"`; `GET /rulesets` → `[]`.
+  **E1 sigue abierta** (ADR-004) y se mantienen los controles compensatorios; el usuario debe
+  activar la protección o emitir un PAT con `Administration`.
+- El merge de #2 se ejecutó como excepción E1 documentada, con cuórum completo
+  (spec APROBADO, seguridad sin veto, QA VERDE) y CI 4/4 en `ffcbaf6`.

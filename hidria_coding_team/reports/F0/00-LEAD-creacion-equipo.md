@@ -2,7 +2,8 @@
 
 - **Autor:** Lead (creador) — `hidria_coding_team`
 - **Fecha:** 2026-11-08 (America/Mexico_City)
-- **Repositorio:** `horaciomartinez-svg/hidria-ect` (público) · rama `chore/f0-fundacion` / PR **#2**
+- **Repositorio:** `horaciomartinez-svg/hidria-ect` (público) · PR **#2 mergeado** a `main`
+  con squash **`1da64d0`** (2026-11-08T00:42:16Z; head revisado `ffcbaf6`)
 - **Proyecto Supabase:** `zucalshlfcxejpukshxl` (us-east-1)
 - **Entorno Cloudflare:** cuenta `<ACCOUNT_ID>` · Pages **https://hidria-staging.pages.dev** (HTTP 200)
 - **Resultado:** **equipo constituido (8/8) · Fase 0 ejecutada · G0 AMARILLO-OPERATIVO**
@@ -127,26 +128,32 @@ Ningún agente mergeó, hizo push ni aplicó DDL en Fase 0.
 | E3 | Auth hook no activado / JWT no verificado | `F1-01` lo entrega y lo activa | Aportar `SUPABASE_ACCESS_TOKEN` o activarlo en dashboard |
 | E4 | Acta de validación 0.6 | Pendiente de firma | Coordinación SDFI/UCI |
 
-## 5. PR #2 — estado de revisión
+## 5. PR #2 — estado final (mergeado)
 
-- **Contenido:** 65 archivos, +7279/−19; scaffold + gobierno + CI + docs/07.
-- **CI:** 2/2 checks `success` (run 42425963485).
+- **Contenido:** 95 archivos, +12367/−19, 6 commits; scaffold + gobierno + evidencia F0 + CI + docs/07.
+- **CI pre-merge:** **4/4 check runs `success`** en `ffcbaf6` (runs 42430664587 y 42430668040).
+- **CI post-merge:** run `42430965541` en `main`: **2/2 success**.
 - **Security review:** **APROBADO CON OBSERVACIONES, SIN VETO** (`reports/security/PR-2_security.md`).
 - **QA:** **VERDE (Fase 0)** (`reports/qa/PR-2_qa.md`); 32 reglas en `qa/trazabilidad.md`.
-- **Spec review:** CAMBIOS SOLICITADOS (B1–B3) → corregidos con ADR-003/005 y alineación de
-  backlog; pendiente **re-revisión** y merge por `supervisor-hidria` (squash).
+- **Spec review:** **APROBADO** (`reports/reviews/PR-2_spec.md`; B1–B4 y R1–R3 cerrados;
+  ADR-002…006 aprobados).
+- **Merge:** **squash `1da64d0`** por `supervisor-hidria`; PR #2 `merged:true`
+  (2026-11-08T00:42:16Z).
 
 ## 6. Gate G0
 
-**AMARILLO-OPERATIVO.** Las 12 tareas F0 tienen evidencia; el estado no es VERDE pleno por
-las excepciones E1–E4 (credenciales/acta). Se autoriza **Fase 1 con datos sintéticos
-únicamente**; los datos reales (`restringido_nda`) quedan prohibidos hasta que exista
-staging separado de piloto.
+**AMARILLO-OPERATIVO, cerrado con el merge `1da64d0`.** Las 12 tareas F0 tienen evidencia;
+el estado no es VERDE pleno por las excepciones E1–E4 (credenciales/acta, `ADR-004`). Se
+autoriza **Fase 1 con datos sintéticos únicamente**; los datos reales (`restringido_nda`)
+quedan prohibidos hasta que exista staging separado de piloto. `00-supervisor_estado.md`
+registra el checklist final y las acciones de usuario.
 
 ## 7. Siguiente tarea asignada
 
-1. **`F1-00` — Migraciones correctivas y grants DML** (`arquitecto-bd`, P0): M-01…M-04,
-   M-07, grants, `security_invoker`, semilla, auth hook `public.*`, enforcement H-5.
+1. **`F1-00` — Migraciones correctivas y grants DML** (`arquitecto-bd`, P0, **en curso**;
+   tarea compartida `task-9`): M-01…M-08 (idempotencia, auditoría, folio, RPC BHE, Realtime,
+   RPC de rol, default de perfil, completitud), grants, `security_invoker`, semilla, auth
+   hook `public.*`, enforcement H-5.
 2. **`F1-01` — Auth con custom claims y roles** (`arquitecto-bd` + `dev-edge-functions`),
    dependiente de F1-00.
 3. Después, la ola F1 en orden: F1-02 shell → F1-03 M1 → F1-04 M2/M11 → F1-05/F1-06 M3 →

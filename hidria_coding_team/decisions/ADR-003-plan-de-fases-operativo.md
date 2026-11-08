@@ -1,6 +1,6 @@
 # ADR-003 — Plan de fases operativo del build (resolución de B1/B2 del PR #2)
 
-- **Estado:** propuesta (pendiente de aprobación de `supervisor-hidria` y `revisor-especificaciones`)
+- **Estado:** aceptada (aprobada por `revisor-especificaciones` y `supervisor-hidria`; condiciones R1/R2 resueltas en `ffcbaf6`)
 - **Fecha:** 2026-11-08
 - **Autor:** Lead (creador del equipo), a partir de la instrucción de la Coordinación
   (misión de creación del 2026-11-08) y de los hallazgos B1/B2 de
@@ -77,5 +77,5 @@ sobre `docs/07` §3 en lo que aquí se indica; el resto de `docs/07` sigue vigen
 
 | Rol | Nombre | Estado | Evidencia |
 |---|---|---|---|
-| Supervisor | `supervisor-hidria` | pendiente | — |
-| Revisor | `revisor-especificaciones` | pendiente | re-revisión de PR #2 |
+| Supervisor | `supervisor-hidria` | aprobado | merge de PR #2 (`1da64d0`) |
+| Revisor | `revisor-especificaciones` | aprobado | re-revisión exprés `09998ef` / `ffcbaf6` |

@@ -1,6 +1,6 @@
 # ADR-006 — Realtime en Fase 1 y resolución de inconsistencias documentales (B4/M1/M2)
 
-- **Estado:** propuesta (pendiente de aprobación de `supervisor-hidria` y `revisor-especificaciones`)
+- **Estado:** aceptada (aprobada por `revisor-especificaciones` y `supervisor-hidria`; R1/R2/R3 resueltas en `8d23a1a`) 
 - **Fecha:** 2026-11-08
 - **Autor:** Lead, a partir de la re-revisión `f01e303` (`reports/reviews/PR-2_spec.md`)
 - **Documentos afectados:** `docs/05` API-04, `docs/04` TD-4, `docs/07` §3 1.3, `TEAM.md` §13,
@@ -50,5 +50,5 @@ La re-revisión del PR #2 en `f01e303` cerró B1–B3 pero detectó:
 
 | Rol | Nombre | Estado | Evidencia |
 |---|---|---|---|
-| Supervisor | `supervisor-hidria` | pendiente | — |
-| Revisor | `revisor-especificaciones` | pendiente | re-revisión exprés de PR #2 |
+| Supervisor | `supervisor-hidria` | aprobado | merge de PR #2 (`1da64d0`) |
+| Revisor | `revisor-especificaciones` | aprobado | re-revisión exprés `09998ef` / `8d23a1a` |
