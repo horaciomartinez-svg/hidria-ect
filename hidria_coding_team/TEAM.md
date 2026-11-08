@@ -310,15 +310,16 @@ Un entregable está **Hecho** cuando:
 
 ## 14. Estado actual y siguiente tarea
 
-- **Fase:** F0 cerrada (G0 AMARILLO-OPERATIVO; **E1 resuelta**; E2–E4 abiertas);
-  **F1-00 cerrada** (`b4fbc83`) y **F1-01 en curso** (auth/claims, task-20/task-21).
+- **Fase:** F0 cerrada (G0 AMARILLO-OPERATIVO; **E1 y E3 resueltas**; E2/E4 abiertas);
+  **F1-00 cerrada** (`b4fbc83`) y **F1-01 en curso** (F1-01a PR #7 en revisión; F1-01b PR #8
+  entregado).
 - **Tablero:** ver `tasks/BACKLOG.md`.
-- **Última actualización:** 2026-11-07 19:59 — `main` = `b4fbc83`; PR #4 (F1-00) mergeado con
-  spec APROBADO, seguridad sin veto y QA AMARILLO (excepción pgTAP); ruleset con
+- **Última actualización:** 2026-11-07 20:30 — `main` = `6b95be0`; **E3 cerrada**
+  (`custom_access_token_hook` activo y verificado end-to-end, `F0-14`); ruleset con
   `required_approving_review_count = 0` y checks obligatorios.
-- **Siguiente tarea:** `F1-01 — Auth con custom claims y roles` (Arquitecto BD + Dev Edge
-  Functions); follow-ups: `task-18` (RES-1) antes de F1-04, `task-13` (pgTAP CI) antes de G1,
-  `task-15` (ARCO) antes del buzón.
+- **Siguiente tarea:** `F1-01` (auth/claims): merge de #7 (F1-01a) y #8 (F1-01b) tras el
+  cuórum; después F1-02. Follow-ups: `task-18` (RES-1) antes de F1-04, `task-13` (pgTAP CI)
+  antes de G1, `task-15` (ARCO), `task-27`/`task-28` (seed/guarda CI).
 
 ---
 
