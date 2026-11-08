@@ -123,3 +123,12 @@ set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000001","o
 select count(*) from public.diagnostics; -- 2
 rollback;
 ```
+
+## 8. Publicación
+
+- **PR:** [#7](https://github.com/horaciomartinez-svg/hidria-ect/pull/7) — `feature/F1-01a-auth-claims` → `main`
+- **Commit de implementación:** `ff0c657b5d9a49535fc5f94218b94fd7be813e97`
+- **CI:** 4/4 `success` sobre `ff0c657` (Guardas + Cliente; runs `42436849996` / `42436872669`).
+- **Base:** `main` al crear el PR `6b95be0`; mergeable sin conflictos.
+- El merge corresponde al supervisor; no se ejecutó merge ni rebase.
+
