@@ -2,18 +2,21 @@
 
 - **Agente:** `devops-github-cloudflare` (07) — job CI y dependencia; **suite E2E autoría de
   `qa-tester`** (archivos versionados desde el workspace de QA)
-- **Fecha:** 2026-11-08 13:15 (America/Mexico_City) · 2026-11-08T19:15Z
+- **Fecha:** 2026-11-08 13:15 (America/Mexico_City) · 2026-11-08T19:15Z · **actualizado 13:28**
 - **Tarea:** `task-49` — F1 · E2E Playwright versionado en CI (**bloquea G1**)
-- **Rama / PR:** `chore/F1-19-ci-e2e` · base `main@4765986` · PR pendiente de crear
+- **Rama / PR:** `chore/F1-19-ci-e2e` · base `main@4765986` · **PR #23 mergeado (squash
+  `cf7faa5d7ba52bd056c299bf11ad568836488cf1`)**; `main` = **`cf7faa5`**
+- **Runs verdes:** PR `42514177112` (5/5, E2E job `128833457125`, `11 passed`) y post-merge
+  `42514381567` (5/5, E2E job `128834097587`)
 - **Entorno local:** Windows / Node 24.21.0 · Playwright 1.55.0 · Chromium gestionado
 - **Entorno CI:** GitHub Actions `ubuntu-latest` · Node 22 · Chromium 1.55.0 + deps
 
-## Resultado: VERDE local (11/11) — pendiente run de CI para H-15
+## Resultado: VERDE local + CI (11/11) — H-15 RESUELTO
 
-La suite versionada `tests/e2e/` (11 casos) pasa en el worktree limpio con
-**`11 passed (1.4m)`** usando Chromium gestionado por Playwright, sin `.env`, sin Supabase
-real y sin secretos. El job `E2E Playwright` se añade a CI; se espera **5/5 checks**
-(Guardas, Cliente, Deno, pgTAP, E2E). H-15 se cierra con el run id verde (§5).
+La suite versionada `tests/e2e/` (11 casos) pasa en local (**`11 passed (1.4m)`**) y en CI
+(PR `42514177112`: **`11 passed (7.4s)`**, 5/5 checks; post-merge `42514381567`: 5/5). El job
+`E2E Playwright` quedó estable con artefactos; H-15/task-49 cerrado por QA en
+`qa/trazabilidad.md` y `reports/qa/F1-02_e2e.md`. Los 4 checks previos quedaron intactos.
 
 ## 1. Archivos del PR (atribución)
 
@@ -101,14 +104,21 @@ shell/claims, M5 F1, invitado restringido, logout, gates no encolables, B1 sin c
 UUID inválido, rol fuera de enum y LoginPage sin redirect. QA ya había reportado 11/11 con
 Chrome y Chromium (`npx playwright test -c tests/e2e/playwright.config.ts`, 33.9 s / 1.4 m).
 
-## 5. Evidencia CI (pendiente de completar con run id)
+## 5. Evidencia CI — run verde y merge
 
 | Dato | Valor |
 |---|---|
-| Run CI del PR | _pendiente_ |
-| Job `E2E Playwright` | _pendiente_ (esperado: `11 passed`) |
-| Checks esperados | **5/5** — Guardas, Cliente, Edge Functions (Deno), pgTAP, E2E Playwright |
-| Artefactos | `playwright-report` + `test-results` (trace/screenshot/video de fallos) |
+| Run CI del PR | [42514177112](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42514177112) (`pull_request`, head `01e844d`, **success**) |
+| Job `E2E Playwright` | [128833457125](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42514177112/job/128833457125) — **1 m 02 s**; `Running 11 tests` → **`11 passed (7.4s)`**; todos los steps success |
+| Run push del mismo head | `42514158085` (`push`) — **success**, 5/5 |
+| Checks del PR | **5/5**: Guardas · Cliente · Edge Functions (Deno) · pgTAP · **E2E Playwright** |
+| Artefacto | `playwright-report` id **13630053837** (200.606 B, retención 7 días) — incluye trace/screenshot/video de fallos |
+| Merge | **PR #23 squash `cf7faa5d7ba52bd056c299bf11ad568836488cf1`** → `main` = **`cf7faa5`** |
+| Run post-merge | [42514381567](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42514381567) (`push`, head `cf7faa5`) — **success**, 5/5; E2E job `128834097587`, artefacto `13630457311` |
+
+El check `E2E Playwright` es estable; se recomienda añadirlo a `required_status_checks` cuando
+el usuario lo haga (hoy el ruleset exige Guardas/Cliente/Deno; pgTAP y E2E quedan como checks
+verdes no obligatorios, sin configurarse por API con el token actual).
 
 ## 6. Seguridad de la evidencia
 
@@ -121,15 +131,18 @@ Chrome y Chromium (`npx playwright test -c tests/e2e/playwright.config.ts`, 33.9
 
 ## 7. Pendientes / siguiente paso
 
-- [ ] Abrir PR y verificar **5/5 checks** en verde (run id en §5).
-- [ ] Avisar a `qa-tester` con run id/URL para cerrar **H-15** y actualizar
-      `qa/trazabilidad.md` (la versión incluida es la de QA; QA añade el run id).
-- [ ] Proponer `E2E Playwright` como required check cuando el usuario lo añada (ruleset
-      `proteccion-main` hoy exige Guardas/Cliente/Deno; pgTAP/E2E quedan como checks verdes
-      no obligatorios hasta que el usuario los agregue).
-- [ ] task-50: `npm audit`/build-time secret guard (advisories reportados por npm arriba).
+- [x] **PR #23 abierto y verde**: 5/5 checks en los runs `42514177112` (PR) y `42514158085`
+      (push); merge squash `cf7faa5` y post-merge `42514381567` verde.
+- [x] Avisar a `qa-tester` con run id/URL; **H-15 cerrado** y `qa/trazabilidad.md` actualizada
+      (PR documental #24).
+- [ ] Proponer `E2E Playwright` como required check cuando el usuario lo añada (no
+      configurable por API con el token actual).
+- [ ] task-50 (CI hardening): `npm audit --omit=dev`, build-time secret guard y `dist/**` scan
+      (los advisories de `npm install` de este PR son del toolchain preexistente).
 
 ## Veredicto
 
-**VERDE local** (11/11) — pendiente el run de CI para el VERDE definitivo y el cierre de
-H-15/task-49 por QA. El job no toca los 4 checks existentes y no usa secretos.
+**VERDE** — run PR **42514177112** (5/5; E2E job `128833457125`, **11 passed**, artefacto
+`13630053837`) y post-merge **42514381567** (5/5; E2E job `128834097587`, artefacto
+`13630457311`). **PR #23 mergeado** (squash `cf7faa5`); **H-15/task-49 cerrado por QA**.
+Sin secretos; los 4 checks existentes se mantuvieron.
