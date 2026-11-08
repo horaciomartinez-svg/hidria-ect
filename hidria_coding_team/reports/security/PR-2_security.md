@@ -172,4 +172,75 @@ técnico. Riesgo de proceso, no del diff; ya escalado por `supervisor-hidria` al
 ## Firma
 
 `seguridad-privacidad` (08) — **APROBADO CON OBSERVACIONES**, sin veto, para el head
-`90c77ab95dec5f237c4cea7808efd719434db737` del PR #2.
+`90c77ab95dec5f237c4cea7808efd719434db737` del PR #2. **Vigente también para el head
+`09998ef`** tras la confirmación del delta (siguiente sección).
+
+---
+
+## Confirmación delta `90c77ab..09998ef`
+
+- **Fecha:** 2026-11-07 18:33 (America/Mexico_City)
+- **Head confirmado:** `09998ef829b8e707fcd93af29656e6dadf65b2f5` — PR #2 con 4 commits,
+  95 archivos, +12157/−19, `mergeable_state: clean`
+- **Delta revisado:** `90c77ab..09998ef` — **46 archivos, +4985/−107**
+- **Veredicto:** **APROBADO CON OBSERVACIONES vigente para `09998ef` — SIN VETO.**
+  No hay hallazgos BLOQUEANTES ni MAYORES nuevos ligados al delta (solo higiene MENOR).
+
+### 1. Qué contiene el delta (verificado, coincide con lo declarado)
+
+- **42 archivos `hidria_coding_team/**`**: `TEAM.md`, `agents/03` y `agents/04`,
+  `ADR-002` (corregido) y **ADR-003/004/005/006** (nuevos), 19 reportes F0/F1/qa/reviews/
+  security, 7 tareas F1 (`F1-00`, `F1-13`…`F1-18`) y correcciones de `BACKLOG`/`F1-08/09/11/12`.
+- 1 `qa/trazabilidad.md` (32 reglas), 1 `docs/07` (idempotencia/pgTAP),
+  1 `supabase/functions/README.md` (idempotencia opcional) y **1**
+  `.github/workflows/ci.yml` (añade `push: branches: ['**']`).
+- **Sin `app/**`, sin `supabase/migrations/**`, sin SQL, sin cambios de RLS**, sin `.env`,
+  sin `.gitignore`, sin `package*.json` (verificado con `git diff --name-only`). El único
+  `.env*` tocado es `hidria_coding_team/.env.example` (se elimina el project ref real del
+  comentario; no se añaden valores).
+
+### 2. Controles de seguridad re-ejecutados en `09998ef`
+
+| Control | Resultado |
+|---|---|
+| Secret scan del árbol trackeado completo (107 archivos) | **0 secretos**; única aparición del header JWT = literal del patrón en `scripts/ci/guardas.sh:29` |
+| Secret scan del delta (líneas añadidas) y de los 2 commits nuevos | **0 secretos** (solo texto de mis reportes citando los patrones) |
+| `.env` trackeado / en historial | **ninguno** |
+| Asignaciones de credenciales con valor en archivos nuevos | **0** |
+| CI del head `09998ef` | **4/4 checks `success`** (runs `42430281698` por push y `42430284012` por PR) |
+
+### 3. Hallazgos nuevos del delta (MENORES; no bloquean)
+
+| ID | Severidad | Hallazgo | Acción |
+|---|---|---|---|
+| **SEC-DELTA-01** | MENOR (privacidad) | **PII en repo público:** `reports/F0/F0-09_devops_cloudflare.md:32` y `:119` publican el nombre/correo del titular de la cuenta Cloudflare. No es secreto, no requiere rotación ni PARO. | Redactar a `<titular de la cuenta>` en el commit de cierre **antes del squash** para que `main` no lo herede; si se mergea sin corregir, tarea inmediata post-merge. |
+| **SEC-DELTA-02** | MENOR | `CLOUDFLARE_ACCOUNT_ID` (32 hex) publicado en `reports/F0/00-LEAD-creacion-equipo.md:7` y `reports/F0/F0-09_devops_cloudflare.md:20,32` (el propio reporte lo declara «pública, no secreta»). Es identificador, no credencial. | Redactar por higiene (`<CLOUDFLARE_ACCOUNT_ID>`) junto con SEC-DELTA-01; no urgente. |
+| **SEC-DELTA-03** | MENOR | `.github/workflows/ci.yml` ahora corre en `push` a **cualquier** rama: no cambian permisos (`contents: read`) ni hay secretos, pero amplía la superficie de SEC-PR2-02 (si la guarda detecta un secreto, imprime la línea en logs **públicos** de un push de rama). | Mantener el cambio; priorizar el *masking* de SEC-PR2-02 antes de F1. |
+| **SEC-DELTA-04** | MENOR (seguimiento) | SEC-PR2-04 **parcial**: se eliminó el project ref real del comentario de `hidria_coding_team/.env.example`, pero quedan 8 variables con comentario en línea tras `=` y la plantilla sigue sin validarse por la guarda 4. | Igual que SEC-PR2-04 (DevOps/Lead). |
+
+### 4. Decisiones del delta con impacto de seguridad (posición de 08)
+
+- **ADR-005 (claims, grants y vista):** alineado con mis hallazgos SEC-F0-05-01/02.
+  **Visto bueno de seguridad como propuesta, condicionado** a que `F1-00`: (a) conceda por
+  tabla solo lo que RLS autoriza y **nunca** `SELECT` de `quiz_questions` cruda a
+  `authenticated`; (b) `anon` quede sin acceso a tablas de negocio (solo catálogos públicos
+  si aplica); (c) las 5 vistas analíticas pasen a `security_invoker = true` (H-2) y
+  `v_quiz_questions` siga `definer`; (d) incluya pgTAP SEC-01/02/03 de grants/vistas. Sujeto
+  a re-revisión del PR que lo implemente.
+- **ADR-004 (excepciones E1–E4):** aceptable como excepción temporal **solo** con el guardrail
+  declarado: proyecto `zucalshlfcxejpukshxl` como dev/staging con datos **sintéticos** y
+  prohibición de cargar datos reales (`restringido_nda`) hasta separar staging↔piloto
+  (`docs/06` §8.2). Hoy la base no tiene usuarios ni datos reales (`auth.users=0`,
+  `profiles=0`, `quiz_attempts=0`) → no hay incumplimiento actual. Riesgo residual E1
+  (`main` sin protección) ya reportado en F0-06.
+- **ADR-006 (Realtime en F1):** sin objeción documental; `M-05` (publicación + políticas de
+  canales) deberá pasar revisión de seguridad y privacidad antes de implementarse.
+- **ADR-003 (plan de fases):** sin impacto de seguridad propio.
+
+### 5. Vigencia
+
+El veredicto **APROBADO CON OBSERVACIONES** del head `90c77ab` **sigue vigente para
+`09998ef`**, sin VETO. Recomendación: corregir SEC-DELTA-01/02 (redacción de PII/IDs) en un
+commit de la misma rama antes del squash; el resto de observaciones MENORES continúa como
+seguimiento (F0-07/F1). No se requiere repetir la revisión completa: basta verificar que la
+redacción no altere el resto del delta.

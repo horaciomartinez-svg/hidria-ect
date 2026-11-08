@@ -25,7 +25,12 @@ y habilitar el acceso de PostgREST con grants explícitos.
 - `M-03` secuencia/persistencia de folio de reporte `{folio}-R1/-R2`.
 - `M-04` RPC `fn_bhe_monthly`/`fn_bhe_summary` para balance `en_captura` y brecha anual
   ponderada (sin romper `v_bhe_monthly`/`v_bhe_summary`).
+- `M-05` **Realtime:** añadir a la publicación `supabase_realtime` las tablas necesarias y
+  políticas de canales privados (`diagnostic:{id}`, `org:{id}`, `user:{id}`).
+- `M-06` **RPC de rol para `service_role`:** `my_diagnostic_role` usa `auth.uid()` y devuelve
+  NULL desde una EF; exponer una RPC que reciba `user_id` explícito.
 - `M-07` corregir `profiles.global_role default 'user'` (fuera del CHECK).
+- `M-08` **función de completitud** alineada a `v_diagnostic_completeness` (TD-4, 10 requisitos).
 - **Grants DML:** `grant select/insert/update/delete` a `anon`/`authenticated` según RLS y
   `service_role` en `public`; **sin** dar SELECT de `quiz_questions` cruda a
   `authenticated` (solo `v_quiz_questions`).
@@ -43,6 +48,8 @@ y habilitar el acceso de PostgREST con grants explícitos.
 - [ ] Migraciones idempotentes, forward-only, aplicadas en staging y verificadas.
 - [ ] `authenticated` puede operar las tablas con RLS (PostgREST) sin filtraciones.
 - [ ] `service_role` puede administrar `quiz_questions` sin exponerla a `authenticated`.
+- [ ] Realtime (`M-05`): RT-01/02 verificables (tablas publicadas + políticas de canal).
+- [ ] `M-06`/`M-08` probadas: RPC de rol y completitud alineada a la vista.
 - [ ] pgTAP de las reglas afectadas (idempotencia, auditoría, folio, completitud, grants,
-      `security_invoker`, enforcement).
+      `security_invoker`, enforcement, Realtime).
 - [ ] Evidencia y PR aprobados por revisor y seguridad.

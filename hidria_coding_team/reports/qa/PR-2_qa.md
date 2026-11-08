@@ -182,3 +182,59 @@ Cumplidos los criterios evaluables → **VERDE de Fase 0**.
 QA `qa-tester` — veredicto **VERDE (Fase 0)** para el PR #2 en el commit `90c77ab`.
 Sin cambios en `app/**` ni `.github/**`; solo `qa/trazabilidad.md` (working tree) y
 reportes de QA. Pendiente: aprobaciones de spec/security y merge por `supervisor-hidria`.
+
+## Confirmación delta `09998ef` (2026-11-07 18:42, America/Mexico_City)
+
+**Motivo:** el veredicto anterior se emitió sobre `90c77ab`; el PR #2 avanzó a
+`09998ef829b8e707fcd93af29656e6dadf65b2f5` (4 commits, 95 archivos vs base, +12157/−19,
+`mergeable_state=clean`). Se verifica el delta y el CI del nuevo head.
+
+### Delta `90c77ab..09998ef` (46 archivos, +4985/−107)
+
+| Área | Cambio verificado |
+|---|---|
+| `.github/workflows/ci.yml` | `push.branches` pasa de `[main]` a `['**']` (CI también en push de cualquier rama). `pull_request` hacia `main`, `permissions: contents: read` y jobs sin cambios. |
+| `docs/07` | Aclara que la aplicación limpia desde cero se validará con pgTAP en CI (job de Fase 1, `docs/05` §7); sin cambio de contrato. |
+| `qa/trazabilidad.md` | 22 → **32 reglas** (+96/−24). La versión en `09998ef` **coincide exactamente con el working tree de QA** (`git diff` vacío): la nota de §4 sobre «pendiente de commit» **queda resuelta**, ya está versionada. |
+| `supabase/functions/README.md` | Aclara `Idempotency-Key` opcional según `docs/04` §2.3 y obligatorio en operaciones de cola offline; no cambia contrato. |
+| Gobierno | `TEAM.md`, agentes 03/04, `ADR-002` modificado y `ADR-003…006` nuevos, backlog y tareas F0/F1, 14 reportes F0 + reportes F1/review/security/QA. |
+| **Producto** | **Sin cambios en `app/**` ni en `supabase/migrations/**`** (`git diff --name-only 90c77ab..09998ef -- app supabase/migrations` → vacío). |
+| Esquema | `docs/02` y migración base **sin cambios** y byte-idénticos: SHA-256 `2A7B6F8888040990B109F580F6BE50F7F03BF7D9FF7B2299D7BD50BC85442CB5`. |
+
+### CI en `09998ef` (MCP GitHub `get_check_runs`, PR #2)
+
+| Run | Evento | Checks | Resultado |
+|---|---|---|---|
+| [42430281698](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42430281698) | `push` | Guardas + Cliente | **2/2 success** (guardas 4 s; cliente 18 s) |
+| [42430284012](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42430284012) | `pull_request` | Guardas + Cliente | **2/2 success** (guardas 3 s; cliente 16 s) |
+
+Ambos runs con `head_sha=09998ef829b8e707fcd93af29656e6dadf65b2f5` (= head actual del PR).
+
+### Re-ejecución local en HEAD `09998ef`
+
+| Comando / guarda | Resultado |
+|---|---|
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0 (Vite 5.4.21, 31 módulos, 144.78 kB JS) |
+| Secret scan de archivos trackeados | sin coincidencias |
+| `.env` trackeado / artefactos versionados | no / ninguno |
+| `docs/02` ↔ migración base | SHA-256 idéntico |
+
+### Veredicto
+
+**VERDE (Fase 0) SIGUE VIGENTE para `09998ef`.** El delta es documental/config, no toca
+código de producto ni migraciones, el CI está verde en el nuevo head y no introduce
+secretos ni artefactos. No hay regresión ni motivo para reabrir el veredicto. Persisten sin
+cambios las observaciones H-01…H-09 de `reports/F0/F0-07_qa_ci.md` y los huecos
+documentales H-1…H-7 de `qa/trazabilidad.md`; la cobertura funcional sigue siendo **0/94
+casos ejecutables** (todo F1+). Sigue siendo un VERDE de Fase 0, no funcional, y el merge
+continúa condicionado a spec review + security review; QA no mergea.
+
+**Observación nueva (no bloqueante):** con `push.branches: ['**']` cada push a la rama del
+PR dispara **dos** runs (`push` + `pull_request`), ambos verdes pero duplicando minutos de
+CI; puede acotarse `push` a `main`/`develop` o compartir `concurrency` entre ambos eventos.
+
+**Estado de este anexo:** añadido en el working tree sobre `09998ef`; QA no hace
+commit/push (regla dura). Queda para el commit del PR de seguimiento o el squash del
+supervisor.

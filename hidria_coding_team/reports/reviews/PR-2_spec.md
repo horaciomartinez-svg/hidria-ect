@@ -380,3 +380,79 @@ Con B4 corregido y las condiciones 2–4 cumplidas, esta re-revisión puede pasa
 ---
 
 *Fin de la re-revisión. No se ejecutaron comandos Git de escritura, no se mergeó y no se modificó ningún archivo del PR; el único archivo escrito es este reporte.*
+
+---
+
+# Re-revisión exprés (09998ef)
+
+- **Revisor:** `revisor-especificaciones` (agente 06)
+- **Fecha:** 2026-11-07 18:36 (America/Mexico_City)
+- **Commit revisado:** `09998ef829b8e707fcd93af29656e6dadf65b2f5` (head) · **Base:** `main` `f6b99ce10d8f71e9b0f08e70debeea6e5f630a87`
+- **Delta sobre `f01e303`:** 12 archivos, **+260/−15**; total del PR: 95 archivos, +12157/−19, 4 commits.
+- **CI en `09998ef`:** 4/4 *check runs* en `success` (runs `42430284012` y `42430281698`, `pull_request` + `push`); `mergeable_state: clean`. Sin patrones de secreto en el delta (mismos patrones de `scripts/ci/guardas.sh`).
+- **Alcance:** solo B4 + M1/M2 y regresión de B1–B3, conforme a la petición exprés. No se re-revisa el resto.
+- **Veredicto de esta re-revisión exprés:** **CAMBIOS SOLICITADOS (micro-corrección).** B4, M1 y M2 quedan **sustantivamente resueltos**; quedan **2 MAYORES de implementación documental (R1, R2)** y 1 MENOR (R3). Son correcciones de 10–15 minutos; con ellas el veredicto pasa a **APROBADO** sin repetir el análisis.
+
+## E1. B4 / M1 / M2: estado
+
+| Punto | Estado | Evidencia |
+|---|---|---|
+| **B4 — Realtime en Fase 1** | **Sustantivamente resuelto** | `ADR-006:22-24` decide Realtime Fase 1; `tasks/F1/F1-17_realtime.md` creada (dep `F1-04`, RT-01/02, E2E-01); `BACKLOG.md` elimina `F2-06` y añade `F1-17`; `ADR-006:44` («G1 incluye Realtime»). No se puede aprobar aún por R1 (falta reflejarlo en el criterio G1 de TEAM/ADR-003). |
+| **M1 — M-05/M-06/M-08** | **Resuelto en el índice, incompleto en la tarea** | `ADR-006:25-27` y `BACKLOG.md:30,83` dicen que `F1-00` cubre `M-01…M-08`; `F1-17:22` exige `M-05` «en F1-00». **Pero `F1-00:21-39` sigue listando solo `M-01…M-04` y `M-07`** (M-05/M-06/M-08 ausentes). Ver R2. |
+| **M2 — Q-01/Q-02/Q-03** | **Resuelto** | `ADR-006:28-35` fija Q-01 opcional (solo obligatorio en cola offline), Q-02 100 req/min, Q-03 prevalece `docs/02`/vista; `reports/F1/F1-01_…contrato.md:14-18` añade la nota de resolución. Coherente con `agents/03:50-53,73` y `supabase/functions/README.md:19`. |
+| **Regresión B1–B3** | **Sin regresión** | B1: `F1-12` conserva deps `F1-10/F1-11/F1-13/F1-14/F1-15`; F1-13/14/15 siguen en el backlog. B2: `TEAM.md:291-293` mantiene EF-11/M12 solo en G2; `agents/03`/`agents/04` sin cambios de fase. B3: `agents/03:50-56` y `functions/README.md:19` siguen en opcional. |
+
+## E2. Hallazgos residuales
+
+### R1 — MAYOR: el criterio G1 no incluye `RT-01/02` pese a ADR-006 (y ADR-003 no se actualizó)
+
+- **Archivos:línea:** `ADR-006:22-24,44` (Realtime Fase 1 y «G1 incluye Realtime») · `TEAM.md:292` (G1 sin RT) · `decisions/ADR-003-plan-de-fases-operativo.md:39` (criterio G1 sin RT) · `ADR-006:6` (declara `TEAM.md` §13 como documento afectado).
+- **Qué se espera:** que el gate G1 mencione `RT-01/02` (como dice ADR-006) y que `ADR-003`/`TEAM.md` §13 queden alineados; el mensaje del Lead afirma que «ADR-003 y TEAM.md §13 ya incluyen RT», pero el commit `09998ef` **no modifica** ninguno de los dos (diff solo toca `TEAM.md` §14).
+- **Corrección:** añadir `RT-01/02` al criterio G1 de `TEAM.md:292` y a `ADR-003:39` (o una nota en ADR-003 que remita a ADR-006). Es la única pieza que falta para que B4 sea verificable como gate.
+
+### R2 — MAYOR: `F1-00` (tarea ejecutable) no incorpora `M-05`, `M-06` ni `M-08`
+
+- **Archivos:línea:** `tasks/F1/F1-00_migraciones_correctivas.md:21-39` (Alcance mínimo P0: solo `M-01`…`M-04` y `M-07`) frente a `ADR-006:25-27`, `BACKLOG.md:30,83` y `F1-17:22-23`, que afirman que `F1-00` cubre `M-01…M-08`.
+- **Impacto:** el arquitecto que reciba `F1-00` ejecutará el archivo de tarea (TEAM.md §10.1: el cuerpo de la tarea es el objetivo/alcance/criterios), no el resumen del backlog; `M-05` (Realtime) es el prerrequisito directo de `F1-17` y B4, `M-06` el de todas las EF y `M-08` el de EF-07/TD-4.
+- **Corrección:** añadir a `F1-00` los tres bullets y sus criterios de aceptación: `M-05` publicación `supabase_realtime` + políticas de canales; `M-06` RPC de rol/membresía para `service_role`; `M-08` función/vista de completitud alineada a `docs/02` (`reporte_emitible`).
+
+### R3 — MENOR: `F1-18` asigna escritura de `docs/**` al revisor de especificaciones
+
+- **Archivos:línea:** `tasks/F1/F1-18_docs_sync.md:5,9` (`owner: revisor-especificaciones + arquitecto-bd`, `write_scope: ["docs/**", …]`) frente a `agents/06_revisor_especificaciones.md:10-11` (escribe solo `reports/reviews/**`, `decisions/**`, `tasks/**` propuestas) y `TEAM.md:120` (mismo write scope; «NO programa»).
+- **Corrección:** dejar `F1-18` con dueño `arquitecto-bd` (o Lead) y al revisor como aprobador/revisor; o actualizar `TEAM.md` §6 y la ficha del agente 06 si se decide que el revisor escriba documentación. No afecta al producto, pero es una inconsistencia de segregación de funciones.
+
+### R4 — MENOR (opcional): `TEAM.md` §14 dice «F0 cerrada con excepciones» antes del merge
+
+- **Archivo:línea:** `TEAM.md:300`; G0 no se cierra hasta el merge y la actualización del supervisor (`ADR-004`/`ADR-006:39-40`). Redacción sugerida: «F0 ejecutada; G0 se cierra con el merge y el reporte del supervisor». No bloquea.
+
+> m8 (colisión de IDs `M-01…M-09` entre CI y BD) y m12 (scopes `app/**` solapados) siguen sin cambios en este commit; son MENORES no bloqueantes y no forman parte del alcance exprés. M3 (confirmaciones de seguridad/QA sobre el head actual) sigue en paralelo: no es un defecto de especificaciones, pero **sí es condición de cuórum para el merge**.
+
+## E3. Aprobación de ADR (para las tablas del Lead)
+
+| ADR | Dictamen del revisor | Condiciones |
+|---|---|---|
+| **ADR-002** — estructura del monorepo | **APROBADO** (ya figura como aceptada citando la re-revisión `f01e303`; confirmo) | Ninguna. |
+| **ADR-003** — plan de fases operativo | **APROBADO CON CONDICIONES** | R1 (G1/ADR-003 con `RT-01/02`) y R2 (`F1-00` con `M-05/M-06/M-08`); el resto de la alineación B1/B2 se mantiene correcta. |
+| **ADR-004** — excepciones de Fase 0 | **APROBADO** | Correctamente corregido: ya no afirma que el reporte del supervisor esté actualizado (`ADR-004:49-51`); cierre de G0 con E1–E4 y datos sintéticos. |
+| **ADR-005** — claims, grants y correcciones | **APROBADO CON CONDICIONES** | R2 (`F1-00` con `M-05/M-06/M-08` y `M-01…M-04/M-07`); `F1-01` corregido (`ADR-005:42`); `F1-18` cubre docs/01/02; falta el visto bueno de `seguridad-privacidad` (su tabla). Hechos H-1…H-7 verificados en BD en la re-revisión `f01e303`. |
+| **ADR-006** — Realtime en Fase 1 y resoluciones Q-01/Q-02/Q-03 | **APROBADO CON CONDICIONES** | R1 (reflejar RT-01/02 en G1/TEAM/ADR-003) y R2 (`F1-00` con `M-05/M-06/M-08`); R3 (dueño de `F1-18`). Q-01/Q-02/Q-03 correctamente resueltos (`ADR-006:28-35`). |
+
+## E4. Micro-corrección requerida para pasar a APROBADO
+
+1. `tasks/F1/F1-00_migraciones_correctivas.md`: añadir `M-05`, `M-06`, `M-08` al alcance y a los criterios (R2).
+2. `TEAM.md:292` y `ADR-003:39`: incluir `RT-01/02` en G1 (o nota que remita a ADR-006) (R1).
+3. `tasks/F1/F1-18_docs_sync.md`: dueño `arquitecto-bd`/Lead; revisor como aprobador; o actualizar TEAM §6/agente 06 si se mantiene (R3).
+4. Opcional R4 (redacción de TEAM §14).
+
+Con esos cambios (un commit de documentación de ~3 archivos), esta re-revisión exprés pasa a **APROBADO** con verificación de los 3 diffs y sin repetir el análisis. **No procede el squash merge hasta entonces.**
+
+## E5. Evidencia verificada en esta ronda
+
+- CI `09998ef`: «Guardas de repositorio» y «Cliente (lint + typecheck + build)» en `success` en los dos runs; `mergeable_state: clean`; 95 archivos, +12157/−19 en el PR.
+- Correcciones confirmadas: `docs/07:100` («se **validará** en CI con pgTAP (job de Fase 1)»); `.env.example` del equipo sin ref real (`:16`); `ADR-004:49-51`; `ADR-005:42` («F1-01»); `TEAM.md:304` (siguiente `F1-00`); `F1-01` informe con nota Q-01/Q-02/Q-03; cuerpo del PR actualizado (95 archivos, ADR-000…006, 32 reglas, excepciones).
+- Sin secretos en el delta `f01e303..09998ef`; los únicos valores largos son hashes SHA-256 de verificación.
+- No se ejecutaron comandos Git de escritura, no se mergeó y no se modificó ningún archivo del PR; el único archivo escrito es este reporte (queda en el working tree para que lo comitee el Lead).
+
+---
+
+*Fin de la re-revisión exprés.*

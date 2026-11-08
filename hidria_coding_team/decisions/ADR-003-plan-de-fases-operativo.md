@@ -37,7 +37,7 @@ sobre `docs/07` §3 en lo que aquí se indica; el resto de `docs/07` sigue vigen
   con dictamen manual, y cartera de alternativas validada en R4. **EF-10 (dictamen
   automatizado) y M7 completo siguen en Fase 2.**
 - **Criterio de salida G1:** E2E-01, E2E-02, E2E-03, E2E-05, **E2E-07**, E2E-08 verdes;
-  SEC-01…SEC-05; API-00…04 de las EF de Fase 1.
+  SEC-01…SEC-05; **RT-01/02** (Realtime, `F1-17`); API-00…04 de las EF de Fase 1.
 
 ### Fase 2 — Completa (G2)
 

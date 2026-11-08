@@ -2,7 +2,7 @@
 id: F1-18
 fase: F1
 titulo: Sincronización documental (docs/07 §3, docs/01, docs/02, docs/04 TD-4, docs/05 API-04)
-owner: revisor-especificaciones + arquitecto-bd
+owner: lead (creador) + arquitecto-bd (revisor y supervisor como aprobadores)
 estado: pendiente
 prioridad: P1
 deps: [F1-00]

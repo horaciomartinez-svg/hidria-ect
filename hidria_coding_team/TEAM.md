@@ -289,7 +289,7 @@ Un entregable está **Hecho** cuando:
 | Gate | Criterio de salida |
 |---|---|
 | **G0 — Fase 0** | Entorno validado: MCP operativos, `.env` OK, 3 migraciones, seeds, RLS 44/44, CI, monorepo, `.env.example`. **Estado real: AMARILLO-OPERATIVO** con excepciones E1–E4 de `ADR-004` (branch protection, proyecto staging, auth hook activo, acta 0.6) y acción requerida del usuario |
-| **G1 — MVP núcleo** | **ADR-003:** M1–M8 + M9 mínimo + M10–M11; EF-01…EF-09 (EF-07 esencial con folio `-R1`) + captura mínima de custodia/lab/alternativas (F1-13/F1-14/F1-15); E2E-01/02/03/05/07/08, SEC-01…05, API-00…04 verdes |
+| **G1 — MVP núcleo** | **ADR-003:** M1–M8 + M9 mínimo + M10–M11; EF-01…EF-09 (EF-07 esencial con folio `-R1`) + captura mínima de custodia/lab/alternativas (F1-13/F1-14/F1-15); **RT-01/02** (Realtime, F1-17); E2E-01/02/03/05/07/08, SEC-01…05, API-00…04 verdes |
 | **G2 — Completa** | EF-10 (custodia/laboratorio completo), EF-11 + M12 (aula), EF-12 (reprogramación), insignia OB3, reportes completos (M9 avanzado), M7 completo |
 | **G3 — Piloto** | EF-07 completo (matriz 10/10 con M9 avanzado), EF-13 tras `NOM151_ENABLED`, CAP-01…04 |
 
@@ -297,8 +297,8 @@ Un entregable está **Hecho** cuando:
 
 ## 14. Estado actual y siguiente tarea
 
-- **Fase:** `F0 — Validación` cerrada con excepciones (G0 AMARILLO-OPERATIVO, `ADR-004`);
-  `F1 — MVP núcleo` según `ADR-003`.
+- **Fase:** F0 ejecutada; **G0 se cierra con el merge de #2** y el reporte del supervisor
+  (`ADR-004`, excepciones E1–E4); `F1 — MVP núcleo` según `ADR-003`.
 - **Tablero:** ver `tasks/BACKLOG.md`.
 - **Última actualización:** 2026-11-08 — creación del equipo, Fase 0 ejecutada y ADR-003/004.
 - **Siguiente tarea asignada:** `F1-00 — Migraciones correctivas y grants` (dueño:
