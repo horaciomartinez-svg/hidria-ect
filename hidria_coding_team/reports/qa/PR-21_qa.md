@@ -137,3 +137,53 @@ F1-16/ADR-008/B/2. QA no mergea; no se ejecutó git de escritura.
 
 QA `qa-tester`. Solo este reporte y `qa/trazabilidad.md`; sin modificar `app/**`,
 `supabase/**`, `.github/**` ni `docs/**`. Sin secretos.
+
+## Re-QA delta `4b41f7e..73df49b` — head final (task-62, reabierta)
+
+**Head final:** `73df49b5a4362590497c64b59f4fa71a3f53e037` · **Base:** `main` `8e4e258`
+(merge de main + lock regenerado; 3 commits). **Spec APROBADO** y **seguridad APROBADA sin
+veto**. CI **10/10** (2 runs × 5 checks: Guardas, Cliente, Deno, pgTAP y E2E Playwright).
+
+### Cambios del delta (solo lo que cambia en A/2)
+
+| Corrección | Evidencia |
+|---|---|
+| **B1 same-origin exacto** | `sw.ts` usa `new URL(sourceUrl).origin` y compara `sourceOrigin !== self.location.origin`; `try/catch` para URL inválida; mensaje exacto `{type:'SKIP_WAITING'}` sin payload. `app/scripts/check-sw-origin.mjs` valida 6 vectores y corre en **build** (`[HIDRIA] Guarda SW mismo origen OK (6 vectores, sw.ts)`) |
+| **M1 reporte** | `F1-02b_diseno_pwa.md` difiere las etiquetas M5/M7 a **B/2/#22** y declara que A/2 no cambia `registry.tsx`; el PR no toca `app/src/routes/registry.tsx` |
+| **m1 `pwa:audit`** | Retirado de `app/package.json` en A/2 (script B/2); ya no hay comando roto |
+| **m2 `offline.html`** | Reintentar es `<a class="accion" href="/">`; **sin `onclick` inline** |
+| **`cacheName`/`APP_BUILD`** | No se usan en A/2; documentados como diferidos a B/2/F1-16 |
+| **Build/typecheck** | `build` incluye `tsc` cliente + `tsc -p tsconfig.sw.json` + `check-sw-origin` + `vite build`; `typecheck` compila también el SW |
+
+### Comandos reproducidos (sin `.env`)
+
+```text
+npm ci                    exit 0
+npm run lint              exit 0
+npm run typecheck         exit 0 (cliente + SW)
+npm run build             exit 0
+  [HIDRIA] Guarda SW mismo origen OK (6 vectores, sw.ts).
+  PWA v2.0.0 · injectManifest · precache 11 entries (539.73 KiB) · dist/sw.js 18,392 B
+  JS 477.19 kB / 138.37 kB gzip · CSS 17.63 kB / 4.15 kB gzip · offline.html 3,263 B
+```
+
+`dist/`: `sw.js`, `manifest.webmanifest`, `offline.html` e iconos 192/512/maskable/180
+presentes; precache 11 entradas. Sin regresión frente a `4b41f7e`.
+
+### CI y alcance
+
+- **CI 10/10 success** en `73df49b`: runs `42515175830` (pull_request) y `42515171348`
+  (push), ambos con Guardas/Cliente/Deno/**pgTAP**/**E2E Playwright** success (pgTAP sin
+  cambios de BD en este PR; base 129/129).
+- `docs/02` blob `a2394bce…` intacto; PR = 20 archivos (`app/**`, reportes F1-02/02b,
+  `package-lock.json`), **sin** `supabase/**`, `.github/**`, `docs/**` ni `tests/**`;
+  secret scan limpio; `.env` ausente.
+- **P2-02 resuelto** (`pwa:audit` retirado). **P2-01** (icono maskable byte-idéntico) sigue
+  como observación no bloqueante para B/2/F1-16.
+
+### Dictamen final
+
+**VERDE — merge permitido** para F1-02b **A/2** en `73df49b`: B1 same-origin exacto,
+M1 solo reporte/diferido, menores resueltos, build/lint/typecheck reproducidos y CI 10/10.
+Sin verdes funcionales de instalabilidad (Lighthouse/instalación real → F1-16/ADR-008 y
+B/2/#22). QA no mergea; sin git de escritura.
