@@ -6,7 +6,7 @@
 - **PR:** [#4](https://github.com/horaciomartinez-svg/hidria-ect/pull/4) — `feature/F1-00-migraciones` → `main`
 - **Base:** `main` `8008a64`
 - **Head revisado por seguridad:** `4b057b3c3bd756316b86b6d88b73aff0af939b17`
-- **Head previo del delta (m2/m5):** `1fb4ae4c61adc065adecc074630b7f14497d2d5`
+- **Head previo del delta (m2/m5):** `1fb4ae45c61adc065adecc074630b7f14497d2d5`
 - **Migración nueva:** `supabase/migrations/20261108010800_f1_00_security_fix.sql` (aplicada vía MCP)
 - **Modo:** forward-only; no se editaron las 8 migraciones aplicadas ni `docs/02`; sin datos reales.
 

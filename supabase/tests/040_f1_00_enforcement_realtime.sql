@@ -38,7 +38,8 @@ from unnest(array['F1','F2','F3','F4','F5']) f;
 
 select throws_ok($sql$
   update public.diagnostics set fase_actual=6 where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
-$sql$, 'P0001', 'Gate F6.*', 'F6 bloquea con 5/6 factores IVOH');
+$sql$, 'P0001', 'Gate F6: el IVOH no está validado en R4 (se requieren 6/6 factores).',
+  'F6 bloquea con 5/6 factores IVOH');
 
 insert into public.ivoh_evaluations (diagnostic_id, factor_code, version_id, puntaje,
   justificacion, evidencia, estado)
@@ -63,7 +64,9 @@ values
 select throws_ok($sql$
   insert into public.lab_results (sample_id, param_code, valor, unidad, dictamen)
   values ('23232323-2323-4232-8232-232323232323','DQO',12.5,'mg/L',true)
-$sql$, 'P0001', 'Dictamen bloqueado.*', 'sin firmas no hay dictamen');
+$sql$, 'P0001',
+  'Dictamen bloqueado: la muestra 23232323-2323-4232-8232-232323232323 requiere 3 transferencias firmadas de custodia.',
+  'sin firmas no hay dictamen');
 update public.custody_transfers set firma='firma-sintetica'
  where sample_id='23232323-2323-4232-8232-232323232323';
 select lives_ok($sql$
