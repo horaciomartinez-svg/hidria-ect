@@ -25,13 +25,15 @@
 
 ## 2. Decisiones
 
-1. **Claims:** el nombre canónico es **`organization_id`** (documentos). El hook emitirá
-   **ambos** (`organization_id` y `tenant_id`) mientras las funciones RLS existentes usan
-   `tenant_id`; la normalización completa (renombrar en RLS o alias) se hará en `F1-01` con
-   migración + pgTAP, sin romper políticas vigentes.
-2. **Auth hook:** se implementará como `public.custom_access_token_hook` (la ubicación `auth.`
-   no es creable) con URI `pg-functions://postgres/public/custom_access_token_hook`; la
-   **activación** queda pendiente de `SUPABASE_ACCESS_TOKEN` (ADR-004 E3).
+1. **Claims:** el nombre canónico es **`organization_id`** (documentos). El hook emite
+   **ambos** (`organization_id` y `tenant_id`); `current_org_id()` da **precedencia a
+   `organization_id`** y usa `tenant_id` como respaldo válido, sin rechazar por *mismatch*
+   (SEC-PR8-11: el middleware EF aplica la misma precedencia/fallback; `verifyProfile`, al
+   cablearse en la primera EF con DB, comparará el tenant del perfil contra el claim efectivo).
+   RLS normalizada en `F1-01a` con `is_tenant_member`/helpers y pgTAP, sin romper políticas.
+2. **Auth hook:** implementado como `public.custom_access_token_hook` con URI
+   `pg-functions://postgres/public/custom_access_token_hook`; **activo y verificado
+   end-to-end** (ADR-004 E3 resuelta; evidencia `F0-14`).
 3. **Grants DML:** migración correctiva que concede a `anon`/`authenticated` exactamente lo
    que RLS permite (por tabla) y a `service_role` el acceso de servicio; **sin** `SELECT` de
    `quiz_questions` cruda a `authenticated` (solo `v_quiz_questions`).

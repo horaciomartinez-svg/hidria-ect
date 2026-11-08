@@ -330,11 +330,11 @@ false, `PUBLIC` fuera):
 
 | ID | Severidad | Condición | Dueño |
 |---|---|---|---|
-| **SEC-PR7-D1** | MENOR | `has_any_global_role(array[NULL])` con claim válido → `NULL` en vez de `false`; añadir `coalesce(...,false)` + aserción (junto con `task-21`/`task-13`). | `arquitecto-bd` (próximo delta) |
+| **SEC-PR7-D1** | **RESUELTO** en `20030` | `has_any_global_role(array[NULL])` con claim válido → **false** (y `array['equipo',NULL]` con claim `equipo` → true); verificado en §8.6. | `arquitecto-bd` (cerrado) |
 | **SEC-PR7-D2** | OBSERVACIÓN | Alcance de lectura del rol `invitado` en políticas de F0 (tenant-wide vs membresía/agregado de `docs/01`); el seed no añade membresías ni login. | F1-01/ADR RLS |
 | **M1 / task-27** | MAYOR (entorno, ya rastreada) | Limpieza forward-only del seed antes de piloto/G3, con las condiciones de `ADR-007` (no tocar org base/catálogo IVOH; abortar ante UUID/email inesperados; evidencia 0 filas). | Lead/arquitecto-bd, bloqueante G3 |
 | **task-28** | MENOR (proceso) | Guarda CI de “fixtures fuera de migraciones” (ADR-007 §2.3). | DevOps/QA |
-| **task-13** | MENOR (proceso) | Suite `060` (plan 46) revisada pero **no ejecutada** en CI; sigue la excepción pgTAP documentada. | DevOps/QA, antes de G1 |
+| **task-13** | MENOR (proceso) | Suite `060` (plan **51**) revisada pero **no ejecutada** en CI; sigue la excepción pgTAP documentada. | DevOps/QA, antes de G1 |
 
 ### 8.5 Confirmación del head final `b67abf3` (delta solo documental)
 
@@ -347,16 +347,55 @@ false, `PUBLIC` fuera):
 - **El veredicto VETO LEVANTADO de §8 se mantiene para `b67abf3`**: el código de seguridad
   revisado es idéntico a `4197602`; el delta es exclusivamente documental.
 
+### 8.6 Re-revisión FINAL — head limpio `c958c9e` (merge `main@f83569a`) — **VETO LEVANTADO se mantiene**
+
+- **Head:** `c958c9e9f9422814e4b9cf6b1907cb2b65168bec` (merge commit; base `main@f83569a`;
+  3 commits visibles en el PR; CI **4/4 `success`** en `c958c9e`, runs `42438497450`/
+  `42438501225`; `mergeable_state: clean`). Delta de seguridad desde `b67abf3`: **nueva
+  migración `20261108020030_f1_01a_fix_roles2.sql` (+47)**, `060` ampliado (`plan 51`) y merge
+  documental del reporte F1-01 (sin cambios de SQL). **Ninguna migración previa editada.**
+- **SEC-PR7-D1 (residual) — RESUELTO y verificado en la BD aplicada (`schema_migrations = 16`,
+  última `20261108020030`):**
+  - Sin claim: `has_any_global_role(NULL|array[]|array['']|array[NULL]|array['equipo',NULL])`
+    → **false** en todos ✅.
+  - Con claim `equipo`: `['equipo']` → **true**, `['equipo',NULL]` → **true**, `array[NULL]` →
+    **false**, `array['']` → **false**, `array[]` → **false**, `NULL` → **false**; y
+    `has_global_role('equipo')`=true / `has_global_role(NULL)`=false ✅. La nueva implementación
+    usa `unnest` + `role is not null/<> ''` + `coalesce(..., false)` (nunca NULL).
+- **Seed / `instance_id` (E3):** los **6/6** `auth.users` sintéticos tienen
+  `instance_id = 00000000-0000-0000-0000-000000000000` (visibles para GoTrue); **0 identities,
+  0 passwords, 0 teléfonos/metadata**, 6 profiles con 6 roles (1 `invitado`, **0 membresías**),
+  0 emails no-`.invalid`; sin PII real. Los usuarios sintéticos siguen sin ruta de login
+  (sin password/identity y dominio `.invalid`) y no abren accesos por sí mismos; **siguen siendo
+  solo dev/staging** y la limpieza obligatoria antes de piloto/G3 sigue en **task-27**
+  (condición `ADR-007`).
+- **Regresión (BD aplicada):** tenant propio con claims `coordinador_srhds` → 1 org / **6**
+  profiles / 2 diagnostics / 1 company / `v_quiz_questions` **14** / `v_diagnostic_completeness`
+  **2**; tenant ajeno (admin_institucional) → **0/0/0**; sin claim → RLS **0**, `is_tenant_member`
+  false; **7 políticas** `WITH CHECK` negativas con invitado/observador/coordinador-admin →
+  **42501** (7/7); `UPDATE` de `v_quiz_questions` como authenticated → **42501**; 105 políticas,
+  46 tablas con RLS; grants helpers: `anon` EXECUTE **false**, `authenticated`/`service_role`
+  **true**.
+- **Forward-only / higiene:** 16 migraciones; solo el archivo nuevo `20030` en el delta de
+  migraciones (las previas no se editaron); `docs/02` y migración base byte-idénticos
+  (SHA-256 `2A7B6F88…42CB5`); secret scan del delta **0**; CI 4/4.
+- **Conclusión:** **VETO LEVANTADO se mantiene** para `c958c9e`; no hay hallazgos nuevos de
+  seguridad. Residuales vigentes: SEC-PR7-D2 (observación de alcance de `invitado`, task-35),
+  M1/task-27 (limpieza de seed antes de piloto/G3), task-28 (guarda CI), task-13 (060 en CI);
+  nota dev-only del `instance_id` (no añadir passwords/identities ni usar estos usuarios con
+  datos reales).
+
 ## Firma
 
 `seguridad-privacidad` (08) — **VETO LEVANTADO** (seguridad) para los heads
-`41976020da7f4735fc58b7c00de667ae7fa508f1` y `b67abf3ef05657cf5d8a63921123a1d7a94a6040`
-(el segundo es delta documental, §8.5) del PR #7: SEC-PR7-01 corregido y verificado
-(fail-closed sin claim/valores vacíos), M2 `invitado` sin PII ni accesos indebidos, sin
-regresión de grants/RLS/aislamiento/quiz, forward-only y sin secretos. El **VETO provisional**
-sobre `44891b3` queda como histórico en §3/§6. Condiciones residuales en §8.4 (SEC-PR7-D1,
-SEC-PR7-D2, M1/task-27, task-28, task-13). Aprobación de seguridad emitida; el merge sigue
-requiriendo la aprobación del usuario (ruleset `proteccion-main`) y la re-revisión spec. Sin
-fuga de secretos, sin datos reales y sin cambios persistentes en la BD (fixtures con
-`ROLLBACK`; solo secuencias no transaccionales en el proyecto de desarrollo). Sin `git` de
-escritura y sin merge.
+`41976020da7f4735fc58b7c00de667ae7fa508f1`, `b67abf3ef05657cf5d8a63921123a1d7a94a6040` y
+`c958c9e9f9422814e4b9cf6b1907cb2b65168bec` del PR #7 (el segundo y el tercero son deltas
+documental/residual, §8.5/§8.6): SEC-PR7-01 corregido y verificado (fail-closed sin claim y con
+argumentos nulos/vacíos), M2 `invitado` sin PII ni accesos indebidos, `instance_id` de los seeds
+sin rutas de login, sin regresión de grants/RLS/aislamiento/quiz, forward-only y sin secretos.
+El **VETO provisional** sobre `44891b3` queda como histórico en §3/§6. Condiciones residuales en
+§8.4/§8.6 (SEC-PR7-D2, M1/task-27, task-28, task-13). Aprobación de seguridad emitida; el merge
+lo ejecuta `supervisor-hidria` con el cuórum de reportes y CI verde (ruleset `proteccion-main`
+con required checks y `non_fast_forward`). Sin fuga de secretos, sin datos reales y sin cambios
+persistentes en la BD (fixtures con `ROLLBACK`; solo secuencias no transaccionales en el
+proyecto de desarrollo). Sin `git` de escritura y sin merge.
