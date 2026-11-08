@@ -310,13 +310,15 @@ Un entregable está **Hecho** cuando:
 
 ## 14. Estado actual y siguiente tarea
 
-- **Fase:** F0 ejecutada y G0 cerrado AMARILLO-OPERATIVO (E1 resuelta; E2–E4 abiertas);
-  `F1 — MVP núcleo` en curso.
+- **Fase:** F0 cerrada (G0 AMARILLO-OPERATIVO; **E1 resuelta**; E2–E4 abiertas);
+  **F1-00 cerrada** (`b4fbc83`) y **F1-01 en curso** (auth/claims, task-20/task-21).
 - **Tablero:** ver `tasks/BACKLOG.md`.
-- **Última actualización:** 2026-11-07 19:34 — E1 resuelta (ruleset `proteccion-main`),
-  PR #4 (F1-00) en revisión y bloqueado a la espera de aprobación humana del ruleset.
-- **Siguiente tarea asignada:** `F1-00` completada y en revisión; después
-  `F1-01 — Auth con custom claims y roles` (Arquitecto BD + Dev Edge Functions).
+- **Última actualización:** 2026-11-07 19:59 — `main` = `b4fbc83`; PR #4 (F1-00) mergeado con
+  spec APROBADO, seguridad sin veto y QA AMARILLO (excepción pgTAP); ruleset con
+  `required_approving_review_count = 0` y checks obligatorios.
+- **Siguiente tarea:** `F1-01 — Auth con custom claims y roles` (Arquitecto BD + Dev Edge
+  Functions); follow-ups: `task-18` (RES-1) antes de F1-04, `task-13` (pgTAP CI) antes de G1,
+  `task-15` (ARCO) antes del buzón.
 
 ---
 
