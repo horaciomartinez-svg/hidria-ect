@@ -5,21 +5,25 @@
 - **Tarea:** `task-13` — F1 · pgTAP en CI (servicio Postgres) — follow-up de F1-00,
   **bloqueante de G1** (en paralelo a `task-44` Deno, ya mergeada en #13)
 - **PR:** [#14](https://github.com/horaciomartinez-svg/hidria-ect/pull/14) — rama
-  `chore/F1-19-ci-pgtap` · base `main@6c1372b` (rebase final tras merge de #15)
+  `chore/F1-19-ci-pgtap` · **head final `d69c7e1`** · base `main@1688ba5` (merges #15/#18)
+- **Merge:** PR #14 **mergeado (squash) como `1ba8d25398c115c167e36d1db18684eb1d81e0df`**;
+  `main` pasa a **`1ba8d25`** y corre con **4 checks** (Guardas, Cliente, Deno, pgTAP)
 - **Entorno:** GitHub Actions `ubuntu-latest` (Docker disponible) + Supabase CLI 3.0.0
 - **Commit inicial del PR:** `c222911f45760554c3d3f7efbcb22552a62efd49`
+- **Actualizado:** 2026-11-08 13:01 (America/Mexico_City) — merge en `main` y post-merge verdes
 
-## Resultado: EN CURSO — infraestructura VERDE (start + db reset OK), 5/6 suites y 113 tests; fallan 2 aserciones por semántica pgTAP
+## Resultado: VERDE — `supabase start` + `db reset` + **6/6 suites, 113 aserciones** (`Result: PASS`)
 
-El job demuestra que la ruta A de QA funciona de punta a punta: el stack local de Supabase
-arranca en el runner, aplica las **16 migraciones desde archivos** (`supabase start`) y las
-re-aplica en base limpia (`supabase db reset`); `supabase test db` ejecuta las 6 suites y
-**113 aserciones**. El primer run falló por 2 defectos de sintaxis preexistentes (corregidos
-en PR #15, ya en `main`); el segundo run (tras el merge) pasa `start` y `db reset` y deja
-**5/6 suites verdes**. Solo fallan 2 aserciones de la suite 040 por un **tercer defecto de
-test preexistente**: uso de `throws_ok` como si su tercer argumento fuese regex (pgTAP lo
-compara exacto). Se corrige fuera de este PR (PR de test pendiente del arquitecto/QA); después
-se rebasa/re-ejecuta para el VERDE final con run id.
+El job demuestra la ruta A de QA de punta a punta: el stack local de Supabase arranca en el
+runner, aplica las **16 migraciones desde archivos** (`supabase start`) y las **re-aplica en
+base limpia** (`supabase db reset`); `supabase test db` ejecuta las 6 suites y **113 aserciones**
+con `All tests successful` / `Result: PASS`. El run final
+([42512258890](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42512258890), job
+[128827649988](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42512258890/job/128827649988))
+queda **4/4 jobs verdes** (Guardas, Cliente, Deno y pgTAP). El job destapó **3 defectos
+preexistentes** (2 de sintaxis SQL y 1 de semántica pgTAP), corregidos en PR #15 y PR #18 por
+el arquitecto y ya presentes en `main`. PR #19 (task-18) añadirá una 17.ª migración: cuando
+mergee, el job la aplicará sin cambios (basta re-ejecutar).
 
 ## 1. Cambio en CI (solo `.github/workflows/ci.yml`)
 
@@ -85,6 +89,29 @@ Decisiones:
 | Otros jobs | Guardas ✅ · Cliente ✅ · Edge Functions (Deno) ✅ |
 | Nota | El log muestra avisos transitorios `toomanyrequests: Rate exceeded` en pulls de Docker (sin efecto en el resultado) |
 
+### 2.2 Run final verde (head `d69c7e1`, base `1688ba5`, tras mergear #18)
+
+| Dato | Valor |
+|---|---|
+| Run PR | [42512258890](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42512258890) (`pull_request`, head `d69c7e1`, **conclusion `success`**) |
+| Run push | `42512256776` (`push`, mismo head, `success`) |
+| Job pgTAP | [128827649988](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42512258890/job/128827649988) — **1 m 56 s** (`18:53:46Z` → `18:55:42Z`) |
+| Steps | `Setup` ✅ · `Checkout` ✅ · `Supabase CLI 3.0.0` ✅ · `init` ✅ · `start` ✅ · `db reset` ✅ · **`test db` ✅** |
+| Suites | 010 ✅ · 020 ✅ · 030 ✅ · 040 ✅ · 050 ✅ · 060 ✅ |
+| Totales | **`All tests successful` · `Files=6, Tests=113` · `Result: PASS`** |
+| Otros jobs | Guardas ✅ · Cliente ✅ · Edge Functions (Deno) ✅ → **4/4 checks verdes** |
+| Migraciones | 16 aplicadas en `supabase start` y **16 re-aplicadas en `supabase db reset`** (33 `Applying migration` en el log: 16+16+seed inicial) |
+
+### 2.3 Merge en `main` y post-merge
+
+| Dato | Valor |
+|---|---|
+| Merge PR #14 (squash) | **`1ba8d25398c115c167e36d1db18684eb1d81e0df`** → `main` = **`1ba8d25`** |
+| Run post-merge de `main` | [42512504691](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/42512504691) (`push`, head `1ba8d25`, **success**) |
+| Checks post-merge | **4/4**: Guardas ✅ · Cliente ✅ · Edge Functions (Deno) ✅ · **pgTAP (Supabase local) ✅** |
+| Job pgTAP canónico | run **42512258890** / job **128827649988**: `All tests successful · Files=6, Tests=113 · Result: PASS` |
+| Nota | El commit `d1f333a` (esta evidencia final) se publicó después del merge; este PR documental lo incorpora a `main` sin tocar el workflow. |
+
 El log muestra que el stack se descarga y arranca correctamente (PG `17.11.0.011`, studio,
 storage-api, etc.), y que `supabase start` aplica las migraciones desde archivos en orden:
 
@@ -140,10 +167,11 @@ iteración de CI. Comando usado: `pglast.parse_sql(<archivo>)` sobre cada `.sql`
   **2 archivos, 2 líneas** — comentario de la migración 0030 (excepción a forward-only aprobada
   por seguridad + ADR-009; en BD el comentario es NULL) y `)` faltante en el test 060.
   **Mergeado** como `main@7ca0639`; el run 42511711377 ya aplica las 16 migraciones sin error.
-- **D-3 (suite 040):** decisión del supervisor = **opción B**: PR `fix/F1-01a-test-040`
-  (arquitecto) con 2 líneas que mantienen `throws_ok` con errcode `P0001` y usan el **mensaje
-  exacto**; conserva el check de SQLSTATE. Pendiente de publicar/mergear al cierre de este
-  reporte.
+- **D-3 (suite 040):** decisión del supervisor = **opción B**. PR **#18** del `arquitecto-bd`
+  (`fix/F1-01a-test-040`, head `05d5972`, 1 archivo, 2 líneas): mantiene `throws_ok` con
+  errcode `P0001` y usa el **mensaje exacto** de los triggers (`Gate F6: …`,
+  `Dictamen bloqueado: …`), conservando el check de SQLSTATE; `plan(15)` intacto.
+  **Mergeado** como `main@1688ba5`; verificado en el run final (§2.2).
 - Este PR **no toca `supabase/migrations/**` ni `supabase/tests/**`**: mantiene el diff CI-only,
   según el write scope de task-13 y las decisiones del supervisor.
 - Tras mergear el fix de D-3: merge/rebase de `chore/F1-19-ci-pgtap` sobre `main`,
@@ -153,10 +181,11 @@ iteración de CI. Comando usado: `pglast.parse_sql(<archivo>)` sobre cada `.sql`
 
 - [x] Job reproducible en CI que levanta Supabase local (setup-cli + init + start).
 - [x] Aplica las migraciones desde archivos en DB limpia (`supabase start`/`db reset`) —
-  run 42511711377: `start` ✅ y `db reset` ✅ con las 16 migraciones.
-- [ ] `supabase test db` verde con 6 suites / 113 aserciones: **5/6 suites y 113 tests
-  ejecutados**; pendiente el fix de D-3 (2 aserciones) y la re-ejecución.
-- [ ] Run id/URL final en evidencia (run de progreso: 42511711377; final pendiente).
+  run 42511711377 (progreso) y run final 42512258890: `start` ✅ y `db reset` ✅ con las
+  16 migraciones.
+- [x] `supabase test db` verde con 6 suites / 113 aserciones — run 42512258890:
+  **`All tests successful` · `Files=6, Tests=113` · `Result: PASS`**.
+- [x] Run id/URL final en evidencia: run **42512258890** / job **128827649988** (§2.2).
 - [x] Falla si una suite falla (el job sale != 0; demostrado con D-1 y con D-3).
 - [x] Sin secretos: stack local efímero, sin `secrets.*`, `config.toml` generado en el runner
       y no commiteado; PG local con claves deterministas de Supabase local.
@@ -165,18 +194,18 @@ iteración de CI. Comando usado: `pglast.parse_sql(<archivo>)` sobre cada `.sql`
 ## 6. Pendientes / siguiente paso
 
 - [x] Merge de **PR #15** en `main` (`7ca0639`): D-1 y D-2 corregidos y verificados en CI.
-- [ ] Merge del PR `fix/F1-01a-test-040` (D-3, mensaje exacto con errcode `P0001`; decisión
-      del supervisor = opción B).
-- [ ] Merge/rebase de PR #14 y re-ejecución: `supabase start → db reset → test db`; confirmar
-      6/6 suites y 113 aserciones, y anotar run id/URL final.
-- [ ] Publicar el check como `pgTAP (Supabase local)`; **no** se añade a
-      `required_status_checks` por API (requiere permiso de administración del usuario; el
-      ruleset `proteccion-main` ya exige Guardas/Cliente/Deno). Documentar como no obligatorio
-      hasta que el usuario lo añada.
+- [x] Merge de **PR #18** en `main` (`1688ba5`): D-3 corregido (mensaje exacto con errcode
+      `P0001`; opción B del supervisor).
+- [x] **PR #14 mergeado** (squash `1ba8d25`); post-merge `main` con **4/4 checks verdes**
+      (run 42512504691).
+- [ ] Check ya publicado como `pgTAP (Supabase local)` (4.º check del CI). Queda **opcional**
+      que el usuario lo añada a `required_status_checks` (no configurable por API con el
+      token actual; el ruleset `proteccion-main` ya exige Guardas/Cliente/Deno).
 - [ ] QA: actualizar `qa/trazabilidad.md` (pgTAP ejecutado en CI) — fuera de mi write scope.
 - [ ] BACKLOG: referencia cruzada task-13 ↔ task-44 / task-49 — Lead/supervisor.
 - [ ] O-01 de QA (`migration repair` por `version` MCP distinto del prefijo de archivo) sigue
-      vigente para staging; no lo toca este PR.
+      vigente para staging; no lo toca este PR. Cuando PR #19 (task-18) mergee, el job aplicará
+      la 17.ª migración sin cambios (basta re-ejecutar).
 
 ## 7. Seguridad de la evidencia
 
@@ -187,7 +216,10 @@ iteración de CI. Comando usado: `pglast.parse_sql(<archivo>)` sobre cada `.sql`
 
 ## Veredicto
 
-**EN CURSO** — infraestructura **VERDE** (`start` + `db reset` + 16 migraciones desde archivos),
-5/6 suites y 113 tests ejecutados; solo 2 aserciones de la suite 040 fallan por D-3 (semántica
-`throws_ok`). Se actualizará a **VERDE** con el run id definitivo tras mergear el fix de D-3 y
-re-ejecutar este PR (esperado: 6/6 suites, 113 aserciones).
+**VERDE** — run **42512258890** (head `d69c7e1`, base `1688ba5`): `supabase start` ✅,
+`supabase db reset` ✅ (16 migraciones desde archivos), `supabase test db` ✅ con
+**6/6 suites y 113 aserciones** (`Result: PASS`); 4/4 checks del CI verdes. El job destapó 3
+defectos preexistentes (D-1, D-2 sintaxis; D-3 semántica pgTAP), corregidos en PR #15/#18 y
+verificados en `main@1688ba5`. **PR #14 mergeado (squash `1ba8d25`)** y post-merge de `main`
+verde con 4/4 checks (run 42512504691); **task-13 Hecha**. Queda opcional que el usuario añada
+el check a `required_status_checks` (no configurable por API con el token actual).
