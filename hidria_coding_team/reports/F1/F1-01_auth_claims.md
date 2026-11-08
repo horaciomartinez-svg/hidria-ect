@@ -3,10 +3,10 @@
 - **Agente:** `arquitecto-bd` (02)
 - **Fecha:** 2026-11-07 20:10 (America/Mexico_City)
 - **Tarea:** `task-20` (F1-01a) — archivo `hidria_coding_team/tasks/F1/F1-01_auth_claims.md`
-- **Rama:** `feature/F1-01a-auth-claims`, desde `main` `b4fbc83`
+- **Rama:** `feature/F1-01a-auth-claims` (base del PR `main` `6b95be0`; commit de creación desde `b4fbc83`)
 - **Entorno:** proyecto `zucalshlfcxejpukshxl` (dev/staging sintético, ADR-004 E2)
-- **Migraciones nuevas:** `20261108020000_f1_01a_auth_claims.sql` y `20261108020010_f1_01a_fix_tenant_member.sql` (aplicadas vía MCP)
-- **Evidencia:** este reporte; `schema_migrations = 14` (3 base + 9 F1-00 + 2 F1-01a)
+- **Migraciones nuevas:** `20261108020000_f1_01a_auth_claims.sql`, `20261108020010_f1_01a_fix_tenant_member.sql` y `20261108020020_f1_01a_fix_roles.sql` (aplicadas vía MCP)
+- **Evidencia:** este reporte; `schema_migrations = 15` (3 base + 9 F1-00 + 3 F1-01a)
 - **Alcance:** solo DB (`supabase/migrations/**`, `supabase/tests/**`, este reporte). **No** se tocaron `supabase/functions/**` (task-21) ni `app/**` (F1-02).
 
 ## Resultado: VERDE (alcance DB)
@@ -31,19 +31,24 @@ Funciones nuevas (invoker, `search_path=public,pg_temp`):
 |---|---|
 | `public.current_org_id()` | `organization_id`; si no existe o es inválido, `tenant_id`; `null` sin claim |
 | `public.current_global_role()` | `global_role` del JWT; `null` sin claim |
-| `public.has_global_role(text)` | `true` solo si coincide |
-| `public.has_any_global_role(text[])` | `true` si está en la lista; `false` con lista vacía |
+| `public.has_global_role(text)` | `true` solo si hay claim no nulo, `p_role` no nulo/no vacío y coincide |
+| `public.has_any_global_role(text[])` | `true` solo si hay claim y algún elemento no vacío coincide; `false` con array vacío/`array['']` |
 | `public.is_tenant_member(uuid)` | Reemplazada para usar `current_org_id()`; `false` sin claim |
 
 Verificación en vivo (claims simulados):
 
-| Claim | Resultado |
+| Claim / caso | Resultado |
 |---|---|
 | `organization_id` = org semilla | `current_org_id` = org; `is_tenant_member(org)` = **true** |
 | solo `tenant_id` = org semilla | `current_org_id` = org; `is_tenant_member(org)` = **true** |
 | ambos distintos | gana `organization_id`; el alias distinto **no** habilita |
 | sin claim | `current_org_id` = null; `current_global_role` = null; `is_tenant_member` = **false** |
 | `organization_id` inválido | helper no rompe; `current_org_id` = null |
+| **B1 sin claim:** `has_global_role(NULL)` / `has_global_role('')` | **false / false** |
+| **B1 sin claim:** `has_any_global_role(array[''])` / `array[]` | **false / false** |
+| **B1 claim vacío:** `current_global_role` / `current_org_id` con `''` | **null / null** |
+| **B1 con `equipo`:** `has_global_role('equipo')` / `has_any(['equipo'])` | **true / true** |
+| **B1 con `equipo`:** `has_global_role(NULL|'')` / `has_any([''])` | **false / false** |
 
 Grants: `EXECUTE` para `authenticated` y `service_role`; revocado de `public`/`anon`
 (`has_function_privilege('anon',...) = false`).
@@ -52,14 +57,17 @@ Grants: `EXECUTE` para `authenticated` y `service_role`; revocado de `public`/`a
 
 | Objeto | Cantidad | Detalle |
 |---|---|---|
-| `auth.users` | 5 | IDs `a1000000-0000-4000-8000-000000000001..005`; emails `*.sintetico@example.invalid` |
-| `profiles` | 5 | Los 5 `global_role` del CHECK, todos en la organización semilla |
+| `auth.users` | 6 | IDs `a1000000-0000-4000-8000-000000000001..006`; emails `*.sintetico@example.invalid` |
+| `profiles` | 6 | Los 6 `global_role` del CHECK (incluye `invitado`), todos en la organización semilla |
 | `companies` | 1 | Empresa sintética `b1000000-...001` |
 | `diagnostics` | 2 | `c1000000-...001` (inicial) y `...002` (seguimiento), misma empresa/org |
 | `project_members` | 6 | D1: coordinador, equipo, empresa, observador y admin(como coordinador); D2: coordinador |
 
-Todo con `on conflict do nothing`; no se cargan datos reales. Los perfiles existen para que
-`_shared/auth` (task-21) pueda probar carga de perfil y contraste de tenant.
+El alta es idempotente: `on conflict do nothing` cubre el `UNIQUE(id)` y el `UNIQUE(email)` de
+`auth.users`; el perfil `invitado` se inserta por búsqueda de email y `on conflict (user_id)`.
+No se cargan datos reales. Los perfiles existen para que `_shared/auth` (task-21) pueda probar
+carga de perfil y contraste de tenant. **M1:** el seed sigue en la migración por decisión del
+Lead (task-27/ADR-007); no se movió en este delta.
 
 ## 3. RLS y aislamiento (SEC-01/SEC-02)
 
@@ -68,7 +76,7 @@ Con claims simulados de un usuario del seed y `SET LOCAL ROLE authenticated`:
 | Consulta | Resultado |
 |---|---|
 | `organizations` | 1 |
-| `profiles` | 5 |
+| `profiles` | 6 |
 | `diagnostics` | 2 |
 | `companies` | 1 |
 | `my_diagnostic_role('c1000000-...001')` | `coordinador` |
@@ -79,11 +87,12 @@ Con `tenant_id` como único claim: mismo aislamiento correcto. Con tenant ajeno:
 
 ## 4. pgTAP
 
-Nueva suite `supabase/tests/060_f1_01a_auth_claims.sql` (`plan(29)`):
+Nueva suite `supabase/tests/060_f1_01a_auth_claims.sql` (`plan(46)`):
 
-- seed: 5 usuarios, 5 perfiles (5 roles distintos), 6 membresías, 2 diagnósticos;
+- seed: 6 usuarios, 6 perfiles (6 roles distintos, incluido `invitado`), 6 membresías, 2 diagnósticos;
 - helpers: precedencia `organization_id`, alias `tenant_id`, sin claim, claim inválido;
-- `has_global_role`/`has_any_global_role` (incluido lista vacía);
+- **B1 fail-closed:** `has_global_role(NULL|'')` y `has_any_global_role(array[]|array[''])` = false sin claim; `current_global_role`/`current_org_id` = null con `''`;
+- **M2:** rol `invitado` (current_global_role/has_global_role/has_any);
 - RLS/Aislamiento A/B, `my_diagnostic_role`, `is_diagnostic_member`;
 - SEC-04: la BD devuelve null/false; el 401 es del middleware EF (task-21).
 

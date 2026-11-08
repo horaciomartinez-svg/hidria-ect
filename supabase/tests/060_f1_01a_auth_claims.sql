@@ -3,20 +3,20 @@
 -- es del middleware EF, task-21).
 begin;
 
-select plan(29);
+select plan(46);
 
 -- Seed sintético (idempotente, emails .invalid)
 select is((select count(*) from auth.users
   where id in ('a1000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002',
                'a1000000-0000-4000-8000-000000000003','a1000000-0000-4000-8000-000000000004',
-               'a1000000-0000-4000-8000-000000000005')), 5::bigint,
-  'seed: 5 usuarios auth sintéticos');
+               'a1000000-0000-4000-8000-000000000005','a1000000-0000-4000-8000-000000000006')), 6::bigint,
+  'seed: 6 usuarios auth sintéticos');
 select is((select count(*) from public.profiles
-  where user_id::text like 'a1000000-0000-4000-8000-00000000000%'), 5::bigint,
-  'seed: 5 perfiles sintéticos');
+  where user_id::text like 'a1000000-0000-4000-8000-00000000000%'), 6::bigint,
+  'seed: 6 perfiles sintéticos');
 select is((select count(distinct global_role) from public.profiles
-  where user_id::text like 'a1000000-0000-4000-8000-00000000000%'), 5::bigint,
-  'seed: los 5 global_role del CHECK');
+  where user_id::text like 'a1000000-0000-4000-8000-00000000000%'), 6::bigint,
+  'seed: los 6 global_role del CHECK');
 select is((select count(*) from public.project_members
   where diagnostic_id in ('c1000000-0000-4000-8000-000000000001','c1000000-0000-4000-8000-000000000002')),
   6::bigint, 'seed: 6 membresías para los diagnósticos sintéticos');
@@ -52,6 +52,33 @@ select is(public.is_tenant_member('00000000-0000-4000-8000-000000000001'), false
   'is_tenant_member false sin claim de tenant');
 select is(public.current_global_role(), NULL::text, 'current_global_role null sin claim');
 
+-- B1: los helpers de rol fallan cerrado sin claim (NULL/''/array['']).
+select is(public.has_global_role(NULL), false, 'has_global_role(NULL) false sin claim');
+select is(public.has_global_role(''), false, 'has_global_role('''') false sin claim');
+select is(public.has_any_global_role(array['']), false, 'has_any_global_role(array['''']) false sin claim');
+select is(public.has_any_global_role(array[]::text[]), false, 'has_any_global_role(array[]) false sin claim');
+
+set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000002","organization_id":"","global_role":""}';
+select is(public.current_global_role(), NULL::text, 'current_global_role null con claim vacío');
+select is(public.current_org_id(), NULL::uuid, 'current_org_id null con organization_id vacío');
+select is(public.has_global_role(NULL), false, 'has_global_role(NULL) false con claim vacío');
+select is(public.has_global_role(''), false, 'has_global_role('''') false con claim vacío');
+select is(public.has_any_global_role(array['']), false, 'has_any_global_role(array['''']) false con claim vacío');
+
+-- Con claim equipo: roles válidos true; NULL/''/array[''] false.
+set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000002","global_role":"equipo"}';
+select ok(public.has_global_role('equipo'), 'has_global_role(''equipo'') true con equipo');
+select ok(public.has_any_global_role(array['equipo']), 'has_any_global_role([''equipo'']) true con equipo');
+select is(public.has_global_role(NULL), false, 'has_global_role(NULL) false con claim equipo');
+select is(public.has_global_role(''), false, 'has_global_role('''') false con claim equipo');
+select is(public.has_any_global_role(array['']), false, 'has_any_global_role(array['''']) false con claim equipo');
+
+-- M2: sexto rol global, invitado.
+set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000006","organization_id":"00000000-0000-4000-8000-000000000001","global_role":"invitado"}';
+select is(public.current_global_role(), 'invitado', 'current_global_role = invitado');
+select ok(public.has_global_role('invitado'), 'has_global_role(''invitado'') true');
+select ok(public.has_any_global_role(array['invitado']), 'has_any_global_role([''invitado'']) true');
+
 set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000002","organization_id":"no-es-uuid"}';
 select is(public.current_org_id(), NULL::uuid, 'claim de tenant inválido no rompe el helper');
 
@@ -60,8 +87,8 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000001","organization_id":"00000000-0000-4000-8000-000000000001","global_role":"coordinador_srhds"}';
 select is((select count(*) from public.organizations), 1::bigint,
   'RLS: organizaciones del tenant = 1');
-select is((select count(*) from public.profiles), 5::bigint,
-  'RLS: perfiles del tenant = 5');
+select is((select count(*) from public.profiles), 6::bigint,
+  'RLS: perfiles del tenant = 6');
 select is((select count(*) from public.diagnostics), 2::bigint,
   'RLS: diagnósticos del tenant = 2');
 select is((select count(*) from public.companies), 1::bigint,
