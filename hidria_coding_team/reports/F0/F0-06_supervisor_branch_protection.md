@@ -1,7 +1,7 @@
 # F0-06 — Protección de `main` verificada
 
 - **Agente:** supervisor-hidria
-- **Fecha:** 2026-11-07 17:39 (America/Mexico_City)
+- **Fecha:** 2026-11-07 17:39 (America/Mexico_City) · **actualizado 2026-11-07 19:31**
 - **Tarea:** `tasks/F0/F0-06_branch_protection.md`
 - **Rama / PR:** `chore/f0-fundacion` / #2 — <https://github.com/horaciomartinez-svg/hidria-ect/pull/2>
 - **Entorno:** GitHub API (`horaciomartinez-svg/hidria-ect`, repo público)
@@ -9,7 +9,7 @@
   `main` = `f6b99ce10d8f71e9b0f08e70debeea6e5f630a87`
 - **Credencial:** `GITHUB_TOKEN` del `.env` local (valor **no** reproducido en este reporte)
 
-## Resultado: AMARILLO
+## Resultado: AMARILLO (17:39) → **VERDE — E1 RESUELTA** (2026-11-07 19:24; ver anexo final)
 
 La verificación está **completa y es concluyente**: `main` **NO está protegida**. No hay
 error de verificación, sino un **hueco real de configuración** que el token actual no puede
@@ -117,13 +117,12 @@ curl.exe -s -w "`nHTTP:%{http_code}`n" -H "Authorization: Bearer $tok" `
 
 ## Pendientes / siguiente paso
 
-- **Pendiente P0:** activar la protección (usuario) o mantener la excepción **E1** de
-  ADR-004 (aprobada por el supervisor y el revisor). F0-06 queda **AMARILLO** y G0 se cierra
-  como **AMARILLO-OPERATIVO** con E1–E4.
-- **Pendiente:** repetir la verificación tras la acción del usuario y anexar la salida con
-  fecha.
-- **Siguiente paso del supervisor:** checklist G0 en `reports/F0/00-supervisor_estado.md`
-  (cerrado con excepciones) y re-verificación de protección en cada ciclo de merge.
+- **E1 resuelta** (2026-11-07 19:24): ver anexo final. F0-06 pasa a **VERDE**.
+- **Pendiente operativo:** la aprobación mecánica de GitHub (1 review del ruleset) la debe
+  dar el usuario desde una segunda identidad; el supervisor **no mergea** hasta que conste y
+  **no usa bypass**.
+- **Siguiente paso del supervisor:** re-verificar el ruleset en cada ciclo de merge y mantener
+  `reports/F0/00-supervisor_estado.md` actualizado (E1 cerrada; quedan E2/E3/E4).
 
 ## Actualización post-merge (2026-11-07 18:42)
 
@@ -134,3 +133,41 @@ curl.exe -s -w "`nHTTP:%{http_code}`n" -H "Authorization: Bearer $tok" `
   activar la protección o emitir un PAT con `Administration`.
 - El merge de #2 se ejecutó como excepción E1 documentada, con cuórum completo
   (spec APROBADO, seguridad sin veto, QA VERDE) y CI 4/4 en `ffcbaf6`.
+
+## Anexo — E1 RESUELTA: ruleset `proteccion-main` activo (2026-11-07 19:24)
+
+El usuario activó la protección de `main` mediante un **ruleset** (no branch protection
+clásica). Verificado por el supervisor vía API REST el 2026-11-07 19:31:
+
+| Consulta | Resultado |
+|---|---|
+| `GET /repos/.../rulesets` | 1 ruleset: **`proteccion-main`** (id `26780941`), `enforcement: active`, `target: branch`, incluye `refs/heads/main` |
+| `GET /repos/.../rulesets/26780941` | Reglas: `deletion`; `pull_request` (`required_approving_review_count: 1`, `dismiss_stale_reviews_on_push: true`, merge methods merge/squash/rebase, `require_extra_approval_for_unattributed_changes: true`); `required_status_checks` = `Guardas de repositorio` + `Cliente (lint + typecheck + build)`; `non_fast_forward` |
+| `bypass_actors` | `[]` · `current_user_can_bypass: "never"` |
+| `GET /repos/.../branches/main` | **`protected: true`** (la protección clásica sigue `enabled:false`; el ruleset es la regla efectiva) |
+| `GET /repos/.../pulls/4` | **`mergeable_state: "blocked"`** (antes `clean`) |
+
+**Dictamen F0-06: ✅ VERDE** — la protección exigida por `TEAM.md` §8 y el gate G0 existe:
+PR obligatorio, **1 aprobación**, required status checks (`Guardas de repositorio` y
+`Cliente`), sin force push (`non_fast_forward`) y sin borrado (`deletion`).
+
+**Consecuencia operativa (nueva):** hay un único colaborador (`horaciomartinez-svg`, admin y
+autor de los PRs), GitHub **no permite auto-aprobar** y el ruleset no tiene `bypass_actors`;
+por tanto **ningún PR puede mergearse hasta que el usuario apruebe desde una segunda
+identidad** (o ajuste el ruleset). Las aprobaciones del equipo viven en `reports/` y **no**
+satisfacen el gate mecánico. Instrucción vigente del Lead: el supervisor **no intenta
+mergear** hasta que conste la aprobación del usuario y **no usa bypass**.
+
+**Salidas para desbloquear el gate (solo el usuario puede aplicarlas):**
+
+1. Añadir un **`bypass_actor`** al ruleset para el rol **Repository admin** (o para
+   `horaciomartinez-svg`) con `bypass_mode: "always"`/`"pull_request"`: mantiene PR + required
+   checks + `non_fast_forward` y permite al supervisor (único mergeador) integrar tras el
+   cuórum basado en `reports/`.
+2. Poner **`required_approving_review_count: 0`**, manteniendo `required_status_checks`,
+   `pull_request` (PR obligatorio), `deletion` y `non_fast_forward`.
+3. Añadir un **segundo colaborador con permiso de escritura** que apruebe los PRs desde otra
+   identidad (no puede ser el propio autor).
+
+Estado de `main` en este corte: `8008a648161f36823302429bb302dd832a9ec231` (PR #3). El
+PR #4 (F1-00) queda listo pero a la espera de la aprobación manual del usuario.

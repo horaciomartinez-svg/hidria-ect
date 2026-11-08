@@ -8,6 +8,9 @@
 - **Aprobación requerida:** `supervisor-hidria` + `revisor-especificaciones` (+ visto bueno de
   `seguridad-privacidad` por RLS/datos personales)
 
+> **Re-revisión PR #4 (`reports/reviews/PR-4_spec.md`):** B1 resuelto; la migración
+> `20261108010500` queda correcta, sin `M-09`.
+
 ## 1. Contexto (hallazgos verificados en Fase 0)
 
 | # | Hallazgo | Evidencia |
@@ -34,11 +37,13 @@
    `quiz_questions` cruda a `authenticated` (solo `v_quiz_questions`).
 4. **Vistas:** las 5 vistas analíticas pasan a `security_invoker = true` (respetan RLS);
    `v_quiz_questions` sigue `definer` (expone columnas seguras desde una tabla revocada).
-5. **Semilla:** migración correctiva que actualiza `organizations.name` a
-   «Secretaría de Recursos Hidráulicos para el Desarrollo Social — Programa HIDRIA» (sin
-   editar la migración aplicada).
-6. **`profiles.global_role`:** default corregido a un valor válido (`observador`) o sin
-   default + provisión explícita en el trigger de alta.
+5. **Semilla:** migración correctiva que fija `organizations.name` = **«SRHDS — Programa
+   HIDRIA»** como **nombre de despliegue** (la sigla `SRHDS` es la oficial de `docs/00` §1).
+   El nombre completo «Secretaría de Recursos Hidráulicos para el Desarrollo Social» se
+   reserva para textos legales/aviso de privacidad (`docs/06`). Sin editar la migración
+   aplicada.
+6. **`profiles.global_role`:** default corregido al valor válido **`invitado`** (verificado
+   en `F1-00`), con asignación explícita de rol en la provisión de perfiles.
 7. **Enforcement:** cerrar H-5 en las migraciones de `F1-00` con pruebas pgTAP.
 8. Todo se implementa en **`F1-00`** (migraciones correctivas) y se valida en `F1-01`.
 
@@ -47,7 +52,10 @@
 - Se desbloquea PostgREST/EF para Fase 1 sin abrir fuga entre tenants (vistas
   `security_invoker`) ni exponer el banco de preguntas.
 - `docs/01`/`docs/02` deberán actualizarse para reflejar los grants y `security_invoker`
-  (PR de docs posterior); las migraciones aplicadas no se editan.
+  (PR de docs posterior); las migraciones aplicadas no se editan. La tarea `F1-18` define el
+  mecanismo: `docs/02` sigue siendo la **base congelada** (byte-idéntica a la migración base,
+  guarda 3) y los objetos de F1-00 se documentan en `docs/01` + una sección adenda de
+  `docs/02` **sin modificar el archivo base** (ver `F1-18`).
 - `F1-00` es prerequisito de `F1-01` y de toda la ola F1.
 
 ## 4. Aprobación
