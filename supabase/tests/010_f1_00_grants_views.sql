@@ -2,7 +2,7 @@
 -- Ejecutar con `supabase test db` (requiere pgTAP en el entorno de pruebas).
 begin;
 
-select plan(18);
+select plan(21);
 
 select ok(has_table_privilege('authenticated','public.organizations','SELECT'),
   'authenticated puede intentar SELECT en organizations (RLS decide filas)');
@@ -51,6 +51,38 @@ select throws_ok($sql$
 $sql$, '42501', NULL, 'DELETE v_quiz_questions como authenticated => 42501');
 reset role;
 reset request.jwt.claims;
+
+-- SEC-PR4-01 (guarda CI): ninguna de las 5 vistas restantes permite DML inerte.
+select ok(not exists (
+  select 1 from pg_class c
+  where c.oid = any (array[
+    'public.v_bhe_monthly'::regclass, 'public.v_bhe_summary'::regclass,
+    'public.v_balance_indicators'::regclass, 'public.v_ivoh_score'::regclass,
+    'public.v_diagnostic_completeness'::regclass
+  ])
+  and (
+    has_table_privilege('authenticated', c.oid, 'INSERT')
+    or has_table_privilege('authenticated', c.oid, 'UPDATE')
+    or has_table_privilege('authenticated', c.oid, 'DELETE')
+  )
+), 'SEC-PR4-01: las 5 vistas no tienen DML para authenticated');
+
+select ok(not exists (
+  select 1 from pg_class c
+  where c.oid = any (array[
+    'public.v_bhe_monthly'::regclass, 'public.v_bhe_summary'::regclass,
+    'public.v_balance_indicators'::regclass, 'public.v_ivoh_score'::regclass,
+    'public.v_diagnostic_completeness'::regclass
+  ])
+  and (
+    has_table_privilege('service_role', c.oid, 'INSERT')
+    or has_table_privilege('service_role', c.oid, 'UPDATE')
+    or has_table_privilege('service_role', c.oid, 'DELETE')
+  )
+), 'SEC-PR4-01: las 5 vistas no tienen DML para service_role');
+
+select ok(current_setting('server_version_num')::int >= 160000,
+  'PG >= 16: requisito documentado para REVOKE MAINTAIN');
 
 select * from finish();
 rollback;
