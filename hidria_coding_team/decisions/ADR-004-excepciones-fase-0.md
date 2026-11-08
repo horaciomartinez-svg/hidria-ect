@@ -58,10 +58,12 @@ aplicarlo el usuario en GitHub UI (*Settings → Rules → Rulesets → `protecc
 Edit → Required approvals = 0 → Save*).
 
 Mientras el ruleset conserve `required_approving_review_count = 1`, **ningún PR es
-mergeable**. Tras aplicarlo, el merge lo autorizan el **CI obligatorio** (2 checks) + el
+mergeable**. El usuario **aplicó el cambio el 2026-11-07 19:51** (verificado por API:
+`count = 0`); desde entonces el merge lo autorizan el **CI obligatorio** (2 checks) + el
 **cuórum del equipo** (spec + seguridad + QA en `reports/`) y lo ejecuta el supervisor
 (squash). La protección de rama, los checks obligatorios y la prohibición de force push se
-mantienen.
+mantienen. El control humano es por **auditoría de reportes/comentarios**, no por aprobación
+formal de GitHub.
 
 ## Decisión
 
