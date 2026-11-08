@@ -11,12 +11,14 @@
     "build": "npm run build --workspace app",
     "lint": "npm run lint --workspace app",
     "typecheck": "npm run typecheck --workspace app",
-    "guardas": "bash scripts/ci/guardas.sh"
+    "guardas": "bash scripts/ci/guardas.sh",
+    "test:e2e": "playwright test -c tests/e2e/playwright.config.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/node": "^22.20.5"
   }
 }

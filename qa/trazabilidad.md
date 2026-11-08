@@ -17,6 +17,33 @@
 > equivalentes** contra el proyecto; eso no sustituye la ejecución pgTAP. **Ninguna fila
 > cambia a `verde`**: dictamen QA **AMARILLO con excepción documentada**
 > (`reports/qa/PR-4_qa.md`); la ejecución es condición de G1 vía **task-13**.
+>
+> **Fase 1 (F1-01a, PR #7):** helpers de claims (`current_org_id` con precedencia
+> `organization_id` > `tenant_id`, `current_global_role`, `has_global_role`,
+> `has_any_global_role`, `is_tenant_member`) y seed sintético verificados por SQL en vivo;
+> tras los fixes B1/M2 (`20261108020020`) y el residual `array[NULL]`/`instance_id`
+> (`20261108020030`) la suite `060` pasó a **51 aserciones** y tampoco se ejecutó.
+> **Ninguna fila nueva a `verde`**: SEC-01/SEC-02/SEC-04 solo con notas SQL; el 401
+> `AUTH_INVALID` es del middleware EF (task-21). Dictamen **AMARILLO con excepción**
+> (`reports/qa/PR-7_qa.md`).
+>
+> **Fase 1 (F1-01b, PR #8):** middleware `_shared/auth.ts` + `errors.ts` con **58 pruebas
+> Deno** (B1 firma base64→401 + M2 parámetros→422); QA las **ejecutó** (`npx --yes
+> deno@2 test` → 58/58) y `check/lint/fmt` verdes. El CI no ejecuta Deno (follow-up
+> obligatorio antes de G1). SEC-04 queda como evidencia **unitaria** de middleware, no como
+> verde funcional (falta integración HTTP/EF).
+>
+> **Fase 1 (F1-02a, PR #12):** shell PWA (router M1–M13, sesión/claims, guardas,
+> `/sincronizacion` con gates no encolables). QA **reprodujo** `lint/typecheck/build` sin
+> `.env` en `5cc56ed` y en el fix `32a1da8` (head final PR `61aaa21`, docs-only). El fix de
+> spec **B1** (claims estrictos: `sub`/`organization_id` UUID y `global_role` del enum;
+> `AuthProvider` → `invalid_claims` sin shell; `RequireAuth` redirige; `LoginPage` no
+> redirige) y **M1** (M5=F1, M7=F1 mínimo/F2 completo) quedó **verificado estáticamente**.
+> **task-49/H-15:** suite **Playwright versionada** en `tests/e2e/` (11 casos) con
+> **11/11 verde local** (Chrome y Chromium gestionado), `webServer` build+preview y sin
+> Supabase real; **pendiente job CI `E2E Playwright` (DevOps)** para cerrar H-15. El smoke
+> 24/24 del autor sigue sin versionar; sin verdes funcionales hasta el run de CI. PWA
+> instalable → F1-02b; Lighthouse → F1-16; Dexie/`ops_queue` → capturas offline.
 
 | # | Regla / contrato | Documento | Casos de prueba | Estado | Evidencia |
 |---|---|---|---|---|---|
@@ -33,10 +60,10 @@
 | R-11 | Reprogramación de hito dentro de las 6 semanas con semáforo de atraso | docs/04 TD-1 (nota), EF-12; docs/05 §3.1 | PG-12; E2E-11 | pendiente | — |
 | R-12 | Folios solo del lado servidor (diagnóstico, BIT-Vx, IIH USO, fotos, `-R1`, ARCO) | docs/04 §2.5, §1.2; docs/05 §3.5 | LB-06, LB-08, RPT-02; API-01 | pendiente | — (`UNIT-*` citado por docs/05 §1.3 sin casos definidos: ver H-1) |
 | R-13 | Idempotencia con `Idempotency-Key`: misma clave+mismo payload → mismo cuerpo sin duplicar efectos | docs/04 §2.3; docs/05 §4.3 | API-00; OFF-04 | pendiente | F1-00: tabla `api_idempotency` + unique `(user,endpoint,key)` validada por SQL; API-00 (EF) y pgTAP 020 no ejecutados |
-| R-14 | Los gates no se encolan offline; botón deshabilitado y cero llamadas a EF | docs/04 §6 (regla 4); docs/05 §4.4 | OFF-01 | pendiente | — |
+| R-14 | Los gates no se encolan offline; botón deshabilitado y cero llamadas a EF | docs/04 §6 (regla 4); docs/05 §4.4 | OFF-01 | pendiente | F1-02a: `/sincronizacion` publica la regla y lista **EF-01…07, EF-10, EF-12**; Dexie/`ops_queue` diferida a M4/M6/M10; smoke E2E **24/24 reportado, no reproducido** (H-15) |
 | R-15 | Merge LWW por campo y conflicto visible en UI (nunca pisar en silencio) | docs/04 §6 (regla 3); docs/05 §4.4 | OFF-03 | pendiente | — |
-| R-16 | RLS multi-tenant (`is_tenant_member`) y por membresía/rol de diagnóstico (`my_diagnostic_role`) | docs/01 §RLS; docs/04 §1.1; docs/05 §4.2 | SEC-01, SEC-02, SEC-03; DOC-06; E2E-09 | pendiente | F1-00: grants + `security_invoker` validados por SQL; aislamiento por filas probado con fixtures JWT en reporte del arquitecto (no pgTAP); SEC-01/02/03 pendientes |
-| R-17 | JWT con custom claims `organization_id`/`global_role`; sin claim → 401 `AUTH_INVALID` | docs/04 §2.1; docs/07 §3 (paso 0.5); docs/05 §4.2 | SEC-04 | pendiente | F1-00: hook presente con claims (no activo, E3); SEC-04 pendiente |
+| R-16 | RLS multi-tenant (`is_tenant_member`) y por membresía/rol de diagnóstico (`my_diagnostic_role`) | docs/01 §RLS; docs/04 §1.1; docs/05 §4.2 | SEC-01, SEC-02, SEC-03; DOC-06; E2E-09 | pendiente | F1-00: grants + `security_invoker` validados por SQL; aislamiento por filas probado con fixtures JWT en reporte del arquitecto (no pgTAP); SEC-01/02/03 pendientes. F1-01a: `current_org_id`/`is_tenant_member` con claims simulados + `SET ROLE` validados por SQL (1/0 sin claim/ajeno); suite 060 no ejecutada; tenant B **poblado** no probado |
+| R-17 | JWT con custom claims `organization_id`/`global_role`; sin claim → 401 `AUTH_INVALID` | docs/04 §2.1; docs/07 §3 (paso 0.5); docs/05 §4.2 | SEC-04 | pendiente | F1-00: hook presente con claims (no activo, E3); F1-01a: BD falla cerrado (null/false/0 filas) verificado por SQL; **16 migraciones** y fix residual `array[NULL]`→false (`20261108020030`) + `instance_id` de los 6 seed users; F1-01b: **58 pruebas Deno del middleware ejecutadas por QA (58/58)** y **CI con job Edge Functions (Deno) 5/5**; SEC-04 unitario; 401 HTTP real/integración EF pendientes (task-21); suite 060 no ejecutada; F1-02a: UI con claims **estrictos** (fix B1: `invalid_claims`, sin shell) y guardas de navegación, pero **no autoriza** (RLS/EF manda) y su smoke 24/24 no se reprodujo |
 | R-18 | `quiz_questions` denegada a `authenticated`; `v_quiz_questions` sin `correcta`/retroalimentación | docs/04 §9, TD-7; docs/05 §4.2 | SEC-05; AUL-01 | pendiente | F1-00: `authenticated` sin SELECT en tabla cruda y vista sin `correcta` (columnas) validado por SQL; pgTAP 010 no ejecutado; AUL-01 pendiente |
 | R-19 | `audit_log` append-only con hash encadenado `prev_hash→hash` | docs/01; docs/04 §2.6; docs/05 §4.2 | SEC-06 | pendiente | F1-00: cadena/hash, GENESIS, unique `prev_hash` y append-only validados por SQL (estructura); recálculo SHA-256/concurrencia y pgTAP 020 no ejecutados |
 | R-20 | Aviso de privacidad y ARCO verbatim; buzón ARCO con folio `ARCO-AAAA-NNNN` y plazos | docs/06 §5, §12; docs/05 no incluye PRIV | PRIV-01…PRIV-04 | pendiente | — (casos definidos solo en docs/06 §12: ver H-2) |
@@ -77,14 +104,15 @@ Ninguna suite de producto es ejecutable: no hay implementación. Recuento de cas
 ejecutables en F0**. La cobertura de la matriz es de *definición* (regla → caso); no de
 *ejecución*.
 
-### Suites F1-00 (PR #4) — definidas, NO ejecutadas
+### Suites F1 (PR #4 / PR #7) — definidas, NO ejecutadas
 
-`supabase/tests/010…040` contienen **39 aserciones pgTAP** sobre la capa BD de F1-00. Se
-verificó estáticamente que `plan()` coincide (12/9/9/9) y que el esquema soporta sus
-aserciones (SQL de solo lectura), pero **0/39 ejecutadas**: no hay runner Postgres y la CI
-no levanta BD. La equivalencia con aserciones SQL vía MCP **no** se contabiliza como
-ejecución. Dictamen QA: **AMARILLO con excepción documentada** (`reports/qa/PR-4_qa.md`);
-**task-13** (pgTAP en CI, obligatoria antes de G1) debe ejecutarlas y publicar run id.
+`supabase/tests/010…040, 060` contienen **90 aserciones pgTAP** (39 de F1-00 + 51 de
+F1-01a). Se verificó estáticamente que `plan()` coincide (12/9/9/9/51) y que el esquema
+soporta sus aserciones (SQL de solo lectura), pero **0/90 ejecutadas**: no hay runner
+Postgres y la CI no levanta BD. La equivalencia con aserciones SQL vía MCP **no** se
+contabiliza como ejecución. Dictamen QA: **AMARILLO con excepción documentada**
+(`reports/qa/PR-4_qa.md` y `reports/qa/PR-7_qa.md`); **task-13** (pgTAP en CI, obligatoria
+antes de G1) debe ejecutarlas y publicar run id.
 
 | Archivo | Aserciones | Cobertura (capa BD) | Ejecutadas |
 |---|---|---|---|
@@ -92,7 +120,31 @@ ejecución. Dictamen QA: **AMARILLO con excepción documentada** (`reports/qa/PR
 | `020_f1_00_idempotency_audit.sql` | 9 | M-01 unicidad, M-02 hash/cadena/acciones `reject`/`error` | 0 |
 | `030_f1_00_folio_bhe_completeness.sql` | 9 | folio `-R1/-R2`, BHE por RPC, completitud 10/10 | 0 |
 | `040_f1_00_enforcement_realtime.sql` | 9 | custodia firmada, F6 6/6, vigente único, hook, Realtime | 0 |
-| **Total** | **39** | capa BD (no E2E/EF) | **0** |
+| `060_f1_01a_auth_claims.sql` | 51 | seed 6 + `instance_id`, claims, B1 (`NULL`/`''`/`array['']`/`array[NULL]`), M2 `invitado`, RLS A/sin claim/ajeno, `my_diagnostic_role` | 0 |
+| **Total** | **90** | capa BD (no E2E/EF) | **0** |
+
+### Suite Deno F1-01b (PR #8) — ejecutada localmente, NO en CI
+
+`supabase/functions/_shared/tests/auth_test.ts` contiene **58 pruebas** (SEC-04 unitario
+incl. B1 firma base64→401, guardas de rol, catálogo de 16 endpoints, M2 parámetros→422,
+middleware y errores). QA las ejecutó en local sobre el árbol `a49681d` (código idéntico al
+head final `00f2ed1`) con `npx --yes deno@2 test` → **58/58 passed**, y `deno
+check/lint/fmt` exit 0. **El CI no ejecuta Deno** → el job Deno (lint/check/test) queda como
+follow-up obligatorio antes de G1 (ligado a task-13). No son casos de `docs/05`: cubren el
+middleware, no la integración HTTP de las EF; por eso no se marca ningún verde funcional.
+Evidencia: `reports/qa/PR-8_qa.md`.
+
+### Suite E2E Playwright (task-49) — versionada y verde local, pendiente de CI
+
+`tests/e2e/` contiene la suite Playwright versionada del shell F1-02a: **11 casos** (protegidas
+→ login, shell/nav/breadcrumbs/claims, M5 F1, `invitado` restringido, logout, gates no
+encolables, B1 sin claims/UUID inválido/rol fuera de enum, `LoginPage` sin redirect). QA la
+ejecutó contra el build de producción (`webServer` build+`vite preview`, Supabase ficticio,
+sesiones JWT sintéticas, sin `.env` ni secretos) con **Chrome y Chromium gestionado**:
+**11/11 passed** en ambos. **Falta el job CI `E2E Playwright`** (DevOps: `npm ci` +
+`playwright install --with-deps chromium` + `npx playwright test -c
+tests/e2e/playwright.config.ts`, artefactos `if: always()`); H-15 se cierra con el run id
+verde. Evidencia: `reports/qa/F1-02_e2e.md`, `tests/e2e/README.md`.
 
 ## Huecos de plan detectados (para el revisor de especificaciones; QA no inventa IDs)
 
@@ -121,7 +173,38 @@ ejecución. Dictamen QA: **AMARILLO con excepción documentada** (`reports/qa/PR
   `auth.users`/`auth.uid()`, `realtime.messages`/`topic()`, publicación
   `supabase_realtime`, esquemas `extensions`). Task-13 debe usar Supabase CLI local
   (`supabase start` + `supabase db reset` + `supabase test db`) o un bootstrap equivalente;
-  un `services: postgres` pelado no basta.
+  un `services: postgres` pelado no basta. Aplica igual a la suite `060`.
+- **H-10.** `docs/05` no define casos de capa BD para los helpers de claims ni para el seed
+  sintético (precedencia `organization_id` > `tenant_id`, alias, sin claim → null/false,
+  grants). La suite `060` se mapea a SEC-01/SEC-02 (parcial) y a la parte BD de SEC-04
+  (falla cerrado); el `401 AUTH_INVALID` es del middleware EF (task-21). El mapeo debe
+  llevarse al plan (F1-18) cuando task-13 ejecute la suite.
+- **H-11.** El seed sintético (6 `auth.users` + 6 `profiles` + empresa/diagnósticos/
+  membresías) va dentro de una **migración forward-only**. Cualquier entorno que aplique
+  migraciones (staging y, en release, `piloto`) recibiría cuentas sintéticas. Debe moverse a
+  `supabase/seed.sql` (solo local) o gatearse por entorno **antes de F1-16/piloto**; no
+  bloquea F1-01a en dev/staging sintético (ADR-007 + task-27/task-28).
+- **H-12 (resuelto en `20261108020030`).** El residual `has_any_global_role(array[NULL])`
+  con claim ya devuelve **false** (sin claim también), con `unnest` + filtro de nulos/vacíos
+  y `coalesce(…, false)`; `array['equipo',NULL]` es true si hay claim `equipo`. La suite
+  `060` (51 aserciones) ya cubre `array[NULL]` con/sin claim. Verificado por QA en BD y
+  estáticamente en la suite; queda pendiente solo la ejecución pgTAP (task-13).
+- **H-13 (resuelto en CI).** El CI **ya incluye el job «Edge Functions (Deno)»** (5/5 en
+  PR #12, `32a1da8`/`61aaa21`), que ejecuta la suite Deno de `_shared`; mantenerlo como check
+  obligatorio y añadir `deno.json`/`SUPABASE_JWT_SECRET` al inventario si aplica. La suite
+  pgTAP sigue fuera de CI (task-13).
+- **H-14 (menor, documental).** El reporte F1-01b del head `00f2ed1` conserva en §2.4 la
+  fila obsoleta «`organization_id` ≠ `tenant_id` ⇒ 401 `tenant_inconsistente`», ya
+  contradictoria con §0.1/§2.1 y con el código (precedencia ADR-005, sin rechazo por
+  mismatch). Corregir en el próximo commit documental; no afecta al código ni a los tests.
+- **H-15 (suite versionada y verde local; pendiente CI).** El smoke original no estaba
+  versionado, pero **task-49** ya dejó `tests/e2e/` con Playwright: **11/11 local** (Chrome
+  y Chromium gestionado), `webServer` build+preview, sin Supabase real ni secretos, casos
+  shell + invitado + logout + gates + 3 negativos B1 + `LoginPage`. **Falta el job CI
+  `E2E Playwright`** (DevOps; `npm ci` + `playwright install --with-deps chromium` +
+  `npx playwright test -c tests/e2e/playwright.config.ts`, artefactos `if: always()`);
+  H-15 se cierra con el run id verde y entonces los checks del shell podrán subir a
+  `verde` en la matriz. Mientras tanto no se declaran verdes funcionales.
 
 ## Evidencia de Fase 0 (no son casos de `docs/05`)
 
@@ -131,9 +214,9 @@ ejecución. Dictamen QA: **AMARILLO con excepción documentada** (`reports/qa/PR
 | `docs/02` byte-idéntico a la migración base | SHA-256 `2A7B6F8888040990B109F580F6BE50F7F03BF7D9FF7B2299D7BD50BC85442CB5` (local) + job «Guardas de repositorio» |
 | Estructura monorepo y scaffold compilable | `reports/qa/PR-2_qa.md`; `npm run lint/typecheck/build` exit 0 |
 
-## Evidencia de Fase 1 (en curso — F1-00 / PR #4)
+## Evidencia de Fase 1 (en curso — F1-00 / F1-01a)
 
-| Verificación F1-00 | Resultado | Evidencia |
+| Verificación F1 | Resultado | Evidencia |
 |---|---|---|
 | 11 migraciones aplicadas (3 base + 8 F1-00), sin editar la base ni `docs/02` | ✓ | `list_migrations` (11 filas); hash `docs/02` intacto; `reports/qa/PR-4_qa.md` §2 |
 | 46 tablas / 46 con RLS / 6 vistas / 105 políticas | ✓ | SQL de solo lectura (QA) |
@@ -142,6 +225,18 @@ ejecución. Dictamen QA: **AMARILLO con excepción documentada** (`reports/qa/PR
 | Realtime: 5 tablas publicadas + 3 políticas `hidria_rt_*` | ✓ | `pg_publication_tables`/`pg_policies` |
 | Hook de claims presente (no activo, E3); default `invitado`; semilla institucional; única versión IVOH vigente | ✓ | SQL |
 | 4 suites pgTAP F1-00 (39 aserciones) | **✗ NO ejecutadas** | `reports/qa/PR-4_qa.md`; task-13 |
+| F1-01a: 5 helpers de claims (invoker, `search_path` fijo) con precedencia, alias, sin claim e inválido; **B1 fail-closed** tras `20261108020020` y residual `array[NULL]` en `20261108020030` | ✓ | SQL con `SET LOCAL request.jwt.claims` + `SET LOCAL ROLE authenticated`; `reports/qa/PR-7_qa.md` §Re-QA final |
+| F1-01a: seed sintético 6 `auth.users`/6 `profiles` (6 roles incl. `invitado`)/1 company/2 diagnósticos/6 membresías, emails `.invalid`, **`instance_id` GoTrue 6/6**, sin password ni identities | ✓ (no re-ejecutado) | SQL de conteo; `on conflict` en las migraciones |
+| F1-01a: grants `authenticated`/`service_role` sí; `anon` y `PUBLIC` no | ✓ | `has_function_privilege`/`proacl` |
+| Suite pgTAP `060` F1-01a (**51 aserciones**, head `c958c9e`) | **✗ NO ejecutada** | `reports/qa/PR-7_qa.md`; task-13 |
+| F1-01a: **16 migraciones** aplicadas (3 base + 9 F1-00 + 4 F1-01a), forward-only | ✓ | `list_migrations` (16 filas); 20000/010/020/030 sin editar |
+| F1-01b: suite Deno `_shared/auth_test.ts` (**58 pruebas**) ejecutada por QA con `npx --yes deno@2 test` | **✓ 58/58** + check/lint/fmt 0 | árbol `a49681d` (código idéntico a `00f2ed1`); `reports/qa/PR-8_qa.md` §Re-QA final |
+| F1-01b: CI no ejecuta Deno (solo guardas + cliente) | **✗ excepción** | follow-up job Deno antes de G1 (H-13) |
+| F1-02a: `npm run lint/typecheck/build` reproducidos sin `.env` (91 módulos; 473.13 kB/136.84 kB gzip en `5cc56ed`; **475.01 kB/137.39 kB en el fix `32a1da8`**) | **✓ exit 0** | árboles `5cc56ed` y `32a1da8`; `reports/qa/PR-12_qa.md` §1 y §Re-QA delta |
+| F1-02a delta: **B1** claims estrictos (`invalid_claims` sin shell; `RequireAuth` redirige; `LoginPage` no redirige) y **M1** M5=F1/M7=F1+nota; CI **5/5** (incl. Deno) en `32a1da8`/`61aaa21` | **✓ verificado estáticamente** | `reports/qa/PR-12_qa.md` §Re-QA delta |
+| F1-02a: suite Playwright versionada `tests/e2e/` (**11 casos**) | **✓ 11/11 local** (Chrome + Chromium gestionado) | `reports/qa/F1-02_e2e.md`; sin `.env`/secretos, Supabase ficticio |
+| F1-02a: job CI `E2E Playwright` con artefactos y run id | **✗ pendiente DevOps** (H-15 se cierra con run verde) | `tests/e2e/README.md` (snippet) |
+| F1-02a: PWA instalable / Lighthouse / Dexie | diferidos correctamente | F1-02b / F1-16 / capturas offline |
 
 **Ninguna fila de la matriz cambia a `verde` con esta evidencia**: es verificación SQL
 equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las suites.
@@ -153,8 +248,22 @@ equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las sui
 - Un `rojo` bloquea el merge/release de la fase (gate de `docs/05`).
 - Toda regla nueva de `docs/04`/`docs/06` debe aparecer aquí antes de cerrar el PR que la
   introduce.
-- Los huecos H-1…H-9 se escalan al revisor de especificaciones; QA no crea casos que los
+- Los huecos H-1…H-15 se escalan al revisor de especificaciones; QA no crea casos que los
   documentos no definen ni marca resultados no ejecutados.
 - **F1-00 (PR #4):** las 4 suites pgTAP están definidas pero sin ejecutar. La matriz no
   cambia a verde hasta que **task-13** las ejecute en CI con Postgres; si fallan, el autor
   (arquitecto-bd) las corrige y QA re-ejecuta.
+- **F1-01a (PR #7, head final `c958c9e`, mergeado `e21a665`):** helpers/seed/RLS verificados
+  por SQL; B1/M2 en `20261108020020`, residual `array[NULL]` + `instance_id` en
+  `20261108020030`; **16 migraciones**; suite `060` (**51 aserciones**) definida pero sin
+  ejecutar. Task-13 antes de G1; Q-02 y M1/task-27 quedan no bloqueantes.
+- **F1-01b (PR #8, head final `00f2ed1` / código `a49681d`):** suite Deno **ejecutada por
+  QA 58/58** (check/lint/fmt verdes), incl. B1 firma base64→401 y M2 parámetros→422; sin
+  verdes funcionales (SEC-04 unitario, falta integración HTTP/EF). El job Deno **ya está en
+  CI** (H-13 resuelto) y la fila §2.4 del reporte (H-14) sigue como follow-up documental.
+- **F1-02a (PR #12, head final `61aaa21` / código `32a1da8`):** build/lint/typecheck
+  reproducidos en `5cc56ed` y en el fix; **B1** (claims estrictos/`invalid_claims`) y **M1**
+  (M5=F1, M7=F1+nota) corregidos y verificados estáticamente; CI **5/5** (incl. Deno).
+  **task-49:** suite Playwright **versionada 11/11 local** (Chrome/Chromium); **falta job CI
+  `E2E Playwright`** (H-15) con run id/artefactos → sin verdes funcionales de
+  navegación/guardas hasta entonces. PWA/Lighthouse/Dexie diferidos correctamente.
