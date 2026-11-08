@@ -42,3 +42,22 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+
+  functions:
+    name: Edge Functions (Deno)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Deno 2.9.6
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.6
+      - name: Formato
+        run: deno fmt --check supabase/functions/_shared
+      - name: Lint
+        run: deno lint supabase/functions/_shared
+      - name: Typecheck
+        run: deno check supabase/functions/_shared
+      - name: Pruebas
+        run: deno test supabase/functions/_shared
