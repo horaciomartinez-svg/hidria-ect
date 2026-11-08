@@ -61,3 +61,23 @@ jobs:
         run: deno check supabase/functions/_shared
       - name: Pruebas
         run: deno test supabase/functions/_shared
+
+  pgtap:
+    name: pgTAP (Supabase local)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Supabase CLI 3.0.0
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+      - name: Inicializar configuración local
+        run: supabase init
+      - name: Levantar Supabase local
+        run: supabase start
+      - name: Aplicar migraciones en base limpia
+        run: supabase db reset
+      - name: Ejecutar suites pgTAP
+        run: supabase test db
