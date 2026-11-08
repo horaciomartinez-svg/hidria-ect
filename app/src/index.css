@@ -2,17 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   HIDRIA — base institucional del cliente (F1-02)
+   Tokens en `tailwind.config.js`; aquí sólo primitivas globales y accesibilidad.
+   ========================================================================== */
+
 :root {
   color-scheme: light;
+  --hidria-focus: #0d5c63;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
+  @apply bg-surface font-sans text-slate-900 antialiased;
 }
 
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+code,
+kbd,
+samp {
+  @apply font-mono;
+}
+
+/* El foco siempre es visible: WCAG 2.2 AA (2.4.7 y 2.4.11). */
+:focus-visible {
+  outline: 2px solid var(--hidria-focus);
+  outline-offset: 2px;
+}
+
+/* Enlace de salto a contenido: visible sólo al recibir foco por teclado. */
+.skip-link {
+  @apply sr-only;
+}
+
+.skip-link:focus-visible {
+  @apply not-sr-only fixed left-4 top-4 z-50 rounded-md bg-hidria-700 px-4 py-2 text-sm font-semibold text-white shadow-card;
+}
+
+/* Respeto a la preferencia de movimiento reducido. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
