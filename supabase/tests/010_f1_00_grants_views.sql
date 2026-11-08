@@ -2,7 +2,7 @@
 -- Ejecutar con `supabase test db` (requiere pgTAP en el entorno de pruebas).
 begin;
 
-select plan(12);
+select plan(18);
 
 select ok(has_table_privilege('authenticated','public.organizations','SELECT'),
   'authenticated puede intentar SELECT en organizations (RLS decide filas)');
@@ -10,6 +10,16 @@ select ok(not has_table_privilege('authenticated','public.quiz_questions','SELEC
   'authenticated NO tiene SELECT en quiz_questions cruda');
 select ok(has_table_privilege('authenticated','public.v_quiz_questions','SELECT'),
   'authenticated SI tiene SELECT en v_quiz_questions');
+select ok(not has_table_privilege('authenticated','public.v_quiz_questions','INSERT'),
+  'SEC-PR4-01: authenticated NO tiene INSERT en v_quiz_questions');
+select ok(not has_table_privilege('authenticated','public.v_quiz_questions','UPDATE'),
+  'SEC-PR4-01: authenticated NO tiene UPDATE en v_quiz_questions');
+select ok(not has_table_privilege('authenticated','public.v_quiz_questions','DELETE'),
+  'SEC-PR4-01: authenticated NO tiene DELETE en v_quiz_questions');
+select ok(not exists (
+  select 1 from information_schema.columns
+  where table_schema='public' and table_name='v_quiz_questions' and column_name='correcta'
+), 'v_quiz_questions no expone la columna correcta');
 select ok(not has_table_privilege('anon','public.organizations','SELECT'),
   'anon no tiene acceso a tablas de negocio');
 select ok(has_table_privilege('service_role','public.quiz_questions','SELECT'),
@@ -29,6 +39,18 @@ select is((select reloptions from pg_class where oid='public.v_quiz_questions'::
   NULL::text[], 'v_quiz_questions sigue definer (sin security_invoker)');
 select ok(has_function_privilege('authenticated','public.is_tenant_member(uuid)','EXECUTE'),
   'authenticated puede ejecutar el helper de RLS is_tenant_member');
+
+-- SEC-PR4-01: la vista auto-actualizable ya no permite DML a authenticated.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"invitado"}';
+select throws_ok($sql$
+  update public.v_quiz_questions set pregunta = pregunta where false
+$sql$, '42501', NULL, 'UPDATE v_quiz_questions como authenticated => 42501');
+select throws_ok($sql$
+  delete from public.v_quiz_questions where false
+$sql$, '42501', NULL, 'DELETE v_quiz_questions como authenticated => 42501');
+reset role;
+reset request.jwt.claims;
 
 select * from finish();
 rollback;

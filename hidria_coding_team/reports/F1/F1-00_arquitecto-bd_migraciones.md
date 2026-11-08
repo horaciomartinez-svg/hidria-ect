@@ -9,6 +9,7 @@
 - **PR:** [#4](https://github.com/horaciomartinez-svg/hidria-ect/pull/4) (`feature/F1-00-migraciones` → `main`)
 - **CI:** **4/4 check runs ✅** sobre `4b057b3` (runs `42433979462` / `42433977733`: Guardas + Cliente, PR + push)
 - **Post-review (PR-4_spec m2/m5):** M-06 añadido a la suite pgTAP `040` y este reporte actualizado en commit de corrección; el HEAD final se consulta en GitHub.
+- **Delta seguridad (VETO task-14):** SEC-PR4-01/02/05/06 corregidos en la migración forward-only `20261108010800_f1_00_security_fix.sql`; detalle en `F1-00_delta_seguridad.md`. Sin editar migraciones aplicadas ni `docs/02`.
 - **Modo de aplicación:** MCP Supabase `apply_migration` (tool oficial) + verificación SQL. Las migraciones son **forward-only**; **no** se editó `20261031000000_base_hidria_mdohi.sql` ni `docs/02`.
 
 ## Resultado: VERDE
@@ -185,14 +186,15 @@ dependen de credencial/consola (E3).
 
 ## 5. pgTAP
 
-Se añadieron **4 suites** en `supabase/tests/`:
+Se añadieron **5 suites** en `supabase/tests/`:
 
 | Archivo | Cobertura |
 |---|---|
-| `010_f1_00_grants_views.sql` | grants, banco de preguntas crudo vs vista, `security_invoker`, helper RLS |
+| `010_f1_00_grants_views.sql` | grants, banco de preguntas crudo vs vista, `security_invoker`, helper RLS, **SEC-PR4-01 (DML de la vista → 42501)** |
 | `020_f1_00_idempotency_audit.sql` | M-01 unicidad, M-02 hash/cadena/acciones `reject`/`error` |
 | `030_f1_00_folio_bhe_completeness.sql` | M-03 folio `-R1/-R2`, M-04 brecha mensual/ponderada, M-08 10 requisitos |
 | `040_f1_00_enforcement_realtime.sql` | H-5 (F6 6/6, custodia firmada, vigente único), **M-06 (`fn_diag_role`/`fn_is_diag_member`)**, auth hook, Realtime |
+| `050_f1_00_security_delta.sql` | **SEC-PR4-02**: `WITH CHECK` y roles negativos, no escalada de `profiles`, aislamiento A/B |
 
 **Limitación de ejecución:** este host no tiene Docker y `pg_prove`/`supabase test db` no están
 disponibles; la CI actual (`ci.yml`) solo ejecuta guardas + cliente, sin servicio Postgres
