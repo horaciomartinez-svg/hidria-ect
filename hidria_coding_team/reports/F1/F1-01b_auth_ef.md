@@ -4,9 +4,9 @@
 - **Fecha:** 2026-11-07 20:15 (America/Mexico_City) · **act. 20:40** (spec review B1/M2 y re-evidencia)
 - **Tarea compartida:** `task-21` — «F1 · F1-01b Auth EF: `_shared/auth.ts`, guardas de rol y 401 AUTH_INVALID»
 - **Tarea base:** `hidria_coding_team/tasks/F1/F1-01_auth_claims.md` (parte EF; DB = `task-20`, cliente = F1-02)
-- **Rama:** `feature/F1-01b-auth-ef` desde `origin/main` (`b4fbc83`)
-- **PR:** [#8](https://github.com/horaciomartinez-svg/hidria-ect/pull/8) · **commits:** `ad665d9` (código) · `21b2ca3` (evidencia) · `caaf071` (fixtures F1-01a) · `a49681d` (**spec review B1/M2**) · commit documental de esta re-evidencia
-- **CI:** **4/4 success** en `ad665d9`, `21b2ca3`, `caaf071` y `a49681d` (runs `42437498288`/`42437478826`, `42437655176`/`42437650326`, `42438259343`/`42438262784`, `42438884478`/`42438887996`; checks «Guardas de repositorio» + «Cliente (lint + typecheck + build)»). `main` está en `e21a665` (PR #7) y el PR solo agrega archivos nuevos: sin conflicto.
+- **Rama:** `feature/F1-01b-auth-ef` desde `origin/main` (`b4fbc83`; mergeada en `main@424ca01` vía squash)
+- **PR:** [#8](https://github.com/horaciomartinez-svg/hidria-ect/pull/8) · **head final:** `00f2ed1` · **commits:** `ad665d9` (código) · `21b2ca3` (evidencia) · `caaf071` (fixtures F1-01a) · `a49681d` (**spec review B1/M2**) · `00f2ed1` (evidencia final, solo reporte)
+- **CI:** **4/4 success** en `ad665d9`, `21b2ca3`, `caaf071`, `a49681d` y `00f2ed1` (runs `42437498288`/`42437478826`, `42437655176`/`42437650326`, `42438259343`/`42438262784`, `42438884478`/`42438887996`, `42439240740`/`42439244147`); checks «Guardas de repositorio» + «Cliente (lint + typecheck + build)». **Merge squash `424ca01`** (2026-11-08); sin force-push, rama conservada en `00f2ed1`.
 - **Entorno:** Windows / PowerShell 5.1 · Deno **2.9.6** (vía `npx --yes deno@2`, sin Docker)
 - **Alcance respetado:** solo `supabase/functions/_shared/**` (+ este reporte). No se tocó
   `supabase/migrations/**`, `supabase/tests/**`, `app/**`, `.github/**` ni `docs/**`.
@@ -104,10 +104,16 @@ rol institucional amplio sustituya al rol metodológico por diagnóstico.
 | Sin audiencia `authenticated` / emisor ajeno | 401 | `AUTH_INVALID` | `audiencia_no_autorizada` · `emisor_no_autorizado` |
 | Sin `sub` válido | 401 | `AUTH_INVALID` | `sub_ausente_o_invalido` |
 | **Sin claim de tenant** (SEC-04) | 401 | `AUTH_INVALID` | `claim_tenant_ausente` |
-| `organization_id` ≠ `tenant_id` (token manipulado) | 401 | `AUTH_INVALID` | `tenant_inconsistente` |
+| `organization_id` ≠ `tenant_id` con **ambos UUID válidos** | — | — (no es error) | Precedencia `organization_id`; `tenant_id` es respaldo. **No** se rechaza por *mismatch* (SEC-PR8-11; alineado con `current_org_id()` y ADR-005 §2.9) |
 | `global_role` ausente o fuera del catálogo | 401 | `AUTH_INVALID` | `global_role_ausente_o_invalido` |
 | Perfil inexistente / tenant del perfil ≠ claim (`verifyProfile`) | 401 | `AUTH_INVALID` | `perfil_o_tenant_inconsistente` |
 | Configuración incompleta de la EF (sin secreto ni verificador) | 500 | `INTERNAL_ERROR` | — (no es error del cliente) |
+
+> **Nota H-14/SEC-PR8-11:** el middleware ya **no** devuelve `401` por `organization_id` ≠
+> `tenant_id`; aplica precedencia/fallback como `current_org_id()` (ADR-005 §2.9). El
+> aislamiento estricto de tenant se refuerza en `verifyProfile`, comparando el
+> `organization_id` del **perfil** contra el claim efectivo en la primera EF con DB
+> (`SEC-PR8-01`). La fila «`tenant_inconsistente`» es histórica y quedó eliminada.
 
 ### 2.5 Guardas de rol (403)
 
