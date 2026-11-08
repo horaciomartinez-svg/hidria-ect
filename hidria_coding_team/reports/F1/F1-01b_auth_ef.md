@@ -1,12 +1,12 @@
 # F1-01b — Auth EF: `_shared/auth.ts`, guardas de rol y `401 AUTH_INVALID`
 
 - **Agente:** `dev-edge-functions` (03)
-- **Fecha:** 2026-11-07 20:15 (America/Mexico_City)
+- **Fecha:** 2026-11-07 20:15 (America/Mexico_City) · **act. 20:25** (corrección de fixtures F1-01a)
 - **Tarea compartida:** `task-21` — «F1 · F1-01b Auth EF: `_shared/auth.ts`, guardas de rol y 401 AUTH_INVALID»
 - **Tarea base:** `hidria_coding_team/tasks/F1/F1-01_auth_claims.md` (parte EF; DB = `task-20`, cliente = F1-02)
 - **Rama:** `feature/F1-01b-auth-ef` desde `origin/main` (`b4fbc83`)
-- **PR:** [#8](https://github.com/horaciomartinez-svg/hidria-ect/pull/8) · **HEAD de código:** `ad665d9`
-- **CI:** **4/4 success** en `ad665d9` (runs `42437498288` de PR y `42437478826` de push; checks «Guardas de repositorio» + «Cliente (lint + typecheck + build)»). `main` avanzó a `6b95be0` (PR #6, **solo documentación**): el PR no toca archivos existentes, por lo que no hay conflicto.
+- **PR:** [#8](https://github.com/horaciomartinez-svg/hidria-ect/pull/8) · **commits:** `ad665d9` (código) · `21b2ca3` (evidencia) · corrección de fixtures F1-01a (`fix(f1-01b)`, §9)
+- **CI:** **4/4 success** en `ad665d9` y `21b2ca3` (runs `42437498288`/`42437478826` y `42437655176`/`42437650326`; checks «Guardas de repositorio» + «Cliente (lint + typecheck + build)»). La corrección de fixtures re-ejecuta CI sobre el nuevo HEAD (resultado en el comentario de evidencia del PR). `main` avanzó a `6b95be0` (PR #6, **solo documentación**): el PR no toca archivos existentes, por lo que no hay conflicto.
 - **Entorno:** Windows / PowerShell 5.1 · Deno **2.9.6** (vía `npx --yes deno@2`, sin Docker)
 - **Alcance respetado:** solo `supabase/functions/_shared/**` (+ este reporte). No se tocó
   `supabase/migrations/**`, `supabase/tests/**`, `app/**`, `.github/**` ni `docs/**`.
@@ -20,7 +20,7 @@
 | Roles `coordinador`/`equipo`/`empresa`/`observador`/`admin_institucional` + diagnóstico | ✅ | §2.2–§2.3; `GLOBAL_ROLES`, `DIAGNOSTIC_ROLES` |
 | **`401 AUTH_INVALID`** sin claim requerido (SEC-04) y sin token/expirado/firma inválida | ✅ | §2.4; 16 tests SEC-04 |
 | 403 cuando el rol no alcanza (`FORBIDDEN_ROLE` / `FORBIDDEN_NOT_MEMBER`) | ✅ | §2.5; tests de guardas |
-| Pruebas de claims ausentes/incorrectos/rol insuficiente/válido | ✅ | **53/53 tests Deno en verde** (§5) |
+| Pruebas de claims ausentes/incorrectos/rol insuficiente/válido | ✅ | **54/54 tests Deno en verde** (§5) |
 | E3 documentado (hook sin activar → claims simulados) | ✅ | §7 |
 | Sin secretos, sin `service_role` en cliente/repo, sin `.env` | ✅ | §6.3 |
 
@@ -33,11 +33,11 @@
 | `supabase/functions/_shared/auth.ts` | 964 | Middleware de autenticación, verificación HS256, contrato de claims, guardas (`requireTenant`, `requireGlobalRole`, `requireDiagnosticRole`, `guardEndpoint`), catálogo de endpoints EF-01…EF-13, pipeline `authorizeEndpoint` y `withAuth`. |
 | `supabase/functions/_shared/errors.ts` | 165 | Catálogo canónico de errores `docs/04` §8, `ApiError`, envelope `{ error: { code, message, details?, ref? } }`, `errorResponse` sin fugas. |
 | `supabase/functions/_shared/tests/asserts.ts` | 90 | Aserciones locales (sin dependencias remotas ni `node_modules`) para que `deno test` corra sin red. |
-| `supabase/functions/_shared/tests/auth_test.ts` | 948 | 53 pruebas: SEC-04, guardas de claims/rol, catálogo, middleware, envelope y errores. |
-| `hidria_coding_team/reports/F1/F1-01b_auth_ef.md` | 266 | Este reporte. |
+| `supabase/functions/_shared/tests/auth_test.ts` | 987 | 54 pruebas: SEC-04, guardas de claims/rol, catálogo, middleware, envelope y errores. |
+| `hidria_coding_team/reports/F1/F1-01b_auth_ef.md` | 281 | Este reporte. |
 
-Total del PR: **5 archivos nuevos, 2 433 inserciones** (código 2 167 líneas + reporte 266), verificado con
-`git show --stat ad665d9`.
+Total del PR: **5 archivos nuevos** (código 2 206 líneas + este reporte); el número exacto de inserciones lo
+reporta el propio PR (`git show --stat` del HEAD).
 
 ---
 
@@ -165,7 +165,7 @@ const response = await withAuth(async (request, ctx) => {
 ## 5. Pruebas
 
 **Comando:** `npx --yes deno@2 test supabase/functions/_shared/tests/`
-**Resultado:** `ok | 53 passed | 0 failed (50ms)` — sin permisos especiales, sin red, sin variables de entorno.
+**Resultado:** `ok | 54 passed | 0 failed (98 ms)` — sin permisos especiales, sin red, sin variables de entorno.
 
 | Grupo | Casos | Qué se prueba | Trazabilidad `docs/05` |
 |---|---|---|---|
@@ -174,8 +174,8 @@ const response = await withAuth(async (request, ctx) => {
 | Guardas de claims | 3 | `requireTenant`, `requireGlobalRole` (permitido / 403) | SEC-01/SEC-03 base |
 | Guarda de diagnóstico | 4 | Rol válido, no miembro, rol insuficiente, id malformado | DOC-03, PG-11, RPT-03 |
 | Catálogo | 3 | 16 endpoints ↔ 13 EF, políticas exactas, `tenantRequired`, métodos/rutas y params | API-01/API-02 base |
-| Guardas por endpoint | 9 | EF-01 (permitido/403/no miembro), EF-07/12/13 (solo coordinador), EF-03 (empresa/observador), EF-08 presign (sin resolver rol) y register (miembro/no miembro), EF-11 (invitado), recurso ajeno, parámetros faltantes | API-02, DOC-01/02/05 |
-| Pipeline/middleware | 5 | `authorizeEndpoint` (éxito, 401, 403, ruta desconocida, body `diagnostic_id`), `withAuth` (401 JSON, contexto, 500 sin fugas) | API-00…04 base |
+| Guardas por endpoint | 12 | EF-01 (permitido/403/no miembro), EF-07/12/13 (solo coordinador), **`admin_institucional` no eleva privilegios de diagnóstico**, EF-03 (empresa/observador), EF-08 presign (sin resolver rol) y register (miembro/no miembro), EF-11 (observador/admin/invitado), recurso ajeno, parámetros faltantes | API-02, DOC-01/02/05 |
+| Pipeline/middleware | 6 | `authorizeEndpoint` (éxito, 401, 403, ruta desconocida, body `diagnostic_id`), `withAuth` (401 JSON, contexto, 500 sin fugas) | API-00…04 base |
 | Errores/envelope | 3 | `VALIDATION_*` ⇒ 422, códigos catalogados, `ref` de auditoría, `GLOBAL_ROLES` | API-03 base |
 
 ---
@@ -190,7 +190,7 @@ const response = await withAuth(async (request, ctx) => {
 | 2 | `deno check errors.ts auth.ts tests/asserts.ts tests/auth_test.ts` | **OK** — «Check errors.ts / auth.ts / asserts.ts / auth_test.ts» sin errores |
 | 3 | `deno lint errors.ts auth.ts tests/asserts.ts tests/auth_test.ts` | **OK** — «Checked 4 files», 0 problemas |
 | 4 | `deno fmt --check errors.ts auth.ts tests/asserts.ts tests/auth_test.ts` | **OK** — 4 archivos formateados (sin cambios) |
-| 5 | `deno test tests/` | **53 passed · 0 failed** (50 ms) |
+| 5 | `deno test tests/` | **54 passed · 0 failed** (98 ms) |
 
 ### 6.2 Guardas de CI equivalentes (el CI no tiene job Deno; ver §8.1)
 
@@ -220,10 +220,11 @@ const response = await withAuth(async (request, ctx) => {
 |---|---|---|---|
 | 1 | Run `42437478826` (evento *push*) — «Guardas de repositorio» + «Cliente (lint + typecheck + build)» | `ad665d9` | **success** (4/4 checks) |
 | 2 | Run `42437498288` (evento *pull_request*) — «Guardas de repositorio» + «Cliente (lint + typecheck + build)» | `ad665d9` | **success** (4/4 checks) |
+| 3 | Runs `42437650326` (push) y `42437655176` (pull_request) | `21b2ca3` | **success** (4/4 checks) |
+| 4 | Corrección de fixtures F1-01a (solo `tests/auth_test.ts` + este reporte) | HEAD del PR | Re-ejecuta los mismos 2 checks; resultado en el comentario de evidencia del PR |
 
-PR [#8](https://github.com/horaciomartinez-svg/hidria-ect/pull/8) · `mergeable_state: blocked` **solo** por los
-checks/revisión pendientes en el momento de la consulta (sin conflicto: el PR únicamente agrega archivos
-nuevos y `main` avanzó con un PR documental `6b95be0`).
+PR [#8](https://github.com/horaciomartinez-svg/hidria-ect/pull/8) · `mergeable_state: clean` (sin conflicto: el PR
+únicamente agrega archivos nuevos y `main` avanzó con un PR documental `6b95be0`).
 
 ---
 
@@ -244,7 +245,7 @@ nuevos y `main` avanzó con un PR documental `6b95be0`).
 
 | # | Elemento | Impacto | Acción propuesta |
 |---|---|---|---|
-| 8.1 | **El CI no ejecuta pruebas Deno** (`ci.yml` solo tiene guardas + cliente) | Las 53 pruebas corren en local, no como check obligatorio del PR | Follow-up de DevOps/QA (junto a `task-13`, que añade Postgres/pgTAP): job `denoland/setup-deno` + `deno lint/check/test`. **No** se tocó `.github/` (fuera de alcance). |
+| 8.1 | **El CI no ejecuta pruebas Deno** (`ci.yml` solo tiene guardas + cliente) | Las 54 pruebas corren en local, no como check obligatorio del PR | Follow-up de DevOps/QA (junto a `task-13`, que añade Postgres/pgTAP): job `denoland/setup-deno` + `deno lint/check/test`. **No** se tocó `.github/` (fuera de alcance). |
 | 8.2 | **No hay `supabase/config.toml` ni `deno.json`** (B-04) y `SUPABASE_JWT_SECRET` no está en `.env.example` | Despliegue de EF y ejecución uniforme de Deno pendientes | Solicitud a DevOps: añadir `SUPABASE_JWT_SECRET` (sin valor) al inventario de secretos y crear `supabase/functions/deno.json` en la tarea de habilitadores. |
 | 8.3 | **Supabase puede usar JWT asimétrico (JWKS)** en proyectos nuevos | HS256 no aplicaría | Interfaz `verify` ya inyectable: la EF pasará un verificador JWKS/goTrue cuando el proyecto lo requiera, sin cambiar guardas. |
 | 8.4 | `verifyProfile` (perfil inexistente / tenant ≠ claim) requiere consulta a `profiles` | SEC-04 parcialmente cubierto hasta que exista `_shared/db.ts` | Interfaz lista y probada; se conecta en la primera EF que use DB (EF-03/EF-01). |
@@ -258,7 +259,7 @@ nuevos y `main` avanzó con un PR documental `6b95be0`).
 
 | Agente | Interacción |
 |---|---|
-| `arquitecto-bd` (`task-20`/F1-01a) | Confirmado por mensaje: claims `organization_id` (precedencia) + `tenant_id` (alias) + `global_role`; helpers `current_org_id()`, `current_global_role()`, `has_global_role()`, `has_any_global_role()`, `is_tenant_member()`; `fn_diag_role`/`fn_is_diag_member` (M-06). **No se requieren helpers nuevos**: `_shared/auth.ts` consume `resolveRole` inyectable y `verifyProfile` opcional. |
+| `arquitecto-bd` (`task-20`/F1-01a) | Confirmado por mensaje: claims `organization_id` (precedencia) + `tenant_id` (alias) + `global_role`; helpers `current_org_id()`, `current_global_role()`, `has_global_role()`, `has_any_global_role()`, `is_tenant_member()`; `fn_diag_role`/`fn_is_diag_member` (M-06). **No se requieren helpers nuevos**: `_shared/auth.ts` consume `resolveRole` inyectable y `verifyProfile` opcional. **Correspondencia del seed confirmada y corregida en las fixtures:** `001` `coordinador_srhds` · `002` `equipo` · `003` `empresa` · `004` `observador` · `005` `admin_institucional` · `006` `invitado` (`20261108020020_f1_01a_fix_roles.sql`); pruebas añadidas para «`admin_institucional` no eleva privilegios» y «EF-11 admite observador/admin/invitado». Sin cambios pendientes en F1-01a. |
 | `dev-frontend-pwa` (F1-02) | Sin código compartido: el cliente solo envía su JWT; los claims los emite el hook y la EF los valida. El cliente usa `organization_id`/`tenant_id` solo para UI, nunca para autorizar. |
 | `qa-tester` | Suite Deno lista para ejecutarse en CI (§8.1) y trazabilidad SEC-04 en §5. |
 | `supervisor-hidria` | Merge pendiente (ruleset: PR + checks; solo supervisor mergea). |
@@ -268,7 +269,7 @@ nuevos y `main` avanzó con un PR documental `6b95be0`).
 ## 10. Conclusión y siguiente paso
 
 **VERDE** en la parte EF de F1-01: el middleware y las guardas de rol de EF-01…EF-13 están implementados,
-probados (53/53) y alineados al contrato `docs/04`/ADR-005, con `401 AUTH_INVALID` para todo token/claim
+probados (54/54) y alineados al contrato `docs/04`/ADR-005, con `401 AUTH_INVALID` para todo token/claim
 inválido (SEC-04) y 403 canónicos por rol/membresía.
 
 **Siguiente paso:** revisión de especificaciones + seguridad + QA del PR **#8**; al aprobar, el supervisor

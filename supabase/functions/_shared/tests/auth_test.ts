@@ -3,8 +3,13 @@
  *
  * Ejecución: `npx --yes deno@2 test supabase/functions/_shared/tests/`
  * Sin dependencias externas ni red: el JWT se firma en la prueba con un secreto sintético,
- * porque E3 (activación del hook) aún no está hecha. Las UUID sintéticas coinciden con el
- * seed de task-20 (`a1000000-…`, `c1000000-…`) para mantener la trazabilidad DB ↔ EF.
+ * porque E3 (activación del hook) aún no está hecha.
+ *
+ * Fixtures alineadas al seed sintético de F1-01a (task-20, confirmado por `arquitecto-bd`;
+ * `a1000000-…006` se agrega en `20261108020020_f1_01a_fix_roles.sql`):
+ *   001 coordinador_srhds · 002 equipo · 003 empresa · 004 observador
+ *   005 admin_institucional · 006 invitado
+ * Diagnósticos `c1000000-…001` (D1) y `c1000000-…002` (D2); organización `b1000000-…001`.
  */
 
 import {
@@ -45,7 +50,9 @@ const ISSUER = "https://test.supabase.co/auth/v1";
 const USER_COORDINADOR = "a1000000-0000-4000-8000-000000000001";
 const USER_EQUIPO = "a1000000-0000-4000-8000-000000000002";
 const USER_EMPRESA = "a1000000-0000-4000-8000-000000000003";
-const USER_INVITADO = "a1000000-0000-4000-8000-000000000005";
+const USER_OBSERVADOR = "a1000000-0000-4000-8000-000000000004";
+const USER_ADMIN = "a1000000-0000-4000-8000-000000000005";
+const USER_INVITADO = "a1000000-0000-4000-8000-000000000006";
 const ORG_ID = "b1000000-0000-4000-8000-000000000001";
 const ORG_B_ID = "b1000000-0000-4000-8000-000000000002";
 const DIAGNOSTIC_ID = "c1000000-0000-4000-8000-000000000001";
@@ -632,6 +639,32 @@ Deno.test("guardEndpoint EF-01: no miembro ⇒ 403 FORBIDDEN_NOT_MEMBER", async 
   );
 });
 
+Deno.test("admin_institucional no eleva privilegios de diagnóstico", async () => {
+  // El rol global admin_institucional no sustituye al rol de diagnóstico (docs/04 §2.1):
+  // un admin con rol "empresa" en el diagnóstico no puede avanzar fase (EF-01).
+  const admin = await authenticateWithToken(
+    await signToken(
+      buildClaims({ sub: USER_ADMIN, global_role: "admin_institucional" }),
+    ),
+  );
+  assertEquals(admin.globalRole, "admin_institucional");
+
+  const error = await expectApiError(
+    guardEndpoint(
+      admin,
+      "EF-01",
+      { diagnostic_id: DIAGNOSTIC_ID },
+      depsWithRole("empresa"),
+    ),
+    "FORBIDDEN_ROLE",
+    403,
+  );
+  assertEquals(error.details, {
+    rol_actual: "empresa",
+    roles_permitidos: ["coordinador", "equipo"],
+  });
+});
+
 Deno.test("guardEndpoint EF-07/12/13: solo coordinador", async () => {
   const asCoordinador = await authenticateWithToken(
     await signToken(buildClaims({ sub: USER_COORDINADOR })),
@@ -747,16 +780,22 @@ Deno.test("guardEndpoint EF-08 register: cualquier miembro; no miembro ⇒ 403",
   );
 });
 
-Deno.test("guardEndpoint EF-11: invitado autenticado permitido", async () => {
-  const context = await authenticateWithToken(
-    await signToken(
-      buildClaims({ sub: USER_INVITADO, global_role: "invitado" }),
-    ),
-  );
-  const authorization = await guardEndpoint(context, "EF-11", {}, {
-    resolveRole: () => Promise.resolve(null),
-  });
-  assertEquals(authorization, {});
+Deno.test("guardEndpoint EF-11: cualquier rol global autenticado permitido", async () => {
+  // EF-11 (quiz/submit) solo exige autenticación: no depende del rol de diagnóstico.
+  const sessionCases: Array<[string, string]> = [
+    [USER_OBSERVADOR, "observador"],
+    [USER_ADMIN, "admin_institucional"],
+    [USER_INVITADO, "invitado"],
+  ];
+  for (const [userId, globalRole] of sessionCases) {
+    const context = await authenticateWithToken(
+      await signToken(buildClaims({ sub: userId, global_role: globalRole })),
+    );
+    const authorization = await guardEndpoint(context, "EF-11", {}, {
+      resolveRole: () => Promise.resolve(null),
+    });
+    assertEquals(authorization, {});
+  }
 });
 
 Deno.test("guardEndpoint: recurso inexistente o de otro tenant ⇒ 403 FORBIDDEN_NOT_MEMBER", async () => {
