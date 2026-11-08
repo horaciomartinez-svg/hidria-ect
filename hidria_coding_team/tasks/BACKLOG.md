@@ -29,14 +29,14 @@
 |---|---|---|---|---|
 | F1-00 | Migraciones correctivas + grants DML PostgREST (`M-01…M-08`: idempotencia, auditoría, folio, RPC BHE, Realtime, RPC rol, default perfil, completitud) | arquitecto-bd | F0-12 | **hecha** — PR #4 squash `b4fbc83` (2026-11-08); 12 migraciones aplicadas, CI 4/4, spec APROBADO, seguridad sin veto, QA AMARILLO con excepción pgTAP (task-13) |
 | F1-01 | Auth con custom claims y roles | arquitecto-bd + dev-edge-functions | F1-00 | **hecha (2026-11-08)** — F1-01a squash `e21a665` (16 migraciones, suite 060 `plan 51`, seed 6 roles con `instance_id`, helpers fail-closed) + F1-01b squash `424ca01` (`_shared/auth.ts`, guardas 16 endpoints, `401 AUTH_INVALID`, 58 pruebas Deno); spec APROBADO, seguridad sin veto, QA VERDE (excepción Deno-CI) |
-| F1-02 | Shell PWA (router, layout, sesión, tema) | dev-frontend-pwa | F1-01 | **F1-02a hecha** — PR #12 squash `6c1372b` (2026-11-08): router M1–M13 + login/panel/sincronización/acerca/privacidad/404, layout autenticado, sesión con claims ADR-005, guardas fail-closed (B1), tema AA; spec APROBADO, seguridad sin veto, QA AMARILLO (excepción E2E). **F1-02b (task-45) pendiente**: manifest/SW/iconos/offline/aviso de versión |
+| F1-02 | Shell PWA (router, layout, sesión, tema) | dev-frontend-pwa | F1-01 | **F1-02a hecha** — PR #12 squash `6c1372b` (2026-11-08): router M1–M13 + login/panel/sincronización/acerca/privacidad/404, layout autenticado, sesión con claims ADR-005, guardas fail-closed (B1), tema AA; spec APROBADO, seguridad sin veto, QA AMARILLO (excepción E2E). **F1-02b (task-45) pendiente**: manifest/SW/iconos/offline/aviso de versión y **corrección de etiquetas M5→F2 / M7 F1 mínimo-F2 completo** |
 | F1-03 | M1 — Registro de empresas | dev-frontend-pwa | F1-02 | pendiente |
 | F1-04 | M2/M11 — Diagnósticos, gates y Kanban (EF-01) | dev-edge-functions + dev-frontend-pwa | F1-03 | pendiente |
 | F1-05 | M3 — Documentos y EF-08 (presign/register) | dev-edge-functions + dev-frontend-pwa | F1-04 | pendiente |
 | F1-06 | M3 — Checklist documental y EF-03 | dev-edge-functions + dev-frontend-pwa | F1-05 | pendiente |
 | F1-07 | M4 — CAT y EF-04 (+ seed 47 preguntas A1-v1) | dev-edge-functions + dev-frontend-pwa + arquitecto-bd | F1-06 | pendiente |
-| F1-08 | M5 — IIH y EF-09 (`kind='iih'`, XLS-01/02) | dev-edge-functions + dev-frontend-pwa | F1-04 | pendiente |
-| F1-09 | M6 — BHE, EF-05 (brecha > 10 %) y EF-09 (`kind='bhe'`) | dev-edge-functions + dev-frontend-pwa | F1-08 | pendiente |
+| F1-08 | M5 — IIH y EF-09 (`kind='iih'`, XLS-01/02) | dev-edge-functions + dev-frontend-pwa | F1-04 | **movida a F2-06** (decisión híbrida 2026-11-08: M5 completo a F2; M7 mínimo se queda en F1 para EF-07/10-10) |
+| F1-09 | M6 — BHE, EF-05 (brecha > 10 %) y EF-09 (`kind='bhe'`) | dev-edge-functions + dev-frontend-pwa | F1-04 | pendiente |
 | F1-10 | M8 — IVOH y EF-06 (fórmula + semáforo) | dev-edge-functions + dev-frontend-pwa | F1-09 | pendiente |
 | F1-11 | M10 — Bitácora y EF-02 (cierre ≤ 24 h) | dev-edge-functions + dev-frontend-pwa | F1-04 | pendiente |
 | F1-12 | M9 — Reporte esencial y EF-07 (folio `-R1`, matriz 10/10) | dev-edge-functions + dev-frontend-pwa | F1-10, F1-11, F1-13, F1-14, F1-15 | pendiente |
@@ -60,6 +60,7 @@
 | F2-03 | EF-11 + M12 — Aula MD-OHI, examen server-side e insignia OB3 | dev-edge-functions + dev-frontend-pwa | F2 |
 | F2-04 | EF-12 — reprogramación de hitos y semáforo de atraso | dev-edge-functions + dev-frontend-pwa | F2 |
 | F2-05 | M9 completo — reportes y Plan de Acción (Gantt) | dev-edge-functions + dev-frontend-pwa | F2 |
+| F2-06 | M5 — IIH y EF-09 (`kind='iih'`, XLS-01/02) — movida desde F1-08 | dev-edge-functions + dev-frontend-pwa | F2 |
 
 ## Fase 3 — Piloto (G3)
 
