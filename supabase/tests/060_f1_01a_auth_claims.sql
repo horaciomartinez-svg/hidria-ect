@@ -3,7 +3,7 @@
 -- es del middleware EF, task-21).
 begin;
 
-select plan(46);
+select plan(51);
 
 -- Seed sintético (idempotente, emails .invalid)
 select is((select count(*) from auth.users
@@ -11,6 +11,12 @@ select is((select count(*) from auth.users
                'a1000000-0000-4000-8000-000000000003','a1000000-0000-4000-8000-000000000004',
                'a1000000-0000-4000-8000-000000000005','a1000000-0000-4000-8000-000000000006')), 6::bigint,
   'seed: 6 usuarios auth sintéticos');
+select is((select count(*) from auth.users
+  where id in ('a1000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002',
+               'a1000000-0000-4000-8000-000000000003','a1000000-0000-4000-8000-000000000004',
+               'a1000000-0000-4000-8000-000000000005','a1000000-0000-4000-8000-000000000006')
+    and instance_id = '00000000-0000-0000-0000-000000000000'), 6::bigint,
+  'E3: los 6 usuarios seed tienen instance_id visible para GoTrue');
 select is((select count(*) from public.profiles
   where user_id::text like 'a1000000-0000-4000-8000-00000000000%'), 6::bigint,
   'seed: 6 perfiles sintéticos');
@@ -57,6 +63,8 @@ select is(public.has_global_role(NULL), false, 'has_global_role(NULL) false sin 
 select is(public.has_global_role(''), false, 'has_global_role('''') false sin claim');
 select is(public.has_any_global_role(array['']), false, 'has_any_global_role(array['''']) false sin claim');
 select is(public.has_any_global_role(array[]::text[]), false, 'has_any_global_role(array[]) false sin claim');
+select is(public.has_any_global_role(array[NULL]), false, 'has_any_global_role(array[NULL]) false sin claim');
+select is(public.has_any_global_role(array['equipo',NULL]), false, 'has_any_global_role([''equipo'',NULL]) false sin claim');
 
 set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000002","organization_id":"","global_role":""}';
 select is(public.current_global_role(), NULL::text, 'current_global_role null con claim vacío');
@@ -72,6 +80,8 @@ select ok(public.has_any_global_role(array['equipo']), 'has_any_global_role([''e
 select is(public.has_global_role(NULL), false, 'has_global_role(NULL) false con claim equipo');
 select is(public.has_global_role(''), false, 'has_global_role('''') false con claim equipo');
 select is(public.has_any_global_role(array['']), false, 'has_any_global_role(array['''']) false con claim equipo');
+select is(public.has_any_global_role(array[NULL]), false, 'has_any_global_role(array[NULL]) false con claim equipo');
+select ok(public.has_any_global_role(array['equipo',NULL]), 'has_any_global_role([''equipo'',NULL]) true con claim equipo');
 
 -- M2: sexto rol global, invitado.
 set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000006","organization_id":"00000000-0000-4000-8000-000000000001","global_role":"invitado"}';

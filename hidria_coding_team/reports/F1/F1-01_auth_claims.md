@@ -5,17 +5,17 @@
 - **Tarea:** `task-20` (F1-01a) — archivo `hidria_coding_team/tasks/F1/F1-01_auth_claims.md`
 - **Rama:** `feature/F1-01a-auth-claims` (base del PR `main` `6b95be0`; commit de creación desde `b4fbc83`)
 - **Entorno:** proyecto `zucalshlfcxejpukshxl` (dev/staging sintético, ADR-004 E2)
-- **Migraciones nuevas:** `20261108020000_f1_01a_auth_claims.sql`, `20261108020010_f1_01a_fix_tenant_member.sql` y `20261108020020_f1_01a_fix_roles.sql` (aplicadas vía MCP)
-- **Evidencia:** este reporte; `schema_migrations = 15` (3 base + 9 F1-00 + 3 F1-01a)
+- **Migraciones nuevas:** `20261108020000_f1_01a_auth_claims.sql`, `20261108020010_f1_01a_fix_tenant_member.sql`, `20261108020020_f1_01a_fix_roles.sql` y `20261108020030_f1_01a_fix_roles2.sql` (aplicadas vía MCP)
+- **Evidencia:** este reporte; `schema_migrations = 16` (3 base + 9 F1-00 + 4 F1-01a)
 - **Alcance:** solo DB (`supabase/migrations/**`, `supabase/tests/**`, este reporte). **No** se tocaron `supabase/functions/**` (task-21) ni `app/**` (F1-02).
 
 ## Resultado: VERDE (alcance DB)
 
-Helpers de claims, seed sintético, grants y RLS quedaron aplicados y verificados. La
-activación del hook sigue **pendiente de `SUPABASE_ACCESS_TOKEN` (E3)**; las pruebas usan claims
-simulados con `SET LOCAL request.jwt.claims` + `SET LOCAL ROLE authenticated`, como acordó el
-supervisor. El `401 AUTH_INVALID` (SEC-04) se implementa en el middleware EF (task-21); la BD
-falla cerrado (null/false) sin claim.
+Helpers de claims, seed sintético, grants y RLS quedaron aplicados y verificados. La activación
+del hook **E3 fue resuelta por el Lead** (`F0-14`); esta tarea no activó nada y sigue probando con
+claims simulados + `SET LOCAL ROLE`. El `401 AUTH_INVALID` (SEC-04) se implementa en el middleware
+EF (task-21); la BD falla cerrado (null/false) sin claim. Los 6 usuarios seed tienen
+`instance_id` de GoTrue para el login de dev de F1-02.
 
 ## 1. Claims canónicos y helpers (ADR-005)
 
@@ -32,7 +32,7 @@ Funciones nuevas (invoker, `search_path=public,pg_temp`):
 | `public.current_org_id()` | `organization_id`; si no existe o es inválido, `tenant_id`; `null` sin claim |
 | `public.current_global_role()` | `global_role` del JWT; `null` sin claim |
 | `public.has_global_role(text)` | `true` solo si hay claim no nulo, `p_role` no nulo/no vacío y coincide |
-| `public.has_any_global_role(text[])` | `true` solo si hay claim y algún elemento no vacío coincide; `false` con array vacío/`array['']` |
+| `public.has_any_global_role(text[])` | `true` solo si hay claim y algún elemento no nulo/no vacío coincide; `false` con `array[]`, `array['']` o `array[NULL]` |
 | `public.is_tenant_member(uuid)` | Reemplazada para usar `current_org_id()`; `false` sin claim |
 
 Verificación en vivo (claims simulados):
@@ -46,6 +46,9 @@ Verificación en vivo (claims simulados):
 | `organization_id` inválido | helper no rompe; `current_org_id` = null |
 | **B1 sin claim:** `has_global_role(NULL)` / `has_global_role('')` | **false / false** |
 | **B1 sin claim:** `has_any_global_role(array[''])` / `array[]` | **false / false** |
+| **B1 sin claim:** `has_any_global_role(array[NULL])` / `array['equipo',NULL]` | **false / false** |
+| **B1 con `equipo`:** `has_any_global_role(array[NULL])` | **false** |
+| **B1 con `equipo`:** `has_any_global_role(array['equipo',NULL])` | **true** |
 | **B1 claim vacío:** `current_global_role` / `current_org_id` con `''` | **null / null** |
 | **B1 con `equipo`:** `has_global_role('equipo')` / `has_any(['equipo'])` | **true / true** |
 | **B1 con `equipo`:** `has_global_role(NULL|'')` / `has_any([''])` | **false / false** |
@@ -65,9 +68,12 @@ Grants: `EXECUTE` para `authenticated` y `service_role`; revocado de `public`/`a
 
 El alta es idempotente: `on conflict do nothing` cubre el `UNIQUE(id)` y el `UNIQUE(email)` de
 `auth.users`; el perfil `invitado` se inserta por búsqueda de email y `on conflict (user_id)`.
-No se cargan datos reales. Los perfiles existen para que `_shared/auth` (task-21) pueda probar
-carga de perfil y contraste de tenant. **M1:** el seed sigue en la migración por decisión del
-Lead (task-27/ADR-007); no se movió en este delta.
+**E3:** los 6 usuarios seed tienen `instance_id = '00000000-0000-0000-0000-000000000000'`
+(requisito de GoTrue para `admin/users` y login de dev de F1-02); se mantiene
+`email_confirmed_at` para no bloquear ese login (usuarios `.invalid`, sin password, solo
+dev/staging). La activación del hook la resolvió el Lead (`F0-14`); esta tarea no activó nada.
+**M1:** el seed sigue en la migración por decisión del Lead (task-27/ADR-007); no se movió en
+este delta.
 
 ## 3. RLS y aislamiento (SEC-01/SEC-02)
 
@@ -87,25 +93,26 @@ Con `tenant_id` como único claim: mismo aislamiento correcto. Con tenant ajeno:
 
 ## 4. pgTAP
 
-Nueva suite `supabase/tests/060_f1_01a_auth_claims.sql` (`plan(46)`):
+Nueva suite `supabase/tests/060_f1_01a_auth_claims.sql` (`plan(51)`):
 
-- seed: 6 usuarios, 6 perfiles (6 roles distintos, incluido `invitado`), 6 membresías, 2 diagnósticos;
+- seed: 6 usuarios (con `instance_id` GoTrue), 6 perfiles (6 roles distintos, incluido `invitado`), 6 membresías, 2 diagnósticos;
 - helpers: precedencia `organization_id`, alias `tenant_id`, sin claim, claim inválido;
-- **B1 fail-closed:** `has_global_role(NULL|'')` y `has_any_global_role(array[]|array[''])` = false sin claim; `current_global_role`/`current_org_id` = null con `''`;
+- **B1 fail-closed:** `has_global_role(NULL|'')` y `has_any_global_role(array[]|array['']|array[NULL]|array['equipo',NULL])` = false sin claim; con `equipo`, `array['equipo',NULL]` = true; `current_global_role`/`current_org_id` = null con `''`;
 - **M2:** rol `invitado` (current_global_role/has_global_role/has_any);
 - RLS/Aislamiento A/B, `my_diagnostic_role`, `is_diagnostic_member`;
-- SEC-04: la BD devuelve null/false; el 401 es del middleware EF (task-21).
+- SEC-04: la BD devuelve null/false; el 401 es del middleware EF (task-21); E3 `instance_id`.
 
 La suite no se ejecuta en este host (sin Docker/`supabase test db`; CI sin servicio Postgres;
 excepción QA/task-13). Las aserciones equivalentes se ejecutaron vía MCP (resultados §1–§3).
 
 ## 5. Hook (E3) — estado de activación
 
-`public.custom_access_token_hook(jsonb)` ya existe desde F1-00; **no está activado** porque no
-hay `SUPABASE_ACCESS_TOKEN` (E3). URI previsto:
-`pg-functions://postgres/public/custom_access_token_hook`. Mientras no se active, los JWT no
-llevan claims; las pruebas usan claims simulados. La activación no se intentó de nuevo en esta
-tarea (el hueco de credencial ya está documentado en `F0-10`/ADR-004 E3).
+`public.custom_access_token_hook(jsonb)` ya existe desde F1-00 y **E3 fue resuelta por el Lead**
+(`reports/F0/F0-14_activacion_auth_hook.md`): el hook está activado end-to-end en el proyecto.
+Esta tarea **no activó ni modificó** la configuración de Auth; sus pruebas siguen usando claims
+simulados + `SET LOCAL ROLE` para no depender de login real. Los 6 usuarios seed reciben
+`instance_id` para que GoTrue los vea y el login de dev de F1-02 sea posible. La prueba con JWT
+real corresponde a F1-01b/F1-02.
 
 ## 6. Coordinación y pendientes
 
