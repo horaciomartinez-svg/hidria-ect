@@ -4,7 +4,7 @@
 -- el aislamiento multi-tenant A/B se mantiene.
 begin;
 
-select plan(28);
+select plan(34);
 
 insert into public.organizations (id, name, org_type) values
   ('11111111-1111-4111-8111-111111111111','Org Sec A','srhds'),
@@ -147,6 +147,26 @@ select lives_ok($sql$
   update public.diagnostics set fecha_fin='2026-03-01'
    where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 $sql$, 'UPDATE de campo no-gate sigue permitido');
+select throws_ok($sql$
+  update public.diagnostics set semaforo_atraso='rojo'
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE semaforo_atraso rechazado (campo de gate)');
+select throws_ok($sql$
+  update public.diagnostics set ivoh_actual=5.0
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE ivoh_actual rechazado (campo de gate)');
+select throws_ok($sql$
+  update public.diagnostics set brecha_pct=10.0
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE brecha_pct rechazado (campo de gate)');
+select throws_ok($sql$
+  update public.diagnostics set proximo_hito='2026-04-01'
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE proximo_hito rechazado (campo de gate)');
+select throws_ok($sql$
+  update public.diagnostics set reprogramacion_justificacion='cambio'
+   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+$sql$, '42501', NULL, 'UPDATE reprogramacion_justificacion rechazado (campo de gate)');
 with upd as (
   update public.profiles set full_name='Admin cambiado'
    where user_id='abababab-abab-4bab-8bab-abababababab' returning 1
@@ -221,6 +241,10 @@ select lives_ok($sql$
   update public.diagnostics set estado='validado'
    where id='acacacac-acac-4cac-8cac-acacacacacac'
 $sql$, 'service_role puede actualizar estado (ruta EF)');
+select throws_ok($sql$
+  update public.diagnostics set folio='MDOHI-FAKE-999'
+   where id='acacacac-acac-4cac-8cac-acacacacacac'
+$sql$, '42501', NULL, 'service_role tampoco puede cambiar folio (SEC-PR26-01)');
 
 reset role;
 reset request.jwt.claims;

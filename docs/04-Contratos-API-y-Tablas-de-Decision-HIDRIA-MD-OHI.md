@@ -97,7 +97,7 @@ Códigos y HTTP status en §8. Todo error de negocio queda en `audit_log` con `a
 
 - Los folios **nunca se generan en el cliente**: diagnósticos (`MDOHI-AAAA-NNN`, secuencia), fichas de bitácora (`BIT-V2-01`, consecutivo por tipo vía trigger), activos IIH (`USO-01`), fotos (`V1-01`, `V1-05-03`). El cliente solo los lee.
 - Folio del Reporte de Diagnóstico: `{folio_diagnostico}-R1` (asignado por EF-07 al emitir).
-- El folio del diagnóstico es **inmutable en UPDATE** (trigger `diagnostics_update_lock`, ADR-010). Los campos de gate/estado (`estado`, `reporte_document_id`, `bitacora_cerrada`, `avance_pct`, `cat_estado`, semáforo, IVOH/brecha, próximo hito, reprogramación) solo los actualiza la EF con `service_role`; un UPDATE directo autenticado devuelve `42501`.
+- El folio del diagnóstico es **inmutable en UPDATE** (trigger `diagnostics_update_lock`, ADR-010). Los campos de gate/estado (`estado`, `reporte_document_id`, `bitacora_cerrada`, `avance_pct`, `cat_estado`, semáforo, IVOH/brecha, próximo hito, reprogramación) solo los actualiza la EF con `service_role`; un UPDATE directo autenticado devuelve `42501`. Un RPC `security definer` invocado por un usuario autenticado **no** es ruta válida: conserva `auth.uid()` no nulo y el trigger lo bloquea.
 
 ## 2.6 Auditoría
 
