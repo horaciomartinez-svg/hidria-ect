@@ -1,6 +1,6 @@
 # ADR-005 — Claims del JWT, grants de PostgREST y correcciones de esquema para F1
 
-- **Estado:** propuesta (pendiente de aprobación de `supervisor-hidria` y `revisor-especificaciones`)
+- **Estado:** aceptada con condiciones (aprobada por `revisor-especificaciones`; visto bueno condicionado de `seguridad-privacidad`; condiciones se ejecutan en `F1-00`)
 - **Fecha:** 2026-11-08
 - **Autor:** Lead, a partir de `F0-02/F0-04/F0-10` (arquitecto-bd), `F1-01` (dev-edge-functions)
   y `F0-05/PR-2` (seguridad-privacidad)
@@ -54,6 +54,6 @@
 
 | Rol | Nombre | Estado | Evidencia |
 |---|---|---|---|
-| Supervisor | `supervisor-hidria` | pendiente | — |
-| Revisor | `revisor-especificaciones` | pendiente | re-revisión de PR #2 |
-| Seguridad | `seguridad-privacidad` | pendiente | RLS/vistas/grants |
+| Supervisor | `supervisor-hidria` | aprobado | merge de PR #2 (`1da64d0`) |
+| Revisor | `revisor-especificaciones` | aprobado | re-revisión exprés `09998ef` |
+| Seguridad | `seguridad-privacidad` | aprobado con condiciones | `PR-2_security.md` §4 y confirmación delta |

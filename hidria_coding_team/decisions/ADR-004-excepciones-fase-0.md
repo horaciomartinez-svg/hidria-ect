@@ -1,6 +1,6 @@
 # ADR-004 — Excepciones de Fase 0 por credenciales y entornos
 
-- **Estado:** propuesta (pendiente de aprobación de `supervisor-hidria` y `revisor-especificaciones`)
+- **Estado:** aceptada (aprobada por `revisor-especificaciones` y `supervisor-hidria`; G0 cerrado AMARILLO-OPERATIVO en el merge `1da64d0`)
 - **Fecha:** 2026-11-08
 - **Autor:** Lead (creador del equipo)
 - **Documentos afectados:** `docs/07` §2/§3 (0.1, 0.5, 0.6), `TEAM.md` §9/§13/§14,
@@ -56,5 +56,5 @@ credenciales adicionales, y (d) depende de la Coordinación (humano).
 
 | Rol | Nombre | Estado | Evidencia |
 |---|---|---|---|
-| Supervisor | `supervisor-hidria` | pendiente | — |
-| Revisor | `revisor-especificaciones` | pendiente | re-revisión de PR #2 |
+| Supervisor | `supervisor-hidria` | aprobado | `00-supervisor_estado.md` (post-merge) |
+| Revisor | `revisor-especificaciones` | aprobado | re-revisión exprés `09998ef` / `ffcbaf6` |

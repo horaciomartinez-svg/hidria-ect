@@ -21,7 +21,7 @@
 | F0-09 | Cloudflare: R2 (`hidria-docs`, `hidria-reports`) y Pages | devops-github-cloudflare | F0-01 | hecha (VERDE; `hidria-staging.pages.dev` HTTP 200) |
 | F0-10 | Auth hook `custom_access_token_hook` (función + activación) | arquitecto-bd | F0-04 | hecha (función documentada; activación pendiente por credencial, ADR-004 E3) |
 | F0-11 | Equipo constituido (8 agentes + TEAM.md + backlog) | lead (creador) | — | hecha (VERDE) |
-| F0-12 | **Gate G0 — cierre de Fase 0** | supervisor-hidria | F0-01…F0-11 | en_progreso — cierre con excepciones ADR-004 |
+| F0-12 | **Gate G0 — cierre de Fase 0** | supervisor-hidria | F0-01…F0-11 | hecha — **G0 AMARILLO-OPERATIVO** (ADR-004 E1–E4); PR #2 mergeado squash `1da64d0` (2026-11-07) |
 
 ## Fase 1 — MVP núcleo (ADR-003)
 
@@ -82,5 +82,8 @@
 
 `F1-00 — Migraciones correctivas y grants` (arquitecto-bd; incluye M-05 Realtime, M-06 RPC
 de rol y M-08 completitud), luego `F1-01 — Auth`. Realtime (F1-17) es Fase 1 según ADR-006.
+**F0 cerrada:** PR #2 mergeado con squash (`1da64d0`, 2026-11-07) tras spec APROBADO,
+seguridad sin veto, QA VERDE y CI 4/4 en `ffcbaf6`; evidencia en
+`reports/F0/00-supervisor_estado.md`.
 Bloqueo de usuario vigente: protección de `main` (ADR-004 E1), proyecto Supabase staging
 (E2) y activación del auth hook (E3).
