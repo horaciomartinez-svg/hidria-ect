@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="HIDRIA">
+  <!-- HIDRIA — icono institucional (SDFI · SRHDS · Tamaulipas).
+       Fondo a sangre completa para servir también como icono maskable:
+       la marca queda dentro del 80 % de zona segura (círculo central). -->
+  <rect width="512" height="512" fill="#0d5c63"/>
+  <path d="M256 112C302 176 356 242 356 302a100 100 0 1 1-200 0c0-60 54-126 100-190Z"
+        fill="none" stroke="#eef8f8" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M196 312c22-14 46-14 66 0s44 14 66 0"
+        fill="none" stroke="#a9dedf" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="256" cy="392" r="9" fill="#a9dedf"/>
+</svg>
