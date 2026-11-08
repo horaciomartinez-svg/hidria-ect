@@ -19,9 +19,9 @@
 | F0-07 | CI mínima en verde | devops-github-cloudflare | F0-08 | hecha (VERDE) |
 | F0-08 | Estructura del monorepo + `.env.example` | lead (creador) | — | hecha (VERDE) |
 | F0-09 | Cloudflare: R2 (`hidria-docs`, `hidria-reports`) y Pages | devops-github-cloudflare | F0-01 | hecha (VERDE; `hidria-staging.pages.dev` HTTP 200) |
-| F0-10 | Auth hook `custom_access_token_hook` (función + activación) | arquitecto-bd | F0-04 | hecha (función documentada; activación pendiente por credencial, ADR-004 E3) |
+| F0-10 | Auth hook `custom_access_token_hook` (función + activación) | arquitecto-bd | F0-04 | **hecha (VERDE)** — función en F1-00 y **hook activado por Management API** (E3 resuelta); JWT con claims verificado end-to-end (`F0-14`) |
 | F0-11 | Equipo constituido (8 agentes + TEAM.md + backlog) | lead (creador) | — | hecha (VERDE) |
-| F0-12 | **Gate G0 — cierre de Fase 0** | supervisor-hidria | F0-01…F0-11 | hecha — **G0 AMARILLO-OPERATIVO** (ADR-004 E1–E4); PR #2 mergeado squash `1da64d0` (2026-11-07) |
+| F0-12 | **Gate G0 — cierre de Fase 0** | supervisor-hidria | F0-01…F0-11 | hecha — **G0 AMARILLO-OPERATIVO** (E1 y E3 resueltas; E2/E4 abiertas); PR #2 squash `1da64d0` (2026-11-07) |
 
 ## Fase 1 — MVP núcleo (ADR-003)
 
@@ -99,5 +99,5 @@ APROBADO (`reports/reviews/PR-4_spec_delta.md`), seguridad VETO LEVANTADO
 (ruleset `proteccion-main`, count=0 desde 2026-11-07 19:50). Evidencia:
 `reports/F0/00-supervisor_estado.md`, `reports/F0/F0-06_supervisor_branch_protection.md`,
 `reports/F0/F0-13_verificacion_ruleset_e1.md`.
-Pendientes de usuario: **E2** proyecto Supabase staging, **E3** activación del auth hook,
-**E4** acta de validación de contenido.
+Pendientes de usuario: **E2** proyecto Supabase staging, **E4** acta de validación de
+contenido. **E1 y E3 resueltas** (ruleset y auth hook).
