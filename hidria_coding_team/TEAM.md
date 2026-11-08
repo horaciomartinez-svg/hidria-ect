@@ -311,16 +311,17 @@ Un entregable está **Hecho** cuando:
 ## 14. Estado actual y siguiente tarea
 
 - **Fase:** F0 cerrada (G0 AMARILLO-OPERATIVO; **E1 y E3 resueltas**; E2/E4 abiertas);
-  **F1-00 cerrada** (`b4fbc83`) y **F1-01 cerrada** (`e21a665` + `424ca01`); **F1-02 en curso**
-  (task-43, shell PWA).
+  **F1-00 cerrada** (`b4fbc83`), **F1-01 cerrada** (`e21a665` + `424ca01`) y **F1-02a cerrada**
+  (`6c1372b`); **F1-02b (PWA instalable) y F1-03** siguientes.
 - **Tablero:** ver `tasks/BACKLOG.md`.
-- **Última actualización:** 2026-11-07 20:45 — `main` = `424ca01`; **F1-01 completa**
-  (auth/claims DB + middleware EF, 58 pruebas Deno); ruleset con
-  `required_approving_review_count = 0` y checks obligatorios.
-- **Siguiente tarea:** **F1-02** (shell PWA: router M1–M13, layout/sesión, PWA, login con
-  claims ADR-005); follow-ups: `task-13` + `task-44` (pgTAP y Deno en CI) antes de G1,
-  `task-18` (RES-1) antes de F1-04, `task-15` (ARCO), `task-27`/`task-28` (seed/guarda CI),
-  `task-35` (alcance del rol `invitado`), `task-39` (Q-08 EF-08).
+- **Última actualización:** 2026-11-08 12:45 — `main` = `6c1372b`; F1-02a mergeada (shell +
+  sesión/claims fail-closed + tema); CI con Deno (task-44, `24ae10d`); ruleset con
+  `required_approving_review_count = 0` y checks obligatorios (Deno aún no required).
+- **Siguiente tarea:** **F1-02b** (task-45: manifest, SW `injectManifest`, iconos, offline,
+  aviso de versión) y después **F1-03** (M1 Empresas). Follow-ups: `task-13` (pgTAP+Postgres
+  en CI, PR #14) y `task-49` (Playwright E2E) antes de G1, `task-18` (RES-1) antes de F1-04,
+  `task-15` (ARCO), `task-27`/`task-28` (seed/guarda CI), `task-35` (invitado), `task-39`
+  (Q-08 EF-08), `task-50`/`task-51` (endurecimiento producción).
 
 ---
 

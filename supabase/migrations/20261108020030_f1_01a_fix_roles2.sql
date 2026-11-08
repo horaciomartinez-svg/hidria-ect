@@ -29,7 +29,7 @@ revoke all on function public.has_any_global_role(text[]) from public, anon;
 grant execute on function public.has_any_global_role(text[]) to authenticated, service_role;
 
 comment on function public.has_any_global_role(text[]) is
-  'F1-01a/B1-residual: false sin claim, array vacío, array[NULL] o array[''']; true solo si algún rol no nulo/no vacío coincide.';
+  'F1-01a/B1-residual: false sin claim, array vacío, array[NULL] o array con un elemento vacío; true solo si algún rol no nulo/no vacío coincide.';
 
 -- E3: GoTrue filtra por instance_id; los seeds se insertaron con NULL.
 -- Decisión de endurecimiento: se mantiene `email_confirmed_at` para permitir

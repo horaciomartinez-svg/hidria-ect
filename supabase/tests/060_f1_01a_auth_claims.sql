@@ -50,7 +50,7 @@ set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000002","o
 select is(public.current_org_id(), '00000000-0000-4000-8000-000000000001'::uuid,
   'organization_id tiene precedencia sobre tenant_id');
 select ok(not public.is_tenant_member('00000000-0000-4000-8000-0000000000ff'),
-  'el alias tenant_id distinto no habilita el tenant';
+  'el alias tenant_id distinto no habilita el tenant');
 
 set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000002"}';
 select is(public.current_org_id(), NULL::uuid, 'current_org_id null sin claim de tenant');
