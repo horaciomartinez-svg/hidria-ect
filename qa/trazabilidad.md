@@ -244,6 +244,8 @@ post-merge `42514381567`, **5/5 checks**, E2E job success (`11 passed`) y artefa
 | F1-02b A/2: observaciones P2 (`pwa:audit` sin archivo; icono maskable idéntico al normal) | **P2-02 resuelto** en `73df49b`; P2-01 icono maskable queda no bloqueante | `PR-21_qa.md` §7 + §Re-QA delta |
 | F1-02b A/2 delta `73df49b`: B1 same-origin exacto (+ `check-sw-origin` en build), M1 fases diferidas a #22, offline sin `onclick`, `pwa:audit` retirado; CI **10/10** | **✓** | `PR-21_qa.md` §Re-QA delta; runs 42515175830/42515171348 |
 | F1-02b: instalabilidad real/Lighthouse | **diferido** a F1-16/ADR-008 + B/2 (no exigido en A/2) | `PR-21_qa.md` §8 |
+| F1-02b B/2 (PR #22 `7400dd9`/código `0d67135`): build/lint/typecheck sin `.env`, **E2E 11/11**, `pwa:audit` **12/12** local-only, `__APP_BUILD__`/cacheName, M5→F2/M7 F1 mínimo+nota, UI sin auto-skip | **✓** | `reports/qa/PR-22_qa.md` §1–§3; runs 43347019161/43347012385 |
+| F1-02b B/2: SW/offline sin regresión, `docs/02` intacto, alcance app/tests/reportes, sin secretos; CI 12/12 | **✓** | `PR-22_qa.md` §4; check-runs 12/12 |
 | F1-00 RES-1: 3 migraciones nuevas (`30000/010/020`), **19 en total**, forward-only; `diagnostics_ins/upd/del`, trigger estado inicial/folio, roles, company, vistas y `profiles_write` | **✓ verificado estático** | `reports/qa/PR-19_qa.md` §1–§2; MCP `schema_migrations`=19 |
 | F1-00 RES-1: suites `010` plan **21**, `050` plan **24**, total **129/129** en pgTAP CI (6 suites) | **✓ CI** | run 42514098168 (PR) / 42514093030 (push); `PR-19_qa.md` §3–§4 |
 | F1-00 RES-1: `docs/02` intacto, alcance migraciones/tests/reportes, sin secretos; residual UPDATE (incl. folio) → task-59 aceptada | **✓** | `PR-19_qa.md` §5–§6 |
@@ -251,6 +253,10 @@ post-merge `42514381567`, **5/5 checks**, E2E job success (`11 passed`) y artefa
 | F1-00 task-59: suite `050` plan **28**, total **133/133** en CI (20 migraciones; run 42515152096/42515136929) | **✓** | `PR-26_qa.md` §2–§3 |
 | F1-00 task-66 (PR #28 `434089f`): contrato `auth.uid() is null` (solo `service_role`/EF; RPC definer autenticado no válido), tests folio `service_role` + 5 gates restantes, sign-off ADR-010, notas docs/01 §5/docs/04 §2.5 | **✓ estático + pgTAP** | `reports/qa/PR-28_qa.md` §1–§2 |
 | F1-00 task-66: suite `050` plan **34**, total **139/139** en CI (sin migraciones nuevas; 20) | **✓** | runs 42516247234 / 42516233947; `PR-28_qa.md` §2–§3 |
+| CI hardening task-50 (PR #29 `e51e99b`): audit prod **0 high/critical** (2 moderate), dist-scan 0 hallazgos + fixture inyectado falla, build-guard 4/4, job Seguridad 6/6, E2E `ubuntu-24.04` | **✓** | `reports/qa/PR-29_qa.md` §1–§4; runs 43345519676/43345513459 |
+| CI hardening task-50: SEC-PR29-01/03 cerrados en PR #34 `c624eca` (allowlist schema estricto, fixtures negativos versionados + selftest en job); **SEC-PR29-02 cerrado 2026-11-13** (ruleset con **6 checks required**, incluido `Seguridad (dependencias y bundle)`) | **✓ 01/02/03** | `reports/qa/PR-34_qa.md`; job `131628150844`; ruleset `26780941` |
+| F1-01a task-35 (PR #32 `fe5c150`): matriz invitado/observador, profiles solo propio, companies membresía/agregado, 5 tablas sin agregado, VETO-1/2/3/4, B1 writes, M2(a), RES-1 crear→leer; BD=repo **28** | **✓ estático + pgTAP** | `reports/qa/PR-32_qa.md` §1–§3 |
+| F1-01a task-35: suite `070` plan **68**, total **207/207** en CI; `docs/02` intacto, sin drift/secretos | **✓** | runs 43349789216 / 43349782169; `PR-32_qa.md` §3–§4 |
 
 **Ninguna fila de la matriz cambia a `verde` con esta evidencia**: es verificación SQL
 equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las suites.
@@ -310,3 +316,32 @@ equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las sui
   restantes → 42501, sign-off en ADR-010 y notas `docs/01` §5/`docs/04` §2.5. Suite `050`
   plan **34**, total **6 suites/139/139**; sin migraciones nuevas (20), `docs/02` intacto.
   **task-66 cerrada**; sin verdes de reglas R-* (evidencia BD).
+- **CI hardening task-50 (PR #29, head `e51e99b`): VERDE** — job `Seguridad (dependencias y
+  bundle)`: audit prod 0 high/critical (2 moderate), `dist-scan` 0 hallazgos y fixtures
+  `sb_secret_/service_role` fallan, build-guard 4/4 (anon pasa; secret/service_role/ilegible
+  fallan); 5 checks existentes intactos; CI 12/12; E2E fijado a `ubuntu-24.04` por incompatibilidad
+  del runner. Condiciones pre-G1: SEC-PR29-01 (allowlist sin wildcard) y SEC-PR29-02 (check
+  required); SEC-PR29-03 fixtures negativos en CI. Sin verdes de reglas R-* (es CI).
+- **SEC-PR29-02 CERRADO (2026-11-13):** el ruleset `proteccion-main` (id `26780941`) exige ya
+  **6 checks required** — Guardas, Cliente, Deno, pgTAP, E2E y **`Seguridad (dependencias y
+  bundle)`** — con approvals 0, `non_fast_forward`/`deletion` y sin bypass. Condición pre-G1
+  cumplida por el usuario; no queda acción pendiente.
+- **CI hardening follow-ups (PR #34, head `c624eca`): VERDE** — allowlist v2 estricta (GHSA +
+  packages no vacío + reason/task; wildcard y critical rechazados; exit 2 en schema inválido),
+  fixtures `bundle-bad`/`bundle-ok` y self-test en job `Seguridad` (6/6), `build-guard-test`
+  5/5 (incluye publishable), audit prod 0 high/critical. **SEC-PR29-01/03 cerrados**;
+  **SEC-PR29-02 (check required) CERRADO 2026-11-13**: ruleset con **6 checks required**
+  (incluido `Seguridad (dependencias y bundle)`). Sin verdes R-* (CI).
+- **F1-02b B/2 (PR #22, head final `7400dd9` / código `0d67135`): VERDE — F1-02 CERRADA.**
+  UI de actualización/instalación sin auto-`skipWaiting`, a11y con role/aria-live, `__APP_BUILD__`
+  y `cacheName` versionado, M5→F2/M7 F1 mínimo+nota, `pwa:audit` local-only con perfil temporal
+  y **12/12 CDP** (E1–E10; E6 manual), E2E 11/11 y CI 12/12. SW/offline sin regresión; `docs/02`
+  intacto; sin secretos. P2-01 (icono maskable) queda no bloqueante para F1-16/ADR-008. **F1-02
+  (A/2 + B/2) cerrada**; sin verdes de reglas R-* (evidencia shell/PWA).
+- **F1-01a task-35 (PR #32, head `fe5c150`): VERDE — task-35 CERRADA.** Matriz de mínimo
+  privilegio (invitado/observador sin tenant-wide, profiles solo propio, companies
+  membresía/agregado, 5 tablas con membresía sin agregado), **VETO-1/2/3/4**, **B1 writes**
+  (documents sin OR de agregado) y **RES-1** (`company_in_tenant`, equipo crea→lee). Suite
+  `070` plan **68**, total **6 suites/207/207**; BD=repo **28** migraciones, `docs/02` intacto,
+  sin drift ni secretos. Vigencia temporal diferida a F1-04 (ADR-011). Sin verdes R-* (evidencia
+  BD/RLS).
