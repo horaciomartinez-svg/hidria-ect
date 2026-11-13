@@ -176,6 +176,23 @@ Reglas: (1) insert/update solo con URL prefirmada previa (Worker); (2) evidencia
 | reprogramacion_justificacion | text | N | extensión documentada (regla del manual) |
 | created_at / updated_at | | S | |
 
+## 4.2.1 `milestone_reprogramming` (M2/M11, F1-04)
+| Campo | Tipo | Req | Notas |
+|---|---|---|---|
+| id | bigint identity | S | |
+| diagnostic_id | uuid FK → diagnostics | S | |
+| organization_id | uuid FK → organizations | S | |
+| hito | text CHECK | S | `V1..V3`, `R1..R5` |
+| fecha_original / fecha_nueva | date | S | `fecha_nueva ≥ fecha_original` |
+| causa | text CHECK | S | `empresa · equipo · externa` |
+| justificacion | text | S | ≥ 20 caracteres |
+| reprogramado_por | uuid FK → profiles | S | coordinador |
+| created_at | timestamptz | S | |
+
+RLS: **SELECT** por `is_diagnostic_member(diagnostic_id)`; **sin DML** para `authenticated`; escritura solo por la RPC `fn_reprogram_milestone` (`service_role`, ADR-013).
+
+> **Nota F1-04:** `fn_advance_phase` (EF-01) y `fn_reprogram_milestone` (EF-12) son RPC `SECURITY DEFINER` ejecutables **solo por `service_role`**; actualizan `diagnostics`, auditoría, historial e idempotencia en una sola transacción. `check_phase_gate` y `trg_diagnostics_update_lock` siguen siendo la autoridad final; el cliente no ejecuta estas RPC. `p_gate` es cálculo de la EF para auditoría/respuesta, no una autorización. F1 entrega fases 1–3 reales; F4–F6 con fixtures hasta F2-06 (M5/IIH).
+
 ## 4.3 `document_checklist_items` (M3)
 | Campo | Tipo | Notas |
 |---|---|---|
