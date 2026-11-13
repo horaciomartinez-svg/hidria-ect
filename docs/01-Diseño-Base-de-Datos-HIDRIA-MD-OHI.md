@@ -315,6 +315,14 @@ Hijas 1:1 o 1:N: `logbook_participants` (nombre, cargo, institución, contacto, 
 | audit_log | append-only vía trigger; SELECT admin/SRHDS | sin UPDATE/DELETE (revocado) |
 | documents (metadatos) | según exposure_level y membresía | miembros del diagnóstico; bytes solo vía R2 prefirmado |
 
+> **Nota F1-18 / task-59+66 (restricción por columna en `diagnostics`):** el INSERT se
+> limita a `coordinador_srhds`/`equipo` (empresa retirada hasta M2 por ownership); el
+> `folio` es inmutable en UPDATE y los campos de gate/estado (`estado`,
+> `reporte_document_id`, `bitacora_cerrada`, `avance_pct`, `cat_estado`, semáforo,
+> IVOH/brecha, próximo hito, reprogramación) solo los actualiza `service_role`/EF
+> (`diagnostics_update_lock`, ADR-010). Un RPC `security definer` autenticado no basta:
+> `auth.uid()` sigue no nulo y el trigger lo bloquea.
+
 # 6. Reglas implementadas como triggers (en el DDL)
 
 1. **Folios correlativos no reutilizables**: IIH (`CAP-01…`), bitácora (`BIT-V1-01`), fotos (`V1-01`).
