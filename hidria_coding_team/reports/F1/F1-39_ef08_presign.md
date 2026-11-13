@@ -4,7 +4,8 @@
 - **Fecha:** 2026-11-12 20:45 (America/Mexico_City)
 - **Tarea compartida:** `task-39` — «Q-08: EF-08 presign exige membresía de diagnóstico»
 - **Rama:** `feature/F1-39-ef08-presign` desde `main` (`a0db8a1`)
-- **PR:** pendiente de crear en este commit (se completa con head/CI al abrir)
+- **PR:** [#40](https://github.com/horaciomartinez-svg/hidria-ect/pull/40) · **HEAD de código:** `1f9de83`
+- **CI:** **12/12 success** en `1f9de83` (runs `43352226367` de PR y `43352196550` de push; checks: Guardas de repositorio, Cliente, Edge Functions (Deno), pgTAP, E2E Playwright y Seguridad)
 - **ADR:** `hidria_coding_team/decisions/ADR-012-ef08-presign-membresia-ttl.md` (**propuesta**)
 - **Contrato:** `docs/04` §4 EF-08 — parche documental en PR #36 (owner Lead, head `2c1e450`)
 - **Entorno:** Windows / PowerShell 5.1 · Deno **2.9.6** (`npx --yes deno@2`, sin Docker)
