@@ -138,11 +138,11 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Campo | Valor |
 |---|---|
 | Propósito | Mover `diagnostics.fase_actual` de N a N+1 aplicando el gate del entregable verificable de la semana N, con todos sus efectos |
-| Pre | JWT válido; `my_diagnostic_role ∈ {coordinador, equipo}`; `estado = 'activo'`; cuerpo: `{ "to_phase": 2..6 }` con `to_phase = fase_actual + 1` exactamente (no se permiten saltos) |
-| Tx | Verificar el gate de la fase origen (tabla TD-1) replicando `check_phase_gate`; `UPDATE diagnostics SET fase_actual, proximo_hito, avance_pct = fase*100/6`; `audit_log(action='move_phase')` |
-| Post | Insert `notifications` a miembros del diagnóstico (`kind='hito'`); emitir evento Realtime `phase_changed` (§7) |
+| Pre | JWT válido; `my_diagnostic_role ∈ {coordinador, equipo}`; `estado = 'activo'`; cuerpo: `{ "to_phase": 2..6 }` con `to_phase = fase_actual + 1` (sin saltos); desde fase 6 → `CONFLICT_PHASE` (la transición a `reportado` es EF-07) |
+| Tx | RPC `fn_advance_phase` (`service_role`, ADR-013) revalida rol/tenant/estado/+1 y ficha cerrada del hito (`1→R1, 2→R2, 3→V1, 4→R3, 5→R4`); `UPDATE diagnostics SET fase_actual, proximo_hito, avance_pct`; `check_phase_gate`/`diagnostics_update_lock` son la autoridad final; `audit_log` + `api_idempotency` en la misma transacción |
+| Post | Notificación `kind='hito'` y evento Realtime `phase_changed` los emite la EF **después del commit** (§7); replay no emite |
 | Respuesta | `{ diagnostic_id, folio, fase_actual, proximo_hito, avance_pct, gate: { fase_origen, entregable, folio_respaldo } }` |
-| Errores | `GATE_CHECKLIST_R1` · `GATE_CAT_R2` · `GATE_IIH_V1` · `GATE_BHE_R3` · `GATE_IVOH_R4` (409, mensajes del trigger) · `FORBIDDEN_ROLE` (403) · `CONFLICT_PHASE` (409 si salto ≠ +1) |
+| Errores | `GATE_CHECKLIST_R1` · `GATE_CAT_R2` · `GATE_IIH_V1` · `GATE_BHE_R3` · `GATE_IVOH_R4` · `GATE_FICHA` (409) · `FORBIDDEN_ROLE` (403) · `CONFLICT_PHASE`/`CONFLICT_STATE` (409; state con `details.estado_actual`) |
 
 ## EF-02 — Cierre y firma de ficha de bitácora
 
@@ -327,10 +327,10 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 |---|---|
 | Propósito | Reprogramar un hito V/R con justificación documentada, sin salir del calendario de 6 semanas |
 | Cuerpo | `{ "hito": "V1"\|"V2"\|"V3"\|"R1".."R5", "fecha_original": date, "fecha_nueva": date, "justificacion": text, "causa": "empresa" \| "equipo" \| "externa" }` |
-| Pre | Rol `coordinador`; `fecha_nueva ≤ fecha_inicio + 6 semanas`; `justificacion ≥ 20 caracteres` |
-| Tx | Actualizar `proximo_hito`; insertar hallazgo en la ficha del hito vinculado («fecha original conservada: …, nueva fecha: …, causa: …»); si `causa='empresa'` → `diagnostics.semaforo_atraso` según TD-1 (regla del semáforo); `audit_log(action='update')` |
-| Respuesta | `{ hito, fecha_nueva, semaforo_atraso }` |
-| Errores | `VALIDATION_REPROGRAMACION` (422) · `FORBIDDEN_ROLE` |
+| Pre | Solo `coordinador`; `fecha_nueva ∈ [fecha_original, fecha_inicio + 6 semanas]`; `justificacion ≥ 20 caracteres`; causa válida; ficha más reciente **cerrada** con `clave=hito` (si no existe → `VALIDATION_HITO_SIN_FICHA`; EF-12 no crea fichas); primera reprogramación acepta `fecha_original` declarada; siguientes deben coincidir con la `fecha_nueva` previa del mismo hito |
+| Tx | RPC `fn_reprogram_milestone` (`service_role`, ADR-013): inserta `milestone_reprogramming` + hallazgo en la ficha, actualiza `proximo_hito` (`"<hito> · <fecha>"`), `semaforo_atraso` (1 causa empresa → amarillo; 2+ → rojo), `reprogramacion_justificacion`, `audit_log` + `api_idempotency` en la misma transacción |
+| Respuesta | `{ hito, fecha_nueva, semaforo_atraso, entry_id, folio_ficha, reprogramaciones }` |
+| Errores | `VALIDATION_REPROGRAMACION` (422) · `VALIDATION_HITO_SIN_FICHA` (422) · `FORBIDDEN_ROLE` (403) · `CONFLICT_STATE` (409) |
 
 ## EF-13 — Firma NOM-151 del Reporte (fase 3)
 
@@ -360,7 +360,7 @@ Notación: **C** = condición, **A** = acción. Una regla por fila; la primera f
 | 3 | 3 | todos `iih_assets.verificado_v1 = true` | BIT-V1 cerrada | idem | fase → 4 | `GATE_IIH_V1` 409 |
 | 4 | 4 | `water_balances.estado = 'validado_r3'` y brecha mensual ≤ 10 % en los 12 meses | BIT-R3 cerrada | idem | fase → 5 | `GATE_BHE_R3` 409 |
 | 5 | 5 | los 6 `ivoh_evaluations.estado = 'validado_r4'` | BIT-R4 cerrada | idem | fase → 6 | `GATE_IVOH_R4` 409 |
-| 6 | 6 | matriz 10/10 completa (TD-4) y reporte emitido | BIT-R5 cerrada | coordinador | estado → `reportado` | `GATE_REPORTE_INCOMPLETO` 409 |
+| 6 | 6 | matriz 10/10 completa (TD-4) y reporte emitido | BIT-R5 cerrada | coordinador | **EF-07** (no EF-01): estado → `reportado` | `GATE_REPORTE_INCOMPLETO` 409 |
 | 7 | cualquiera | — | — | empresa/organismo/observador | — | `FORBIDDEN_ROLE` 403 |
 | 8 | cualquiera | `to_phase ≠ origen+1` (salto) | — | — | — | `CONFLICT_PHASE` 409 |
 
@@ -505,6 +505,8 @@ El cliente suscribe el Kanban a `org:{organization_id}` y cada expediente abiert
 | `RATE_LIMIT` | 429 | Límite por usuario (100 req/min en MVP) |
 | `EXT_PSC` | 502 | Fallo del proveedor de firma NOM-151 |
 | `NOT_IMPLEMENTED_PHASE` | 501 | Función de fase posterior (EF-13 en fases 1–2) |
+
+> **RPC EF-01/EF-12 (ADR-013):** `fn_advance_phase` y `fn_reprogram_milestone` son `SECURITY DEFINER` y **solo `service_role`** puede ejecutarlas; el cliente nunca las invoca. `p_gate` es cálculo de la EF para auditoría/respuesta, **no autoriza**; `check_phase_gate`/`diagnostics_update_lock` son la autoridad final. La idempotencia (`api_idempotency`) y `audit_log` se escriben en la misma transacción: replay con el mismo hash devuelve la respuesta persistida con `replayed:true` sin efectos; hash distinto → `CONFLICT_STATE`. `RATE_LIMIT` (429) queda como follow-up (`api_rate_limit`).
 
 ---
 
