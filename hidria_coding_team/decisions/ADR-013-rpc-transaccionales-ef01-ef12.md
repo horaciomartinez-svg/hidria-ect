@@ -16,7 +16,7 @@
 3. **Gates:** `check_phase_gate` y `diagnostics_update_lock` siguen siendo la **autoridad final**. `p_gate` es cálculo de la EF para auditoría/respuesta, **no autoriza**; la ficha cerrada/folio se revalida en DB (`1→R1, 2→R2, 3→V1, 4→R3, 5→R4`).
 4. **`proximo_hito`:** mapa fijo `2→R2, 3→V1, 4→R3, 5→R4, 6→R5`; no se calculan fechas desde `fecha_inicio`. EF-01 desde fase 6 → `CONFLICT_PHASE`.
 5. **TD-1:** la fila 6 (`estado→reportado`) pertenece a **EF-07**, no a EF-01.
-6. **`milestone_reprogramming`:** historial (`fecha_original`, `fecha_nueva`, causa, justificación, reprogramado_por); RLS de **solo SELECT por membresía**, sin DML authenticated; escritura solo por RPC. Semáforo: 1 reprogramación causa `empresa` → amarillo; 2+ → rojo; vencido sin cerrar es tarea aparte.
+6. **`milestone_reprogramming`:** historial (`fecha_original`, `fecha_nueva`, causa, justificación, reprogramado_por); RLS de **solo SELECT por membresía**, sin DML authenticated; escritura solo por RPC. `fecha_original` se valida contra la última `fecha_nueva` **del mismo hito** (primera reprogramación declarada). Semáforo: 1 reprogramación del hito causa `empresa` → amarillo; **2+ del mismo hito** → rojo; vencido sin cerrar es tarea aparte.
 7. **Alcance F1:** EF-01 entrega transiciones **1→2 y 2→3 reales**; **3→4+ validadas con fixtures/contrato** hasta **F2-06 (M5/IIH)**. No se declara F1 como flujo completo a F6.
 8. **Rate limit:** `RATE_LIMIT` (429) documentado como follow-up (`api_rate_limit`), fuera de F1-04.
 9. **Errores canónicos:** `CONFLICT_PHASE`/`CONFLICT_STATE` (409; state con `details.estado_actual`), `VALIDATION_REPROGRAMACION`/`VALIDATION_HITO_SIN_FICHA` (422), `GATE_*` (409), `RATE_LIMIT` (429).

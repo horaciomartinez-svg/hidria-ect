@@ -328,7 +328,7 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Propósito | Reprogramar un hito V/R con justificación documentada, sin salir del calendario de 6 semanas |
 | Cuerpo | `{ "hito": "V1"\|"V2"\|"V3"\|"R1".."R5", "fecha_original": date, "fecha_nueva": date, "justificacion": text, "causa": "empresa" \| "equipo" \| "externa" }` |
 | Pre | Solo `coordinador`; `fecha_nueva ∈ [fecha_original, fecha_inicio + 6 semanas]`; `justificacion ≥ 20 caracteres`; causa válida; ficha más reciente **cerrada** con `clave=hito` (si no existe → `VALIDATION_HITO_SIN_FICHA`; EF-12 no crea fichas); primera reprogramación acepta `fecha_original` declarada; siguientes deben coincidir con la `fecha_nueva` previa del mismo hito |
-| Tx | RPC `fn_reprogram_milestone` (`service_role`, ADR-013): inserta `milestone_reprogramming` + hallazgo en la ficha, actualiza `proximo_hito` (`"<hito> · <fecha>"`), `semaforo_atraso` (1 causa empresa → amarillo; 2+ → rojo), `reprogramacion_justificacion`, `audit_log` + `api_idempotency` en la misma transacción |
+| Tx | RPC `fn_reprogram_milestone` (`service_role`, ADR-013): inserta `milestone_reprogramming` + hallazgo en la ficha, actualiza `proximo_hito` (`"<hito> · <fecha>"`), `semaforo_atraso` (**1 reprogramación del hito con causa empresa → amarillo; 2+ del mismo hito → rojo**), `reprogramacion_justificacion`, `audit_log` + `api_idempotency` en la misma transacción |
 | Respuesta | `{ hito, fecha_nueva, semaforo_atraso, entry_id, folio_ficha, reprogramaciones }` |
 | Errores | `VALIDATION_REPROGRAMACION` (422) · `VALIDATION_HITO_SIN_FICHA` (422) · `FORBIDDEN_ROLE` (403) · `CONFLICT_STATE` (409) |
 
@@ -364,7 +364,7 @@ Notación: **C** = condición, **A** = acción. Una regla por fila; la primera f
 | 7 | cualquiera | — | — | empresa/organismo/observador | — | `FORBIDDEN_ROLE` 403 |
 | 8 | cualquiera | `to_phase ≠ origen+1` (salto) | — | — | — | `CONFLICT_PHASE` 409 |
 
-**Semáforo de atraso** (se recalcula en EF-01/EF-12): verde = en fecha; amarillo = hito reprogramado 1 vez por causa empresa; rojo = hito vencido sin cerrar o 2+ reprogramaciones.
+**Semáforo de atraso** (se recalcula en EF-01/EF-12): verde = en fecha; amarillo = hito reprogramado 1 vez por causa empresa; rojo = hito vencido sin cerrar o **2+ reprogramaciones del mismo hito**.
 
 ## TD-2 — Transiciones de la lista de cotejo (`checklist/transition`, EF-03)
 
