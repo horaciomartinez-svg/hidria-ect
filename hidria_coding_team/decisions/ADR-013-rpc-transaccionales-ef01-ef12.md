@@ -35,11 +35,11 @@
 | Rol | Agente | Fecha | Veredicto |
 |---|---|---|---|
 | Revisor de especificaciones | `revisor-especificaciones` | 2026-11-13 | Decisiones vinculantes F1-04 aprobadas (TD-1 fila 6→EF-07, `proximo_hito`, RPC) |
-| Seguridad y privacidad | `seguridad-privacidad` | 2026-11-13 | Pendiente sign-off del delta #44 |
+| Seguridad y privacidad | `seguridad-privacidad` | 2026-11-13 | APROBADO CON OBSERVACIONES, SIN VETO (SEC-PR44-01..05); task-101 cerrada |
 | Lead | `lead` | 2026-11-13 | Aprueba RPC service_role-only y alcance F1 (1→3 reales, F4–F6 fixtures) |
 
 ## Referencias
 
 - `docs/01` §4.2.1/§5; `docs/04` §4 (EF-01, EF-12), TD-1, §8.
 - `docs/02` (sin cambios); `reports/F1/F1-04_arquitecto-bd.md`; PR #44.
-- `supabase/migrations/20261108070000_f1_04_rpc_ef01_ef12.sql`.
+- `supabase/migrations/20261108070000_f1_04_ef01_ef12.sql`.

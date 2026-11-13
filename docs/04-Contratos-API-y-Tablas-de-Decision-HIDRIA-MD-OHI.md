@@ -143,6 +143,10 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Post | Notificación `kind='hito'` y evento Realtime `phase_changed` los emite la EF **después del commit** (§7); replay no emite |
 | Respuesta | `{ diagnostic_id, folio, fase_actual, proximo_hito, avance_pct, gate: { fase_origen, entregable, folio_respaldo } }` |
 | Errores | `GATE_CHECKLIST_R1` · `GATE_CAT_R2` · `GATE_IIH_V1` · `GATE_BHE_R3` · `GATE_IVOH_R4` · `GATE_FICHA` (409) · `FORBIDDEN_ROLE` (403) · `CONFLICT_PHASE`/`CONFLICT_STATE` (409; state con `details.estado_actual`) |
+| `proximo_hito` | Mapa fijo `2→R2, 3→V1, 4→R3, 5→R4, 6→R5`; **no se calculan fechas desde `fecha_inicio`**; formato `"<clave>"` o `"<clave> · YYYY-MM-DD"` solo si existe fecha canónica |
+| `p_gate` | Cálculo de la EF para auditoría/respuesta; **no autoriza**; la ficha/folio se revalidan en DB |
+
+> **Alcance F1 (F1-04):** EF-01 entrega transiciones **1→2 y 2→3 reales**; **3→4+** se validan con fixtures/contrato hasta **F2-06 (M5/IIH)**. No se declara F1 como flujo completo a F6.
 
 ## EF-02 — Cierre y firma de ficha de bitácora
 
