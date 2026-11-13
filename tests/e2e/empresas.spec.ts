@@ -75,15 +75,6 @@ const CLAIMS_EMPRESA = {
   global_role: 'empresa',
 };
 
-/** Alta restringida a admin/coordinación hasta F1-03a (created_by + SELECT del creador). */
-const CLAIMS_ADMIN = {
-  sub: 'a1000000-0000-4000-8000-0000000000a1',
-  email: 'e2e.admin@example.invalid',
-  organization_id: ORG_ID,
-  tenant_id: ORG_ID,
-  global_role: 'admin_institucional',
-};
-
 /** Intercepta el proyecto ficticio: auth 200, perfiles/organizaciones abortados. */
 async function mockSupabase(page: Page) {
   await page.route('**test.invalid/**', (route) => route.abort());
@@ -98,7 +89,7 @@ test.describe('M1 — Empresas', () => {
   test('lista las empresas visibles para el tenant', async ({ page }) => {
     await mockSupabase(page);
     await page.route('**/rest/v1/companies**', (route) => json(route, 200, [COMPANY]));
-    await seedSession(page, CLAIMS_ADMIN);
+    await seedSession(page, CLAIMS_EQUIPO);
     await page.goto('/empresas');
 
     await expect(page.getByRole('heading', { name: 'Empresas', level: 1 })).toBeVisible();
@@ -135,7 +126,7 @@ test.describe('M1 — Empresas', () => {
       await json(route, 200, creada ? [creada] : []);
     });
 
-    await seedSession(page, CLAIMS_ADMIN);
+    await seedSession(page, CLAIMS_EQUIPO);
     await page.goto('/empresas');
     await expect(page.getByTestId('empresas-empty')).toBeVisible();
 
@@ -208,7 +199,7 @@ test.describe('M1 — Empresas', () => {
       if (route.request().method() === 'POST') posts += 1;
       await json(route, 200, []);
     });
-    await seedSession(page, CLAIMS_ADMIN);
+    await seedSession(page, CLAIMS_EQUIPO);
     await page.goto('/empresas/nueva');
 
     await page.getByTestId('empresa-submit').click();
@@ -274,7 +265,7 @@ test.describe('M1 — Empresas', () => {
       await json(route, 200, [actual]);
     });
 
-    await seedSession(page, CLAIMS_ADMIN);
+    await seedSession(page, CLAIMS_EQUIPO);
     await page.goto(`/empresas/${COMPANY_ID}/editar`);
     await page.getByTestId('empresa-field-nombre_planta').fill('Planta Sur');
     await page.getByTestId('empresa-submit').click();
@@ -339,24 +330,5 @@ test.describe('M1 — Empresas', () => {
     await expect(page.locator('[data-empresa-state="offline"]')).toBeVisible();
     await expect(page.getByText(/no se guardan cambios en este dispositivo/i)).toBeVisible();
     await page.context().setOffline(false);
-  });
-
-  test('equipo: lee empresas pero el alta queda pendiente de F1-03a (sin ownership)', async ({
-    page,
-  }) => {
-    await mockSupabase(page);
-    await page.route('**/rest/v1/companies**', (route) => json(route, 200, [COMPANY]));
-    await seedSession(page, CLAIMS_EQUIPO);
-
-    await page.goto('/empresas');
-    await expect(page.getByTestId('empresa-row')).toHaveCount(1);
-    await expect(page.getByTestId('alta-empresa')).toHaveCount(0);
-    await expect(page.getByTestId('alta-pendiente')).toBeVisible();
-
-    // El alta está gateada hasta que exista la lectura del creador (created_by).
-    await page.goto('/empresas/nueva');
-    await expect(
-      page.getByRole('heading', { name: 'Esta sección no corresponde a tu perfil' }),
-    ).toBeVisible();
   });
 });

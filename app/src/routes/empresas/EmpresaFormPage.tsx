@@ -107,7 +107,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
 
   const canWrite = claims ? COMPANY_WRITE_ROLES.includes(claims.globalRole) : false;
   const canCreate = claims ? COMPANY_CREATE_ROLES.includes(claims.globalRole) : false;
-  /** El alta está restringida temporalmente hasta F1-03a (created_by + SELECT del creador). */
+  /** Alta para los 3 roles de escritura: F1-03a (#36) ya garantiza SELECT del creador. */
   const allowed = isEdit ? canWrite : canCreate;
   /** Sólo coordinación/administración cambian la etapa del ciclo de vida (regla de negocio). */
   const canEditCiclo =
@@ -179,7 +179,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
         detail={
           isEdit
             ? 'La escritura de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS.'
-            : 'El alta está limitada temporalmente a coordinación/administración hasta que F1-03a publique el ownership del creador (created_by + lectura del creador). La RLS del servidor es la autoridad final.'
+            : 'El alta de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS.'
         }
         action={
           <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">

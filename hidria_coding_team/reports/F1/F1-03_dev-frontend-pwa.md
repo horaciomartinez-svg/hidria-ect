@@ -5,9 +5,9 @@
 | **Tarea** | `task-81` — F1-03b (archivo `tasks/F1/F1-03_m1_empresas.md`; F1-03a DB/RLS la lleva el arquitecto) |
 | **Agente** | `dev-frontend-pwa` (04) |
 | **Rama** | `feature/F1-03b-empresas-ui` |
-| **Base** | `main` = `cc32fde` (F1-02b mergeada) |
+| **Base** | `main` = `077d4f3` (F1-03a #36 mergeada: `companies.created_by` + `companies_sel` del creador) |
 | **Alcance** | Rutas `/empresas` (lista, alta, detalle, edición) con **PostgREST + RLS**, sin EF en F1-03; validaciones y a11y; E2E con fixtures sintéticos |
-| **Conclusión** | **VERDE** — `lint` 0 · `typecheck` 0 · `build` 0 · E2E **17/17** (11 shell + 6 M1) en local |
+| **Conclusión** | **VERDE** — `lint` 0 · `typecheck` 0 · `build` 0 · E2E **22/22** (11 shell + 11 M1) en local; CI 6/6 |
 
 ---
 
@@ -18,17 +18,19 @@
   offline / configuración incompleta**.
 - **Contrato:** `docs/01` §4.1 y `docs/02` (`public.companies`). Consumo **PostgREST directo**
   (`GET/POST/PATCH /rest/v1/companies`), sin endpoints inventados ni EF. `organization_id` sale del
-  claim de sesión; `id`/fechas los asigna el servidor.
+  claim de sesión; `id`/fechas y `created_by` los asigna el servidor.
 - **Lectura = RLS:** las rutas de lista/detalle usan sólo `RequireAuth`; una `empresa` con
-  membresía puede leer su empresa (la RLS decide filas), un `invitado` sin membresía verá vacío/403.
-  La **escritura** sigue gateada en la UI además de RLS.
-- **B2 (create→read) provisional:** hasta que F1-03a publique `companies.created_by` +
-  `companies_sel` del creador, el **alta está restringida a admin/coordinación** (CTA oculto para
-  `equipo`, con nota de pendiente); el E2E de alta→lectura es de UI (mock documentado). La
-  verificación real de create→read irá en la suite pgTAP de F1-03a.
-- **E2E Playwright (12 casos M1 / 23 totales):** lista, alta→lectura (admin), edición, búsqueda y
-  filtros con sanitización, detalle, empresa con membresía, empresa ajena 0 filas, 403 de RLS,
-  validación sin POST, error con reintento y offline, con fixtures sintéticos (`.invalid`).
+  membresía/contraparte lee su empresa y un `invitado` sin membresía verá vacío/403. La **escritura**
+  se gatea en la UI además de RLS.
+- **B2 (create→read) cerrado con F1-03a (#36, `main@077d4f3`):** `companies.created_by` (BEFORE
+  INSERT, inmutable) + `companies_sel` incluyen al creador, así que el alta vuelve a los 3 roles de
+  escritura (admin/coord/equipo) y `insert().select('*')` devuelve la fila al equipo creador.
+- **Evidencia separada:** la RLS **real** de create→read, empresa propia/ajena y contraparte la
+  verifica la suite pgTAP `080_f1_03_companies.sql` de F1-03a (**24 aserciones**, total 231); el
+  E2E de #35 es **UI-level** con proyecto Supabase ficticio/mock (no proclama RLS real).
+- **E2E Playwright (11 casos M1 / 22 totales):** lista, alta→lectura, edición, búsqueda y filtros con
+  sanitización, detalle, empresa con membresía, empresa ajena 0 filas, 403 de RLS, validación sin
+  POST, error con reintento y offline, con fixtures sintéticos (`.invalid`).
 
 ---
 
@@ -36,8 +38,8 @@
 
 | Ruta | Pantalla | Acceso | Notas |
 |---|---|---|---|
-| `/empresas` | `EmpresasListPage` | `RequireAuth` (RLS decide filas) | búsqueda + filtros; tabla accesible; CTA «Alta» sólo si el rol puede crear |
-| `/empresas/nueva` | `EmpresaFormPage` (create) | **admin/coordinación** (temporal, B2/F1-03a) | formulario en 3 fieldsets; validación; alta |
+| `/empresas` | `EmpresasListPage` | `RequireAuth` (RLS decide filas) | búsqueda + filtros; tabla accesible; CTA «Alta» para los 3 roles de escritura |
+| `/empresas/nueva` | `EmpresaFormPage` (create) | admin/coordinación/equipo | formulario en 3 fieldsets; validación; alta |
 | `/empresas/:companyId` | `EmpresaDetailPage` | `RequireAuth` (RLS decide) | expediente en `<dl>`; enlace a edición si hay permiso |
 | `/empresas/:companyId/editar` | `EmpresaFormPage` (edit) | admin/coordinación/equipo (RLS decide la fila) | precarga desde PostgREST; guarda con `PATCH` |
 
@@ -51,10 +53,12 @@ router sirve pantallas reales para M1 y placeholders para M2–M13 (sin cambios 
 - Opcionales: `lat`/`lon` (rangos −90..90 / −180..180), `empleados` (entero ≥ 0), `turnos`,
   `unidad_produccion`.
 - `contraparte_user_id` (**ownership**): **no se captura** en el formulario (SEC-PR35-01); se informa
-  como asignada por coordinación. El trigger server-side (perfil del tenant, `global_role='empresa'`
-  y sólo admin/coord) queda en **F1-03a**; la UI no envía UUID libre (el E2E lo verifica).
-- `ciclo_vida` (enum de 6): editable sólo para `admin_institucional`/`coordinador_srhds`; para
-  `equipo` se muestra deshabilitado con nota (M5). Las transiciones no se inventan en cliente.
+  como asignada por coordinación. F1-03a aporta el trigger server-side (perfil existente, mismo
+  tenant, `global_role='empresa'`, sólo admin/coord; inválido/ajeno → 42501); la UI no envía UUID
+  libre (el E2E lo verifica).
+- `ciclo_vida` (enum de 6): editable sólo para `admin_institucional`/`coordinador_srhds` (regla
+  **UI-only**; F1-03a no añade candado DB); para `equipo` se muestra deshabilitado con nota (M5).
+  Las transiciones no se inventan en cliente.
 - La validación de cliente **complementa** los `CHECK`/RLS del servidor; nunca los sustituye.
 
 ## 4. Accesibilidad

@@ -38,8 +38,8 @@ const empresaRoutes: RouteObject[] = [
     element: <EmpresasListPage />,
   },
   {
-    // Alta: restringida a admin/coordinación hasta que F1-03a publique created_by + SELECT
-    // del creador (B2 de #35: sin lectura, una empresa de `equipo` no podría consultarse).
+    // Alta: F1-03a (#36) publicó companies.created_by y el SELECT del creador, así que el
+    // alta vuelve a los 3 roles de escritura (B2 de #35 cerrado).
     path: 'empresas/nueva',
     element: (
       <RequireGlobalRole roles={COMPANY_CREATE_ROLES}>

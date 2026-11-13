@@ -7,7 +7,6 @@ import {
   CICLOS_VIDA,
   CICLO_LABEL,
   COMPANY_CREATE_ROLES,
-  COMPANY_WRITE_ROLES,
   GIROS,
   GIRO_LABEL,
 } from '../../features/empresas/types';
@@ -34,9 +33,7 @@ export function EmpresasListPage() {
     [search, giro, municipio, ciclo],
   );
   const { status, data, error } = useCompaniesList(filters, reloadKey);
-  const canWrite = claims ? COMPANY_WRITE_ROLES.includes(claims.globalRole) : false;
   const canCreate = claims ? COMPANY_CREATE_ROLES.includes(claims.globalRole) : false;
-  const writePendingOwnership = canWrite && !canCreate;
 
   const clearFilters = () => {
     setSearch('');
@@ -66,12 +63,6 @@ export function EmpresasListPage() {
           >
             Alta de empresa
           </Link>
-        )}
-        {writePendingOwnership && (
-          <p className="max-w-xs text-[11px] leading-relaxed text-slate-500" data-testid="alta-pendiente">
-            El alta para tu rol se habilitará cuando F1-03a publique el ownership del creador
-            (<code>created_by</code> + lectura del creador).
-          </p>
         )}
       </header>
 
@@ -219,9 +210,7 @@ export function EmpresasListPage() {
               detail={
                 canCreate
                   ? 'Aún no hay empresas que coincidan con los filtros. Puedes dar de alta la primera.'
-                  : writePendingOwnership
-                    ? 'Aún no hay empresas que coincidan con los filtros. El alta estará disponible para tu rol cuando F1-03a publique el ownership del creador (created_by + SELECT del creador).'
-                    : 'Aún no hay empresas que coincidan con los filtros.'
+                  : 'Aún no hay empresas que coincidan con los filtros.'
               }
               action={
                 canCreate ? (
