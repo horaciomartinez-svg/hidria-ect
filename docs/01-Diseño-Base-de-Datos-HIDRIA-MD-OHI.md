@@ -149,7 +149,8 @@ Reglas: (1) insert/update solo con URL prefirmada previa (Worker); (2) evidencia
 | lat / lon | numeric | N | contexto de cuenca |
 | empleados / turnos | int / text | N | estimación de usos generales |
 | unidad_produccion | text | N | piezas, ton, kWh, litros (CAT A6) |
-| contraparte_user_id | uuid FK → profiles | N | responsable designado |
+| contraparte_user_id | uuid FK → profiles | N | responsable designado; validado perfil empresa del tenant (F1-03a) |
+| created_by | uuid FK → profiles | N | creador server-side (`auth.uid()`); permite create→read del equipo (F1-03a) |
 | ciclo_vida | text CHECK | S | `prospecto · convenio_firmado · activa · diagnostico_vigente · plan_accion · ehr` |
 | created_at / updated_at | | S | |
 
@@ -330,6 +331,12 @@ Hijas 1:1 o 1:N: `logbook_participants` (nombre, cargo, institución, contacto, 
 > su fila; sin claim `global_role` no hay filas. `organizations` es el tenant propio y
 > `project_members` la membresía del diagnóstico. Un invitado tiene **una** membresía activa;
 > la vigencia temporal queda para F1-04 (ADR-011).
+>
+> **Nota F1-03a (M1 Empresas):** `companies` añade `created_by` server-side; `companies_sel`
+> incluye al creador (create→read), a la empresa con `contraparte_user_id = auth.uid()` y el
+> agregado admin/coord/membresía. Solo admin/coord asigna `contraparte_user_id` (perfil
+> `empresa` del mismo tenant); `created_by` es inmutable. `ciclo_vida` sigue editable por los
+> roles de escritura, sin candado adicional (decisión F1-03a).
 
 # 6. Reglas implementadas como triggers (en el DDL)
 
