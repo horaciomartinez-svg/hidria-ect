@@ -150,22 +150,37 @@ jobs:
           version: 3.0.0
       - name: Inicializar configuración local
         run: supabase init
-      - name: Levantar Supabase local
-        run: supabase start
+      - name: Levantar Supabase local (log silenciado)
+        run: |
+          if ! supabase start > "$RUNNER_TEMP/supabase-start.log" 2>&1; then
+            tail -n 120 "$RUNNER_TEMP/supabase-start.log"
+            exit 1
+          fi
+          echo "Supabase local arriba (log silenciado: contiene claves locales efímeras)."
       - name: Aplicar migraciones en base limpia
         run: supabase db reset
-      - name: Exportar entorno local (efímero)
+      - name: Claves efímeras (sin eval, con masking)
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          for name in API_URL ANON_KEY JWT_SECRET DB_URL; do
-            value="${!name:-}"
-            if [ -z "$value" ]; then
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          anon_key=$(grep -E '^ANON_KEY=' "$RUNNER_TEMP/supabase.env" | head -n1 | cut -d= -f2- | tr -d '"')
+          jwt_secret=$(grep -E '^JWT_SECRET=' "$RUNNER_TEMP/supabase.env" | head -n1 | cut -d= -f2- | tr -d '"')
+          db_url=$(grep -E '^DB_URL=' "$RUNNER_TEMP/supabase.env" | head -n1 | cut -d= -f2- | tr -d '"')
+          for name in anon_key jwt_secret db_url; do
+            if [ -z "${!name:-}" ]; then
               echo "::error::Falta $name en 'supabase status -o env'"
-              supabase status -o env | cut -d= -f1
+              cut -d= -f1 "$RUNNER_TEMP/supabase.env" | sort
               exit 1
             fi
-            echo "$name=$value" >> "$GITHUB_ENV"
           done
+          echo "::add-mask::$anon_key"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$db_url"
+          {
+            echo "E2E_SUPABASE_ANON_KEY=$anon_key"
+            echo "E2E_SUPABASE_JWT_SECRET=$jwt_secret"
+            echo "E2E_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "DB_URL=$db_url"
+          } >> "$GITHUB_ENV"
       - name: Instalar cliente psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Aplicar fixture sintética M1
@@ -177,19 +192,12 @@ jobs:
         env:
           CI: true
           E2E_LOCAL_SUPABASE: '1'
-          E2E_SUPABASE_URL: ${{ env.API_URL }}
-          E2E_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          E2E_SUPABASE_JWT_SECRET: ${{ env.JWT_SECRET }}
-      - name: Subir artefactos (trace/screenshot/video)
+          E2E_CHANNEL: none
+      - name: Bajar Supabase local (sin backup, sin filtrar claves)
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-m1-real
-          path: |
-            tests/e2e/playwright-report
-            tests/e2e/test-results
-          retention-days: 7
-          if-no-files-found: warn
+        run: supabase stop --no-backup || true
+      # Sin upload-artifact: en modo local trace/screenshot/video están off y no se
+      # publican test-results/playwright-report (podrían contener la sesión/JWT).
 
   security:
     name: Seguridad (dependencias y bundle)

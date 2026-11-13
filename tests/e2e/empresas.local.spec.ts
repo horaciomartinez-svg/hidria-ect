@@ -2,11 +2,15 @@
  * F1-03c — E2E **real** de M1 Empresas contra Supabase local + seeds.
  *
  * Skip por defecto: se ejecuta sólo con `E2E_LOCAL_SUPABASE=1` en el job CI que
- * levanta `supabase start` + `db reset` + `tests/e2e/fixtures/local-m1.sql`.
+ * levanta `supabase start` + `db reset` + `tests/e2e/fixtures/local-m1.sql`
+ * (re-ejecuciones locales: `db reset` + fixture antes de cada corrida).
  *
  * Las pruebas usan JWT HS256 firmados con el `JWT_SECRET` efímero del Supabase local
  * y llamadas PostgREST reales; por tanto RLS, `created_by`, `companies_sel`,
  * ownership de empresa y cross-tenant son la autoridad, no un mock de red.
+ *
+ * Seguridad: sin trazas/vídeos/capturas (config local), JWT de vida corta (10 min) y
+ * guard local-only (`assertLocalEnv`).
  */
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -29,11 +33,7 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
   test.skip(!LOCAL_ENABLED, 'Requiere E2E_LOCAL_SUPABASE=1 y Supabase local+fixture');
 
   test.beforeAll(() => {
-    assertLocalEnv();
-  });
-
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/auth/v1/**', (route) => route.continue());
+    if (LOCAL_ENABLED) assertLocalEnv();
   });
 
   async function accessToken(page: Page): Promise<string> {
@@ -97,8 +97,11 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
     await page.goto('/empresas');
     await expect(page.getByText(nombre)).toBeVisible();
 
-    // Edición real (PATCH) y lectura del detalle actualizado.
-    await page.getByText(nombre).click();
+    // Detalle por el enlace «Ver» de la fila (el texto del `<th>` no navega).
+    await page
+      .getByRole('row', { name: new RegExp(nombre) })
+      .getByRole('link', { name: 'Ver' })
+      .click();
     await page.getByRole('link', { name: 'Editar empresa' }).click();
     await page.getByTestId('empresa-field-nombre_planta').fill('Planta E2E Equipo Editada');
     await page.getByTestId('empresa-submit').click();
@@ -106,23 +109,28 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
     await expect(page.getByText('Planta E2E Equipo Editada')).toBeVisible();
   });
 
-  test('empresa ve su empresa (contraparte), no la ajena ni cross-tenant', async ({ page }) => {
-    await seedLocalSession(page, claimsFor('empresa', LOCAL_USERS.empresaA));
+  test('empresa dedicada (contraparte A1) ve solo A1; sin membresía seed', async ({
+    page,
+  }) => {
+    await seedLocalSession(page, claimsFor('empresa', LOCAL_USERS.empresaDedicadaA1));
     await page.goto('/empresas');
 
-    await expect(page.getByTestId('empresa-row')).toHaveCount(1);
+    // La contraparte dedicada NO tiene membresía del diagnóstico seed: sólo A1 por ownership.
     await expect(page.getByText('Empresa E2E A1 (contraparte)')).toBeVisible();
+    await expect(page.getByText('Empresa Sintética A')).toHaveCount(0);
     await expect(page.getByText('Empresa E2E A2 (sin contraparte)')).toHaveCount(0);
     await expect(page.getByText('Empresa E2E B1 (otro tenant)')).toHaveCount(0);
+    await expect(page.getByTestId('empresa-row')).toHaveCount(1);
     await expect(page.getByTestId('alta-empresa')).toHaveCount(0);
 
     await page.goto(`/empresas/${LOCAL_COMPANIES.a1}`);
     await expect(page.getByTestId('empresa-titulo')).toHaveText(
       'Empresa E2E A1 (contraparte)',
     );
+    // La UI mantiene la edición gateada para `empresa`; la edición de empresa propia va a task-99.
     await expect(page.getByRole('link', { name: 'Editar empresa' })).toHaveCount(0);
 
-    // RLS real por PostgREST: A2 y B1 no son visibles para empresa A.
+    // RLS real por PostgREST: A2 y B1 no son visibles para la contraparte de A1.
     for (const id of [LOCAL_COMPANIES.a2, LOCAL_COMPANIES.b1]) {
       const response = await restGet(page, `companies?select=id&id=eq.${id}`);
       expect(response.status()).toBe(200);
@@ -130,7 +138,21 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
     }
   });
 
-  test('invitado sin membresía: 0 empresas y sin alta', async ({ page }) => {
+  test('empresa del seed (membresía) ve solo su empresa de diagnóstico; A1 no', async ({
+    page,
+  }) => {
+    await seedLocalSession(page, claimsFor('empresa', LOCAL_USERS.empresaA));
+    await page.goto('/empresas');
+
+    // `...0003` conserva la membresía seed: ve «Empresa Sintética A», no A1 (contraparte dedicada).
+    await expect(page.getByText('Empresa Sintética A')).toBeVisible();
+    await expect(page.getByText('Empresa E2E A1 (contraparte)')).toHaveCount(0);
+    await expect(page.getByTestId('empresa-row')).toHaveCount(1);
+  });
+
+  test('invitado sin membresía: 0 empresas, sin alta y sin acceso al detalle', async ({
+    page,
+  }) => {
     await seedLocalSession(page, claimsFor('invitado', LOCAL_USERS.invitado));
     await page.goto('/empresas');
 
@@ -140,13 +162,17 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
 
     await page.goto(`/empresas/${LOCAL_COMPANIES.a1}`);
     await expect(page.getByTestId('empresa-titulo')).toHaveCount(0);
+    await expect(page.getByText('La empresa no existe')).toBeVisible();
   });
 
-  test('observador con membresía ve la empresa de su diagnóstico y no crea', async ({ page }) => {
+  test('observador con membresía ve la empresa de su diagnóstico y no crea', async ({
+    page,
+  }) => {
     await seedLocalSession(page, claimsFor('observador', LOCAL_USERS.observador));
     await page.goto('/empresas');
 
     await expect(page.getByText('Empresa Sintética A')).toBeVisible();
+    await expect(page.getByTestId('empresa-row')).toHaveCount(1);
     await expect(page.getByTestId('alta-empresa')).toHaveCount(0);
   });
 
@@ -159,5 +185,6 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
 
     await expect(page.getByText('Empresa E2E B1 (otro tenant)')).toBeVisible();
     await expect(page.getByText('Empresa E2E A1 (contraparte)')).toHaveCount(0);
+    await expect(page.getByTestId('empresa-row')).toHaveCount(1);
   });
 });

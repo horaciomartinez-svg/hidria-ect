@@ -3,8 +3,10 @@
 -- Sólo datos sintéticos `.invalid`; no modifica migraciones ni datos reales.
 --
 -- Casos:
---   * Empresa A1 -> contraparte `empresa A` (ownership; la ve solo esa empresa).
---   * Empresa A2 -> sin contraparte (no la ve la empresa A; sí admin/coordinador agregado).
+--   * Empresa A1 -> contraparte `empresa dedicada` (usuario sintético SIN membresía de
+--     diagnóstico seed: ve sólo A1 por ownership; el usuario seed `...0003` conserva su
+--     membresía del diagnóstico y NO debe ver A1).
+--   * Empresa A2 -> sin contraparte (no la ve ninguna empresa; sí admin/coordinador agregado).
 --   * Empresa B1 (otro tenant) -> contraparte `empresa B` (cross-tenant 0 para A).
 --   * Empresa sintética del seed (b100...) -> membresía de diagnóstico para equipo/observador.
 begin;
@@ -16,6 +18,29 @@ values (
   'empresa'
 )
 on conflict (id) do nothing;
+
+-- Contraparte dedicada de A1: empresa del tenant A SIN project_members (sin membresía seed).
+insert into auth.users (id, aud, role, email, email_confirmed_at, created_at, updated_at)
+values (
+  'a1000000-0000-4000-8000-000000000008',
+  'authenticated',
+  'authenticated',
+  'empresa.contraparte.a1@example.invalid',
+  now(),
+  now(),
+  now()
+)
+on conflict (id) do nothing;
+
+insert into public.profiles (user_id, organization_id, full_name, email, global_role)
+values (
+  'a1000000-0000-4000-8000-000000000008',
+  '00000000-0000-4000-8000-000000000001',
+  'Empresa E2E Contraparte A1',
+  'empresa.contraparte.a1@example.invalid',
+  'empresa'
+)
+on conflict (user_id) do nothing;
 
 insert into auth.users (id, aud, role, email, email_confirmed_at, created_at, updated_at)
 values (
@@ -62,7 +87,7 @@ values
     120,
     '2 turnos',
     'ton',
-    'a1000000-0000-4000-8000-000000000003',
+    'a1000000-0000-4000-8000-000000000008',
     'prospecto'
   ),
   (
