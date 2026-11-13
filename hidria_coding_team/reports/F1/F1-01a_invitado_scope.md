@@ -13,7 +13,8 @@
   - `20261108050040_f1_01a_invitado_scope_fix4.sql` — split de `documents_write` (FOR ALL) para que no re-abra SELECT a admin/coord sin membresía.
   - `20261108050050_f1_01a_invitado_scope_fix5.sql` — split de `iih_assets_write`/`samples_write`/`water_balances_write` por la misma razón.
   - `20261108050060_f1_01a_invitado_scope_fix6.sql` — VETO-4: split `companies_write`; B1: quita OR de agregado en `documents_ins/upd/del`.
-- **BD:** `schema_migrations = 27`; CI aplica los 27 archivos desde `supabase/migrations/**`.
+  - `20261108050070_f1_01a_invitado_scope_fix7.sql` — RES-1: helper `company_in_tenant` para INSERT/UPDATE de diagnostics sin depender de RLS de companies.
+- **BD:** `schema_migrations = 28`; CI aplica los 28 archivos desde `supabase/migrations/**`.
 - **Alcance:** policies/triggers/tests/docs; sin datos reales, sin cambios de columnas/tablas.
 
 ## Resultado: VERDE (DB)
@@ -78,15 +79,17 @@ Catálogos/quiz no son tenant-wide; `v_quiz_questions` definer sin `correcta`.
 - `050` ajustada: observador ve su diagnóstico/empresa, no tenant-wide.
 - Total suite: **207 aserciones** (21+9+9+15+34+51+68); pgTAP CI (task-13) ejecuta desde archivos.
 - pglast 8.7: migraciones y 070 OK.
-- **Drift BD↔repo resuelto:** las 7 migraciones de task-35 están en el repo; `supabase db reset`
-  aplica 27 archivos (las fix son forward-only; `…0020` es historia sustituida por `…0030`).
+- **Drift BD↔repo resuelto:** las 8 migraciones de task-35 están en el repo; `supabase db reset`
+  aplica 28 archivos (las fix son forward-only; `…0020` es historia sustituida por `…0030`).
 - **Fix post-CI:** las policies `*_write` eran `FOR ALL`; su `USING` también aplicaba a SELECT y
   re-abría filas a admin/coord sin membresía. `…0040` separa `documents_write`, `…0050`
   `iih_assets_write`/`samples_write`/`water_balances_write`, y `…0060` `companies_write` en
   INSERT/UPDATE/DELETE; además `…0060` quita el OR de agregado en `documents_ins/upd/del`. El
   SELECT queda únicamente en `*_sel`.
-- **VETO-4/B1:** `equipo` sin membresía → 0 companies; escrituras de documents/iih/samples/water
-  sin membresía → 42501; con membresía/rol → OK.
+- **RES-1 post-CI:** al separar `companies_write`, el `EXISTS companies` de `diagnostics_ins`/
+  `diagnostics_upd` quedó sujeto a RLS y impedía al equipo crear/leer diagnósticos. `…0070` añade
+  `company_in_tenant` SECURITY DEFINER y lo usa en esas policies; el creador equipo vuelve a poder
+  INSERTAR y el trigger le crea membresía.
 
 ## 5. Docs / límites
 

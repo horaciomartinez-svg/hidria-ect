@@ -248,7 +248,7 @@ select lives_ok($sql$
 $sql$, 'M1 coordinador con membresía: INSERT samples OK');
 select lives_ok($sql$
   insert into public.water_balances (id, organization_id, diagnostic_id, periodo_anio, mes_inicio, estado)
-  values ('e4000000-0000-4000-8000-000000000043','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001',2026,2,'borrador')
+  values ('e4000000-0000-4000-8000-000000000043','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001',2027,2,'borrador')
 $sql$, 'M1 coordinador con membresía: INSERT water_balances OK');
 set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000001","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"invitado"}';
 select throws_ok($sql$
