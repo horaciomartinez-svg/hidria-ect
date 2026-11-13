@@ -104,23 +104,6 @@ create table if not exists public.diagnostics (
   updated_at      timestamptz not null default now()
 );
 
--- 1.4.1 Historial de reprogramación de hitos (F1-04, ADR-013)
--- RLS: SELECT por is_diagnostic_member(diagnostic_id); sin DML authenticated;
--- escritura solo por fn_reprogram_milestone (service_role). Ver migración 20261108070000.
-create table if not exists public.milestone_reprogramming (
-  id              bigint generated always as identity primary key,
-  diagnostic_id   uuid not null references public.diagnostics(id) on delete cascade,
-  organization_id uuid not null references public.organizations(id),
-  hito            text not null check (hito in ('V1','V2','V3','R1','R2','R3','R4','R5')),
-  fecha_original  date not null,
-  fecha_nueva     date not null,
-  causa           text not null check (causa in ('empresa','equipo','externa')),
-  justificacion   text not null check (char_length(justificacion) >= 20),
-  reprogramado_por uuid not null references public.profiles(user_id),
-  created_at      timestamptz not null default now(),
-  check (fecha_nueva >= fecha_original)
-);
-
 -- 1.5 Membresía al diagnóstico (equipo Triple Hélice + empresa + observador)
 create table if not exists public.project_members (
   diagnostic_id    uuid not null references public.diagnostics(id) on delete cascade,

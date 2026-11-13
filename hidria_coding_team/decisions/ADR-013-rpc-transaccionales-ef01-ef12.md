@@ -21,6 +21,7 @@
 8. **Rate limit:** `RATE_LIMIT` (429) documentado como follow-up (`api_rate_limit`), fuera de F1-04.
 9. **Errores canónicos:** `CONFLICT_PHASE`/`CONFLICT_STATE` (409; state con `details.estado_actual`), `VALIDATION_REPROGRAMACION`/`VALIDATION_HITO_SIN_FICHA` (422), `GATE_*` (409), `RATE_LIMIT` (429).
 10. **Realtime/notificaciones:** post-commit desde la EF (`phase_changed`, `kanban_refresh`, notificación `kind='hito'`); si falla el broadcast no se revierte la transacción; replay no emite.
+11. **`docs/02`:** la tabla `milestone_reprogramming` se documenta en `docs/01` §4.2.1 y en la migración `20261108070000`; la actualización del snapshot `docs/02` se difiere a **F1-18** (residual SEC-PR44-04), para no romper el criterio de `docs/02` intacto durante F1.
 
 ## Consecuencias
 
