@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Advisories de producción aceptados para el job `Seguridad (dependencias y bundle)`. Solo aplican a severidad high; critical nunca se acepta. Cada entrada exige GHSA + paquete(s) y una razón/tarea de seguimiento.",
+  "allowlist": [
+    {
+      "ghsa": "GHSA-wrjc-x8rr-h8h6",
+      "packages": ["react-router", "react-router-dom"],
+      "reason": "Open redirect vía backslash en <Link>/useNavigate de react-router 6.x; mitigado en F1-02a con safeRedirect endurecido. El major react-router-dom 7.18.5 se evalúa en task-53.",
+      "task": "task-53"
+    },
+    {
+      "ghsa": "GHSA-337j-9hxr-rhxg",
+      "packages": ["react-router", "react-router-dom"],
+      "reason": "Inyección de constructor vía deserializeErrors() en hidratación SSR de react-router 6.x; la app es SPA sin SSR/hydration. El major 7.18.5 se evalúa en task-53.",
+      "task": "task-53"
+    }
+  ]
+}
