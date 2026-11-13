@@ -8,8 +8,8 @@
  * - Firma **AWS Signature V4 en query string** (`X-Amz-*`): no se usa SDK; solo WebCrypto.
  * - La clave de objeto la genera SIEMPRE el servidor (`docs/01` §1):
  *   `org/{organization_id}/diag/{diagnostic_id}/{document_id}.{ext}`.
- * - TTL de subida **300 s** (`docs/01` §1: vigencia ≤ 5 min), tope duro 900 s; el cliente no
- *   puede pedir otro TTL.
+ * - TTL de subida **300 s** (`docs/01` §1: vigencia ≤ 5 min; `docs/04` §4 #37/#41: máximo duro
+ *   300 s, no configurable por el cliente; la descarga futura usa 900 s).
  * - El módulo no lee `Deno.env`: la configuración se inyecta (probable sin permisos).
  * - Nunca se devuelven `R2_SECRET_ACCESS_KEY` ni credenciales de R2 en errores; el `X-Amz-Credential`
  *   de la URL contiene solo el **access key id** (público por diseño de S3 presign).
@@ -18,9 +18,9 @@
 import { ApiError } from "./errors.ts";
 import { isUuid } from "./auth.ts";
 
-/** TTL de la URL prefirmada de subida (docs/01 §1: ≤ 5 min). */
+/** TTL de la URL prefirmada de subida (300 s). */
 export const PRESIGN_TTL_SECONDS = 300;
-/** Tope duro: TTL 300 s fijo (condición de Lead/seguridad en PR #36). */
+/** Máximo duro: 300 s (`docs/04` §4, PR #41). La descarga futura usa 900 s aparte. */
 export const MAX_PRESIGN_TTL_SECONDS = 300;
 export const MIN_UPLOAD_BYTES = 1;
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;

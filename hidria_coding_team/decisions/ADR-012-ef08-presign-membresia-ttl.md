@@ -1,11 +1,11 @@
 # ADR-012 — EF-08 `presign`: membresía de diagnóstico obligatoria, TTL 300 s y contrato de respuesta
 
 - **Estado:** propuesta (requiere aprobación de `revisor-especificaciones` y visto bueno de `seguridad-privacidad`)
-- **Fecha:** 2026-11-12
+- **Fecha:** 2026-11-12 · **act. 2026-11-12**: contrato `docs/04` §4 ya en `main` (PR #37) con corrección de TTL (PR #41); **este PR no modifica `docs/`**
 - **Autor:** `dev-edge-functions` (task-39)
 - **Aprobado por:** `supervisor-hidria` (diseño aprobado con condiciones) + `revisor-especificaciones` + `seguridad-privacidad`
-- **Documentos afectados:** `docs/04` §4 EF-08 (parche en PR documental #36, owner Lead), `docs/01` §1 (convención R2 y vigencia ≤ 5 min), `docs/06` §8.2 (descarga 15 min)
-- **Tareas:** `task-39` (este ADR + presign), `task-86` (register atómico, F1-05), `task-87` (CI Deno sobre `supabase/functions/**`)
+- **Documentos afectados:** `docs/04` §4 EF-08 (contrato en `main` vía PR #37; TTL corregido en PR #41; owner Lead), `docs/01` §1 (convención R2 y vigencia ≤ 5 min), `docs/06` §8.2 (descarga 15 min)
+- **Tareas:** `task-39` (este ADR + presign), `task-86` (register atómico, F1-05), `task-87` (CI Deno sobre `supabase/functions/**`, ya en `main` #38)
 
 ## Contexto
 
@@ -21,7 +21,8 @@ miembro del diagnóstico. Además:
   `my_diagnostic_role ∈ {coordinador, equipo, empresa}`, **sin** bypass para
   `admin_institucional`/`coordinador_srhds` sin membresía (verificado por `arquitecto-bd`).
 - La respuesta de presign no debe revelar rutas internas ni credenciales (condición de seguridad
-  en PR #36): se elimina `r2_key` de la respuesta.
+  del contrato `docs/04` §4, PR #37): se elimina `r2_key` de la respuesta y `register` la deriva
+  server-side desde `document_id`.
 
 ## Decisión
 
@@ -69,10 +70,11 @@ miembro del diagnóstico. Además:
 2. **Copiar el bypass de `admin_institucional`/`coordinador_srhds`** de la versión anterior de
    `documents_ins`: descartada — task-35 eliminó ese bypass; exigir membresía es coherente con la
    RLS vigente y con mínimo privilegio.
-3. **Devolver `r2_key` en la respuesta:** descartada por condición de seguridad PR #36 (no exponer
-   rutas internas; la URL firmada es capacidad bearer). `register` la deriva server-side.
-4. **TTL 900 s (contrato previo):** descartada — `docs/01` §1 (≤ 5 min) tiene precedencia y el
-   supervisor fijó TTL 300 duro.
+3. **Devolver `r2_key` en la respuesta:** descartada por condición de seguridad en el contrato de
+   `docs/04` §4 (PR #37/#41: no exponer rutas internas; la URL firmada es capacidad bearer).
+   `register` la deriva server-side desde `document_id`.
+4. **TTL 900 s (contrato previo):** descartada — `docs/01` §1 (≤ 5 min) y `docs/04` §4 (PR #41)
+   fijan **máximo duro 300 s** para la subida; la descarga futura mantiene 900 s (15 min).
 
 ## Consecuencias
 
@@ -92,8 +94,9 @@ miembro del diagnóstico. Además:
 ## Seguimiento
 
 - Tareas creadas: `task-86` (register atómico + `upload_status`/`expires_at`, F1-05),
-  `task-87` (CI Deno sobre `supabase/functions/**` antes de F1-04/F1-05).
-- Documentos a actualizar: `docs/04` §4 EF-08 (PR documental #36, owner Lead), `docs/01` §1
-  (aclarar que la respuesta no expone la clave), `docs/07` §5.1 (secretos EF:
-  `SUPABASE_JWT_SECRET`, `R2_ACCOUNT_ID`, `R2_BUCKET_DOCS`, `CORS_ALLOWED_ORIGINS`).
+  `task-87` (CI Deno sobre `supabase/functions/**`; ya en `main` #38).
+- Documentos: `docs/04` §4 EF-08 **ya actualizado en `main`** (PR #37 + corrección TTL PR #41;
+  owner Lead; este PR de código no edita `docs/`); `docs/01` §1 (aclarar que la respuesta no expone
+  la clave), `docs/07` §5.1 (secretos EF: `SUPABASE_JWT_SECRET`, `R2_ACCOUNT_ID`,
+  `R2_BUCKET_DOCS`, `CORS_ALLOWED_ORIGINS`).
 - Dependencias de despliegue (DevOps): secrets de EF + CORS del bucket R2 + bucket `hidria-docs`.
