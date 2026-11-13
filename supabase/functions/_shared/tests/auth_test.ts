@@ -259,6 +259,13 @@ Deno.test("SEC-04: token no vigente aún (nbf futuro) ⇒ 401 AUTH_INVALID", asy
   await expectApiError(authenticateWithToken(token), "AUTH_INVALID", 401);
 });
 
+Deno.test("SEC-PR8-05: nbf no numérico ⇒ 401 AUTH_INVALID (no se ignora)", async () => {
+  for (const nbf of ["1700000000", true, {}]) {
+    const token = await signToken(buildClaims({ nbf } as never));
+    await expectApiError(authenticateWithToken(token), "AUTH_INVALID", 401);
+  }
+});
+
 Deno.test("SEC-04: JWT sin claim de tenant ⇒ 401 AUTH_INVALID", async () => {
   const token = await signToken(
     buildClaims({ organization_id: null, tenant_id: null }),
