@@ -1,0 +1,25 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "left-pad": {
+      "name": "left-pad",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 900001,
+          "url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+          "title": "Fixture: high de producción NO allowlisted",
+          "severity": "high"
+        }
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": ["node_modules/left-pad"],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 1, "critical": 0, "total": 1 }
+  }
+}

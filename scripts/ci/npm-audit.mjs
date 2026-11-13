@@ -20,16 +20,55 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
-const ALLOWLIST_PATH = path.join(SCRIPT_DIR, 'npm-audit-allowlist.json');
+const DEFAULT_ALLOWLIST_PATH = path.join(SCRIPT_DIR, 'npm-audit-allowlist.json');
+const ALLOWLIST_PATH = process.env.NPM_AUDIT_ALLOWLIST
+  ? path.resolve(process.env.NPM_AUDIT_ALLOWLIST)
+  : DEFAULT_ALLOWLIST_PATH;
 
+const GHSA_RE = /^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/i;
+
+/**
+ * Carga y **valida el esquema** de la allowlist (SEC-PR29-01). Cada entrada exige
+ * GHSA válido, `packages` no vacío (sin wildcard: no se acepta un GHSA para
+ * cualquier paquete), razón y tarea. Una allowlist inválida falla el job (exit 2),
+ * no se ignora silenciosamente.
+ */
 function loadAllowlist() {
+  let raw;
   try {
-    const raw = JSON.parse(readFileSync(ALLOWLIST_PATH, 'utf8').replace(/^\uFEFF/, ''));
-    return Array.isArray(raw.allowlist) ? raw.allowlist : [];
+    raw = JSON.parse(readFileSync(ALLOWLIST_PATH, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
     console.error(`[npm-audit] No se pudo leer ${ALLOWLIST_PATH}: ${err.message}`);
     process.exit(2);
   }
+
+  const entries = Array.isArray(raw?.allowlist) ? raw.allowlist : null;
+  if (!entries) {
+    console.error(`[npm-audit] ${ALLOWLIST_PATH} debe contener un array "allowlist".`);
+    process.exit(2);
+  }
+
+  entries.forEach((entry, index) => {
+    const label = `allowlist[${index}]`;
+    if (!GHSA_RE.test(String(entry?.ghsa || ''))) {
+      console.error(`[npm-audit] ${label}: GHSA inválido o ausente: ${JSON.stringify(entry?.ghsa)}.`);
+      process.exit(2);
+    }
+    const pkgs = entry?.packages;
+    if (!Array.isArray(pkgs) || pkgs.length === 0 || pkgs.some((p) => typeof p !== 'string' || p.trim() === '')) {
+      console.error(
+        `[npm-audit] ${label}: "packages" debe ser un array no vacío de nombres (sin wildcard). ` +
+          'Una entrada sin paquetes podría silenciar el GHSA en cualquier dependencia (SEC-PR29-01).',
+      );
+      process.exit(2);
+    }
+    if (String(entry?.reason || '').trim() === '' || String(entry?.task || '').trim() === '') {
+      console.error(`[npm-audit] ${label}: "reason" y "task" son obligatorios (trazabilidad).`);
+      process.exit(2);
+    }
+  });
+
+  return entries;
 }
 
 function loadAuditReport() {
@@ -77,8 +116,8 @@ function isAllowlisted(ghsa, packageNames, allowlist) {
   if (!ghsa) return false;
   return allowlist.some((entry) => {
     if (String(entry.ghsa || '').toUpperCase() !== ghsa) return false;
-    const pkgs = Array.isArray(entry.packages) ? entry.packages : [entry.package].filter(Boolean);
-    return pkgs.length === 0 || pkgs.some((p) => packageNames.includes(p));
+    // El schema válido garantiza `packages` no vacío; no existe wildcard (SEC-PR29-01).
+    return entry.packages.some((p) => packageNames.includes(p));
   });
 }
 

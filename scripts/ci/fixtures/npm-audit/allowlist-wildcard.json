@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "description": "Fixture inválido: entrada sin `packages` (wildcard) para probar SEC-PR29-01. El script debe rechazar la allowlist con exit 2.",
+  "allowlist": [
+    {
+      "ghsa": "GHSA-wrjc-x8rr-h8h6",
+      "packages": [],
+      "expected_severity": "moderate",
+      "re_evaluate_by": "2026-12-15",
+      "reason": "Fixture de allowlist inválida (wildcard).",
+      "task": "task-53"
+    }
+  ]
+}

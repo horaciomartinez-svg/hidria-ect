@@ -65,6 +65,12 @@ const cases = [
     expectedText: null,
   },
   {
+    name: 'publishable',
+    key: `sb_publishable_${'a'.repeat(40)}`,
+    expect: 'pass',
+    expectedText: null,
+  },
+  {
     name: 'sb-secret',
     key: `sb_secret_${'a'.repeat(40)}`,
     expect: 'fail',
