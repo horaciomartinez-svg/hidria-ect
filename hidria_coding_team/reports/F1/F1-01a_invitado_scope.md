@@ -11,7 +11,8 @@
   - `20261108050020_f1_01a_invitado_scope_fix2.sql` — histórico: intento con agregado SRHDS (rechazado por revisor).
   - `20261108050030_f1_01a_invitado_scope_fix3.sql` — M2 final: sin agregado en las 5; claim requerido.
   - `20261108050040_f1_01a_invitado_scope_fix4.sql` — split de `documents_write` (FOR ALL) para que no re-abra SELECT a admin/coord sin membresía.
-- **BD:** `schema_migrations = 25`; CI aplica los 25 archivos desde `supabase/migrations/**`.
+  - `20261108050050_f1_01a_invitado_scope_fix5.sql` — split de `iih_assets_write`/`samples_write`/`water_balances_write` por la misma razón.
+- **BD:** `schema_migrations = 26`; CI aplica los 26 archivos desde `supabase/migrations/**`.
 - **Alcance:** policies/triggers/tests/docs; sin datos reales, sin cambios de columnas/tablas.
 
 ## Resultado: VERDE (DB)
@@ -76,12 +77,13 @@ Catálogos/quiz no son tenant-wide; `v_quiz_questions` definer sin `correcta`.
 - `050` ajustada: observador ve su diagnóstico/empresa, no tenant-wide.
 - Total suite: **194 aserciones** (21+9+9+15+34+51+55); pgTAP CI (task-13) ejecuta desde archivos.
 - pglast 8.7: migraciones y 070 OK.
-- **Drift BD↔repo resuelto:** las 5 migraciones de task-35 están en el repo; `supabase db reset`
-  aplica 25 archivos (las fix son forward-only; `…0020` es historia sustituida por `…0030`).
-- **Fix post-CI:** `documents_write` era `FOR ALL` y su `USING` de admin/coord actuaba también
-  como SELECT, por lo que admin/coord sin membresía veían documentos aunque `documents_sel`
-  fuera membership-only. `…0040` lo separa en INSERT/UPDATE/DELETE; el SELECT queda solo en
-  `documents_sel`. Con eso los tests M2 de admin/coord sin membresía dan 0.
+- **Drift BD↔repo resuelto:** las 6 migraciones de task-35 están en el repo; `supabase db reset`
+  aplica 26 archivos (las fix son forward-only; `…0020` es historia sustituida por `…0030`).
+- **Fix post-CI:** las policies `*_write` eran `FOR ALL`; su `USING` también aplicaba a SELECT y
+  re-abría filas a admin/coord sin membresía. `…0040` separa `documents_write` y `…0050`
+  `iih_assets_write`/`samples_write`/`water_balances_write` en INSERT/UPDATE/DELETE. El SELECT
+  queda únicamente en `*_sel` (membresía estricta). Así los tests M2 admin/coord sin membresía
+  dan 0.
 
 ## 5. Docs / límites
 
