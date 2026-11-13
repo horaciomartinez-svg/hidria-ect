@@ -9,6 +9,18 @@
   `tasks/BACKLOG.md`, `tasks/F1/*`
 - **Aprobación requerida:** `supervisor-hidria` + `revisor-especificaciones`
 
+> **Nota de actualización — 2026-11-08: reclasificación híbrida M5/M7.**
+> La instrucción de reanudación del usuario (2026-11-08) y la decisión registrada en
+> `tasks/BACKLOG.md` (PR #17) revisan este plan en dos puntos:
+> - **M5 (IIH) completo pasa a Fase 2** (nueva tarea `F2-06`); `F1-08` deja de ser tarea de F1.
+>   `M5/EF-09 kind='iih'` se planifica en F2.
+> - **M7 mínimo permanece en Fase 1** (`F1-13`/`F1-14`) para que EF-07 y la matriz 10/10 sean
+>   alcanzables en G1; el M7 completo sigue en F2.
+> - Consecuencias: `F1-09` (M6/BHE) pasa a depender de `F1-04`; el etiquetado del registry
+>   (M5→F2, M7 F1 mínimo/F2 completo) se corrige en F1-02b (#22). El resto de ADR-003 sigue vigente.
+> Aprobación: decisión del usuario + supervisor/revisor; registrada aquí para que ADR-003 no
+> contradiga BACKLOG/registry.
+
 ## 1. Contexto
 
 `docs/07` §3 define Fase 1 = EF-01/02/03/04/07/08/11 + M1–M4, M10–M12 y Fase 2 =
