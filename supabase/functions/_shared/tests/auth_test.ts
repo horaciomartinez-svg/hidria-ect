@@ -583,6 +583,15 @@ Deno.test("catálogo: 16 endpoints de EF-01…EF-13 con políticas del contrato"
     roles: ["coordinador"],
   });
   assertEquals(endpointById("EF-11").policy, { kind: "authenticated" });
+  assertEquals(endpointById("EF-08.presign").policy, {
+    kind: "diagnostic",
+    roles: ["coordinador", "equipo", "empresa"],
+  });
+  assertEquals(endpointById("EF-08.presign").scope, {
+    kind: "diagnostic",
+    param: "diagnostic_id",
+    inBody: true,
+  });
   assertEquals(endpointById("EF-08.register").policy, { kind: "any_member" });
   assertEquals(endpointById("EF-01").policy, {
     kind: "diagnostic",
@@ -784,24 +793,51 @@ Deno.test("guardEndpoint EF-03: empresa y equipo permitidos; observador no", asy
   );
 });
 
-Deno.test("guardEndpoint EF-08 presign: solo autenticación + tenant (sin resolver rol)", async () => {
+Deno.test("guardEndpoint EF-08 presign: exige membresía y rol de carga (Q-08)", async () => {
   const context = await authenticateWithToken(
     await signToken(buildClaims({ sub: USER_EMPRESA })),
   );
-  let resolverCalled = false;
-  const authorization = await guardEndpoint(
+
+  const authorized = await guardEndpoint(
     context,
     "EF-08.presign",
-    {},
-    {
-      resolveRole: () => {
-        resolverCalled = true;
-        return Promise.resolve(null);
-      },
-    },
+    { diagnostic_id: DIAGNOSTIC_ID },
+    depsWithRole("empresa"),
   );
-  assertEquals(authorization, {});
-  assertEquals(resolverCalled, false);
+  assertEquals(authorized.diagnosticId, DIAGNOSTIC_ID);
+  assertEquals(authorized.diagnosticRole, "empresa");
+
+  // No miembro ⇒ 403 FORBIDDEN_NOT_MEMBER (anti-enumeración).
+  await expectApiError(
+    guardEndpoint(
+      context,
+      "EF-08.presign",
+      { diagnostic_id: DIAGNOSTIC_ID },
+      depsWithRole(null),
+    ),
+    "FORBIDDEN_NOT_MEMBER",
+    403,
+  );
+
+  // Miembro observador (invitado) ⇒ 403 FORBIDDEN_ROLE (no puede subir documentos).
+  await expectApiError(
+    guardEndpoint(
+      context,
+      "EF-08.presign",
+      { diagnostic_id: DIAGNOSTIC_ID },
+      depsWithRole("observador"),
+    ),
+    "FORBIDDEN_ROLE",
+    403,
+  );
+
+  // Sin `diagnostic_id` en el cuerpo ⇒ 422 (entrada del cliente, no 500).
+  const missing = await expectApiError(
+    guardEndpoint(context, "EF-08.presign", {}, depsWithRole("empresa")),
+    "VALIDATION_PARAMETRO_REQUERIDO",
+    422,
+  );
+  assertEquals(missing.details, { param: "diagnostic_id" });
 });
 
 Deno.test("guardEndpoint EF-08 register: cualquier miembro; no miembro ⇒ 403", async () => {
