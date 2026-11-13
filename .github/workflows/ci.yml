@@ -140,3 +140,5 @@ jobs:
         run: node scripts/ci/build-guard-test.mjs
       - name: Escaneo de credenciales en el bundle (dist)
         run: node scripts/ci/dist-scan.mjs
+      - name: Self-test de fixtures negativos/positivos
+        run: node scripts/ci/hardening-selftest.mjs
