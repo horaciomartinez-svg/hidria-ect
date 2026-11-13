@@ -1,21 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * HIDRIA — configuración E2E (F1-02 shell / H-15, task-49).
+ * HIDRIA — configuración E2E.
  *
- * - Suite versionada en `tests/e2e/`; se ejecuta contra el **build de producción**
- *   servido por `vite preview` (no contra el dev server con HMR).
- * - Supabase es un destino sintético (`https://test.invalid`): el shell se prueba con
- *   sesiones JWT sembradas en `localStorage` (claims ADR-005). Las llamadas a
- *   `/rest/v1` y `/auth/v1` se abortan en los tests; no hay secretos ni usuarios reales.
- * - El build necesita `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (anon JWT sintético);
- *   se inyectan por `webServer.env` y el guard build-time de `vite.config.ts` los valida.
+ * Modo normal (F1-02/F1-03b): Supabase sintético `https://test.invalid`, sesiones
+ * sembradas en localStorage y peticiones abortadas. Modo **local real** (F1-03c):
+ * `E2E_LOCAL_SUPABASE=1` apunta al Supabase local (`supabase start` + `db reset` +
+ * fixture) y usa la anon key/JWT secret efímeros del CLI; nunca se versionan.
  */
 const PORT = Number(process.env.E2E_PORT ?? 4173);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 /** Raíz del monorepo: el script npm se lanza desde la raíz (`npm run test:e2e`). */
 const REPO_ROOT = process.env.E2E_REPO_ROOT ?? process.cwd();
-const SUPABASE_URL = process.env.E2E_SUPABASE_URL ?? 'https://test.invalid';
+const LOCAL_ENABLED = process.env.E2E_LOCAL_SUPABASE === '1';
+const SUPABASE_URL = LOCAL_ENABLED
+  ? (process.env.E2E_SUPABASE_URL ?? 'http://127.0.0.1:54321')
+  : (process.env.E2E_SUPABASE_URL ?? 'https://test.invalid');
 /** `none` = Chromium gestionado por Playwright (recomendado CI); `chrome` = Chrome local. */
 const CHANNEL = process.env.E2E_CHANNEL ?? 'none';
 
@@ -35,6 +35,16 @@ function makeAnonKey(): string {
     exp: now + 24 * 60 * 60,
   }));
   return `${header}.${body}.${'x'.repeat(43)}`;
+}
+
+const SUPABASE_ANON_KEY = LOCAL_ENABLED
+  ? (process.env.E2E_SUPABASE_ANON_KEY ?? '')
+  : makeAnonKey();
+
+if (LOCAL_ENABLED && !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'E2E_LOCAL_SUPABASE=1 requiere E2E_SUPABASE_ANON_KEY (supabase status -o env).',
+  );
 }
 
 export default defineConfig({
@@ -74,7 +84,7 @@ export default defineConfig({
     timeout: 240_000,
     env: {
       VITE_SUPABASE_URL: SUPABASE_URL,
-      VITE_SUPABASE_ANON_KEY: makeAnonKey(),
+      VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     },
   },
 });

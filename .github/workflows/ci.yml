@@ -128,6 +128,69 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+  m1-e2e-real:
+    name: E2E real M1 (Supabase local)
+    # Playwright 1.55 no soporta Chromium en ubuntu 26.04; se usa la imagen 24.04.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Supabase CLI 3.0.0
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+      - name: Inicializar configuración local
+        run: supabase init
+      - name: Levantar Supabase local
+        run: supabase start
+      - name: Aplicar migraciones en base limpia
+        run: supabase db reset
+      - name: Exportar entorno local (efímero)
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          for name in API_URL ANON_KEY JWT_SECRET DB_URL; do
+            value="${!name:-}"
+            if [ -z "$value" ]; then
+              echo "::error::Falta $name en 'supabase status -o env'"
+              supabase status -o env | cut -d= -f1
+              exit 1
+            fi
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+      - name: Instalar cliente psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Aplicar fixture sintética M1
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/e2e/fixtures/local-m1.sql
+      - name: Instalar Chromium + dependencias del sistema
+        run: npx playwright install --with-deps chromium
+      - name: Ejecutar E2E real M1 (PostgREST + RLS)
+        run: npx playwright test -c tests/e2e/playwright.config.ts tests/e2e/empresas.local.spec.ts
+        env:
+          CI: true
+          E2E_LOCAL_SUPABASE: '1'
+          E2E_SUPABASE_URL: ${{ env.API_URL }}
+          E2E_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          E2E_SUPABASE_JWT_SECRET: ${{ env.JWT_SECRET }}
+      - name: Subir artefactos (trace/screenshot/video)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-m1-real
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+          retention-days: 7
+          if-no-files-found: warn
+
   security:
     name: Seguridad (dependencias y bundle)
     runs-on: ubuntu-latest
