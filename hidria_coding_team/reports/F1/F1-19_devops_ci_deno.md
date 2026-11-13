@@ -242,10 +242,86 @@ se mantiene. Sin `secrets.*` (los JWT de prueba son sintéticos).
   `success`) — 3/3 jobs verdes: «Guardas de repositorio», «Cliente (lint + typecheck +
   build)» y **«Edge Functions (Deno)»** (`deno test` → **58 passed**).
 - El check «Edge Functions (Deno)» queda como parte del CI (4.º job tras sumar pgTAP en
-  task-13); no está en `required_status_checks` porque el ruleset está en `count=0`
-  (pendiente de que el usuario lo añada en UI).
+  task-13); **actualizado 2026-11-12:** ya es required en `proteccion-main` (6 checks;
+  SEC-PR29-02 cerrado en #39), ver §9.5.
 - **task-44 completada.** El bloqueo previo fue **solo de credencial** (el PAT no tenía el
   scope `workflow` para publicar el YAML); el contenido del job no cambió entre el commit
   preparado (`960d8d3`) y el mergeado.
 - Evidencia: §2 de este reporte (validación local Deno 2.9.6, 58/58) + run `42510294738` +
   `reports/F1/F1-19_devops_pgtap_ci.md` (siguiente follow-up de CI).
+
+---
+
+## 9. task-87 — Coverage Deno de `supabase/functions/**` (EF reales)
+
+- **Tarea:** `task-87` — extender el job `Edge Functions (Deno)` de `supabase/functions/_shared`
+  a **todo `supabase/functions/**`** (cada entrypoint de EF + `_shared`), manteniendo el nombre
+  estable del check y sin secretos/`R2_*`. Necesario antes de F1-04/F1-05 con EF reales.
+- **Base:** `main@a0db8a1` · rama `ci/F1-19-ci-deno-coverage` · PR pendiente de crear.
+
+### 9.1 Cambio en CI (`.github/workflows/ci.yml`, solo job `functions`)
+
+| Paso | Comando |
+|---|---|
+| Formato | `deno fmt --check supabase/functions --ignore=supabase/functions/README.md` |
+| Lint | `deno lint supabase/functions` |
+| Entrypoints | `find supabase/functions -mindepth 2 -maxdepth 2 -name index.ts -print \| sort` (log de cobertura) |
+| Typecheck | `deno check supabase/functions/_shared` + **`deno check` por cada `supabase/functions/*/index.ts`** |
+| Pruebas | `deno test supabase/functions` (todas las suites, incluidas futuras EF) |
+
+El único excluido de `fmt` es `supabase/functions/README.md` (documento, no código; Deno lo
+reformatearía). El nombre del job/check sigue siendo **`Edge Functions (Deno)`**; los otros
+5 jobs no se tocan.
+
+### 9.2 Validación local (Deno 2.9.6)
+
+| Escenario | Resultado |
+|---|---|
+| Árbol actual (`_shared`): `fmt --check` | exit 0 (`Checked 4 files`) |
+| `lint supabase/functions` | exit 0 |
+| `check _shared` | exit 0 (4 módulos) |
+| `test supabase/functions` | **58 passed, 0 failed** |
+| Con entrypoint sintético temporal `ef-08-documents/index.ts` (fmt/lint/check/test) | **fmt 5 files OK; lint 5 OK; `deno check` OK; 58/58 tests** |
+
+El entrypoint sintético se usó solo para validar el mecanismo de coverage y **se retiró** (no se
+versiona). El `ef-08-documents/index.ts` real de **task-39 aún no está en `main`**; cuando se
+mergee, el job lo detectará en el paso de entrypoints y lo chequeará automáticamente, sin cambios
+adicionales. La ejecución CI actual valida `_shared` + `58/58` y deja el mecanismo listo para la
+primera EF real.
+
+### 9.3 Evidencia CI — run verde
+
+| Dato | Valor |
+|---|---|
+| Run PR | [43351427378](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43351427378) (`pull_request`, head `8ee9c81`, **success**) |
+| Run push | `43351401913` (`push`, mismo head, **success**) |
+| Checks | **6/6**: Guardas · Cliente · **Edge Functions (Deno)** · pgTAP · E2E · Seguridad |
+| Job Deno | [131643143340](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43351427378/job/131643143340) — 8 s; `fmt` (4 files) ✅ · `lint` (4) ✅ · entrypoints listados (vacío: aún no hay EF en `main`) · `check _shared` ✅ · **`58 passed | 0 failed`** |
+
+El job mantiene el nombre `Edge Functions (Deno)` y ya ejecuta los comandos extendidos; el log
+muestra el paso de entrypoints (hoy vacío porque `ef-08` no está en `main`). Cuando task-39
+mergee la EF, aparecerá en ese listado y `deno check` la cubrirá sin cambios de CI.
+
+### 9.4 Seguridad
+
+- Sin secretos ni variables `R2_*`/`SUPABASE_SERVICE_ROLE_KEY` en el job; solo comandos Deno.
+- El job no usa red salvo que una EF importe módulos remotos en `deno check` (comportamiento
+  estándar de Deno); no hay claves ni `.env`.
+
+### 9.5 Ruleset y pendientes
+
+- **`Edge Functions (Deno)` ya es check required** en `proteccion-main` (ruleset id `26780941`),
+  junto a Guardas, Cliente, pgTAP, E2E y Seguridad (**6 required**; SEC-PR29-02 cerrado en #39).
+  No requiere acción del usuario ni cambios adicionales.
+- [x] **PR #38 abierto y verde**: 6/6 en run `43351427378` (PR) y `43351401913` (push); job
+      Deno `131643143340` (8 s, 58/58).
+- [ ] Cuando task-39 mergee `ef-08-documents/index.ts`, verificar que el log liste el entrypoint
+      y el check pase (sin cambios de CI).
+
+### 9.6 Veredicto
+
+**VERDE CI** — job Deno extendido a `supabase/functions/**` con fmt/lint/check por entrypoint y
+suites completas; run `43351427378` 6/6 (58/58 en CI). El check ya es **required** en el ruleset
+`proteccion-main` (6 checks). La EF real `ef-08` se cubrirá automáticamente al mergear task-39
+(mecanismo validado localmente con un entrypoint sintético temporal, retirado). Sin secretos ni
+`R2_*`; los otros 5 checks intactos.
