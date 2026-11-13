@@ -1,0 +1,25 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "react-router": {
+      "name": "react-router",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1124268,
+          "url": "https://github.com/advisories/GHSA-wrjc-x8rr-h8h6",
+          "title": "Fixture: critical (aunque el GHSA esté allowlisted, critical NUNCA se acepta)",
+          "severity": "critical"
+        }
+      ],
+      "effects": ["react-router-dom"],
+      "range": "6.0.0 - 7.17.0",
+      "nodes": ["node_modules/react-router"],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 1, "total": 1 }
+  }
+}

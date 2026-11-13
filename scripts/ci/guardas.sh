@@ -26,10 +26,13 @@ else
 fi
 
 echo "== 2. Secret scanning de archivos trackeados =="
+# Los fixtures de `scripts/ci/fixtures/**` son datos sintéticos deliberados para los
+# self-tests de hardening (SEC-PR29-03): contienen JWT/secretos FALSOS para probar que los
+# escáneres fallan. Se excluyen de la guarda de secretos, no son credenciales.
 PATRONES='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sbp_[a-f0-9]{40}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
-if git grep -I -n -E "$PATRONES" -- . ':(exclude).env.example' ':(exclude)scripts/ci/guardas.sh' >/dev/null 2>&1; then
+if git grep -I -n -E "$PATRONES" -- . ':(exclude).env.example' ':(exclude)scripts/ci/guardas.sh' ':(exclude)scripts/ci/fixtures/**' >/dev/null 2>&1; then
   echo "  Archivos con posible secreto:"
-  git grep -I -n -E "$PATRONES" -- . ':(exclude).env.example' ':(exclude)scripts/ci/guardas.sh' | head -20
+  git grep -I -n -E "$PATRONES" -- . ':(exclude).env.example' ':(exclude)scripts/ci/guardas.sh' ':(exclude)scripts/ci/fixtures/**' | head -20
   fail "posible secreto en archivos trackeados"
 else
   ok "sin patrones de secreto conocidos"

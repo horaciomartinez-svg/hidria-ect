@@ -1,16 +1,20 @@
 {
-  "version": 1,
-  "description": "Advisories de producción aceptados para el job `Seguridad (dependencias y bundle)`. Solo aplican a severidad high; critical nunca se acepta. Cada entrada exige GHSA + paquete(s) y una razón/tarea de seguimiento.",
+  "version": 2,
+  "description": "Advisories de producción aceptados para el job `Seguridad (dependencias y bundle)`. Solo aplican a severidad high; critical nunca se acepta. Cada entrada exige GHSA válido + `packages` no vacío (sin wildcard) + razón + tarea; `expected_severity`/`re_evaluate_by` se registran para revisión (SEC-PR29-01/06).",
   "allowlist": [
     {
       "ghsa": "GHSA-wrjc-x8rr-h8h6",
       "packages": ["react-router", "react-router-dom"],
+      "expected_severity": "moderate",
+      "re_evaluate_by": "2026-12-15",
       "reason": "Open redirect vía backslash en <Link>/useNavigate de react-router 6.x; mitigado en F1-02a con safeRedirect endurecido. El major react-router-dom 7.18.5 se evalúa en task-53.",
       "task": "task-53"
     },
     {
       "ghsa": "GHSA-337j-9hxr-rhxg",
       "packages": ["react-router", "react-router-dom"],
+      "expected_severity": "moderate",
+      "re_evaluate_by": "2026-12-15",
       "reason": "Inyección de constructor vía deserializeErrors() en hidratación SSR de react-router 6.x; la app es SPA sin SSR/hydration. El major 7.18.5 se evalúa en task-53.",
       "task": "task-53"
     }
