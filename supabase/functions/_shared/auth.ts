@@ -503,7 +503,7 @@ export type EndpointRolePolicy =
   | { readonly kind: "diagnostic"; readonly roles: readonly DiagnosticRole[] }
   /** Cualquier miembro del diagnóstico, sin importar el rol (EF-08 register). */
   | { readonly kind: "any_member" }
-  /** Solo autenticación + tenant (EF-08 presign, EF-11). */
+  /** Solo autenticación + tenant (EF-11). */
   | { readonly kind: "authenticated" };
 
 export type EndpointId =
@@ -651,14 +651,16 @@ export const ENDPOINTS: readonly EndpointDefinition[] = [
     ef: "EF-08",
     method: "POST",
     path: "/documents/presign",
-    // `docs/04` §4 exige «miembro del diagnóstico» en presign, pero su cuerpo no incluye
-    // `diagnostic_id` (llega en `register`). Decisión pendiente en **task-39** (ADR con el
-    // revisor + corrección de `docs/04`) antes de F1-05; mientras tanto la política es
-    // autenticado + tenant y la membresía se exige en `EF-08.register`.
-    scope: null,
-    policy: { kind: "authenticated" },
+    // ADR-012 / task-39 (Q-08): el presign exige `diagnostic_id` y membresía ANTES de firmar.
+    // Roles espejo de la RLS `documents_ins` (coordinador/equipo/empresa); observador/invitado
+    // y no-miembros reciben 403. `register` (F1-05) sigue admitiendo a cualquier miembro.
+    scope: { kind: "diagnostic", param: "diagnostic_id", inBody: true },
+    policy: {
+      kind: "diagnostic",
+      roles: ["coordinador", "equipo", "empresa"],
+    },
     tenantRequired: true,
-    docRef: "docs/04 §4 EF-08 (presign); M1/Q-08 → task-39",
+    docRef: "docs/04 §4 EF-08 (presign); ADR-012; task-39",
   },
   {
     id: "EF-08.register",
