@@ -9,18 +9,6 @@
   `tasks/BACKLOG.md`, `tasks/F1/*`
 - **Aprobación requerida:** `supervisor-hidria` + `revisor-especificaciones`
 
-> **Nota de actualización — 2026-11-08: reclasificación híbrida M5/M7.**
-> La instrucción de reanudación del usuario (2026-11-08) y la decisión registrada en
-> `tasks/BACKLOG.md` (PR #17) revisan este plan en dos puntos:
-> - **M5 (IIH) completo pasa a Fase 2** (nueva tarea `F2-06`); `F1-08` deja de ser tarea de F1.
->   `M5/EF-09 kind='iih'` se planifica en F2.
-> - **M7 mínimo permanece en Fase 1** (`F1-13`/`F1-14`) para que EF-07 y la matriz 10/10 sean
->   alcanzables en G1; el M7 completo sigue en F2.
-> - Consecuencias: `F1-09` (M6/BHE) pasa a depender de `F1-04`; el etiquetado del registry
->   (M5→F2, M7 F1 mínimo/F2 completo) se corrige en F1-02b (#22). El resto de ADR-003 sigue vigente.
-> Aprobación: decisión del usuario + supervisor/revisor; registrada aquí para que ADR-003 no
-> contradiga BACKLOG/registry.
-
 ## 1. Contexto
 
 `docs/07` §3 define Fase 1 = EF-01/02/03/04/07/08/11 + M1–M4, M10–M12 y Fase 2 =
@@ -33,6 +21,14 @@ vista `v_diagnostic_completeness` (`docs/02:725-746`) requiere custodia `p4`, la
 incompatibles (hallazgo B2).
 
 ## 2. Decisión
+
+> **Nota de supersesión (2026-11-13; `revisor-especificaciones`/Lead).** La decisión híbrida del 2026-11-08 (BACKLOG: F1-08/F2-06, F1-13/F1-14/F1-15, F2-02) sustituye en este ADR-003 los siguientes puntos:
+>
+> - **M5 (IIH) y EF-09** dejan de estar en Fase 1 y pasan a **F2-06**.
+> - **M7 mínimo** (captura de muestras y 3 transferencias de custodia; resultados de laboratorio con dictamen manual; cartera de alternativas) permanece en **Fase 1** como **F1-13/F1-14/F1-15**.
+> - **M7 completo y EF-10** siguen en **Fase 2** como **F2-02**.
+>
+> El resto del plan de este ADR no cambia. Esta nota prevalece sobre las menciones de M5/EF-09 en la Fase 1 y aclara el alcance de M7; las etiquetas de UI se materializan en `app/src/routes/registry.tsx` (M5 `phase:'F2'`, M7 `phase:'F1'` + `phaseNote:'F1 mínimo / F2 completo'`) y en `tests/e2e/shell.spec.ts`.
 
 Se adopta el siguiente **plan operativo** (la instrucción de la Coordinación prevalece
 sobre `docs/07` §3 en lo que aquí se indica; el resto de `docs/07` sigue vigente):
