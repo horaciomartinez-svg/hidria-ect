@@ -289,13 +289,18 @@ mergee, el job lo detectará en el paso de entrypoints y lo chequeará automáti
 adicionales. La ejecución CI actual valida `_shared` + `58/58` y deja el mecanismo listo para la
 primera EF real.
 
-### 9.3 Evidencia CI (se completa con run id)
+### 9.3 Evidencia CI — run verde
 
 | Dato | Valor |
 |---|---|
-| Checks esperados | **6/6** (Guardas, Cliente, Deno, pgTAP, E2E, Seguridad) |
-| Run CI | _pendiente_ |
-| Job `Edge Functions (Deno)` | _pendiente_ — debe listar entrypoints y ejecutar 58/58 |
+| Run PR | [43351427378](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43351427378) (`pull_request`, head `8ee9c81`, **success**) |
+| Run push | `43351401913` (`push`, mismo head, **success**) |
+| Checks | **6/6**: Guardas · Cliente · **Edge Functions (Deno)** · pgTAP · E2E · Seguridad |
+| Job Deno | [131643143340](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43351427378/job/131643143340) — 8 s; `fmt` (4 files) ✅ · `lint` (4) ✅ · entrypoints listados (vacío: aún no hay EF en `main`) · `check _shared` ✅ · **`58 passed | 0 failed`** |
+
+El job mantiene el nombre `Edge Functions (Deno)` y ya ejecuta los comandos extendidos; el log
+muestra el paso de entrypoints (hoy vacío porque `ef-08` no está en `main`). Cuando task-39
+mergee la EF, aparecerá en ese listado y `deno check` la cubrirá sin cambios de CI.
 
 ### 9.4 Seguridad
 
@@ -305,8 +310,16 @@ primera EF real.
 
 ### 9.5 Pendientes
 
-- [ ] PR + run verde 6/6 (run id en §9.3).
+- [x] **PR #38 abierto y verde**: 6/6 en run `43351427378` (PR) y `43351401913` (push); job
+      Deno `131643143340` (8 s, 58/58).
 - [ ] Cuando task-39 mergee `ef-08-documents/index.ts`, verificar que el log liste el entrypoint
       y el check pase (sin cambios de CI).
 - [ ] Mantener `Edge Functions (Deno)` estable para el ruleset (sigue **no required** hasta que
       el usuario lo añada).
+
+### 9.6 Veredicto
+
+**VERDE CI** — job Deno extendido a `supabase/functions/**` con fmt/lint/check por entrypoint y
+suites completas; run `43351427378` 6/6 (58/58 en CI). La EF real `ef-08` se cubrirá
+automáticamente al mergear task-39 (mecanismo validado localmente con un entrypoint sintético
+temporal, retirado). Sin secretos ni `R2_*`; los otros 5 checks intactos.
