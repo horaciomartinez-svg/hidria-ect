@@ -1,13 +1,13 @@
 # F1-39 — EF-08 `presign` con membresía de diagnóstico (Q-08/M1) y ADR-012
 
 - **Agente:** `dev-edge-functions` (03)
-- **Fecha:** 2026-11-12 20:45 (America/Mexico_City)
+- **Fecha:** 2026-11-12 20:45 (America/Mexico_City) · **act.** tras merge de `main@40785b4`
 - **Tarea compartida:** `task-39` — «Q-08: EF-08 presign exige membresía de diagnóstico»
-- **Rama:** `feature/F1-39-ef08-presign` desde `main` (`a0db8a1`)
-- **PR:** [#40](https://github.com/horaciomartinez-svg/hidria-ect/pull/40) · **HEAD de código:** `1f9de83`
-- **CI:** **12/12 success** en `1f9de83` (runs `43352226367` de PR y `43352196550` de push; checks: Guardas de repositorio, Cliente, Edge Functions (Deno), pgTAP, E2E Playwright y Seguridad)
+- **Rama:** `feature/F1-39-ef08-presign` · **base:** `main@40785b4` (merge `9084427`)
+- **PR:** [#40](https://github.com/horaciomartinez-svg/hidria-ect/pull/40) · **HEAD de código:** `99e948c`
+- **CI:** **12/12 success** en `99e948c` (runs `43353411089` de PR y `43353404227` de push; checks: Guardas de repositorio, Cliente, **Edge Functions (Deno) extendido a `supabase/functions/**`**, pgTAP, E2E Playwright y Seguridad)
 - **ADR:** `hidria_coding_team/decisions/ADR-012-ef08-presign-membresia-ttl.md` (**propuesta**)
-- **Contrato:** `docs/04` §4 EF-08 — parche documental en PR #36 (owner Lead, head `2c1e450`)
+- **Contrato:** `docs/04` §4 EF-08 **ya en `main`** (PR #37 + corrección TTL PR #41, owner Lead). **Este PR no modifica `docs/`** (`git diff origin/main -- docs` vacío).
 - **Entorno:** Windows / PowerShell 5.1 · Deno **2.9.6** (`npx --yes deno@2`, sin Docker)
 
 ## Resultado: **VERDE** (con limitaciones declaradas)
@@ -28,7 +28,7 @@
 **Limitaciones declaradas:** sin credenciales `R2_*` en `.env` (B-03) ⇒ no hay E2E real contra R2; la
 firma SigV4 se validó con el **vector documentado de AWS** y RFC 4231 (§6.2). El CORS del bucket R2
 lo configura DevOps. `register` se completa en F1-05 (task-86). El job Deno del CI cubre
-`supabase/functions/_shared`; `ef-08-documents/index.ts` se verificó localmente (task-87 extenderá el job).
+`supabase/functions/**` desde task-87 (#38): el job lista y `deno check`ea `ef-08-documents/index.ts` y ejecuta los tests de `_shared`.
 
 ---
 
@@ -52,7 +52,7 @@ lo configura DevOps. `register` se completa en F1-05 (task-86). El job Deno del 
 
 ---
 
-## 2. Contrato implementado (resumen de `docs/04` §4 EF-08, parche en PR #36)
+## 2. Contrato implementado (`docs/04` §4 EF-08 de `main`, PR #37/#41 — sin cambios de docs en este PR)
 
 **Request `POST /documents/presign`** (o `/functions/v1/ef-08-documents/presign`):
 
@@ -134,7 +134,7 @@ DevOps cargue credenciales; el firmador queda cubierto por vector + estructura.
 | Agente | Interacción |
 |---|---|
 | `supervisor-hidria` | Diseño **APROBADO con condiciones** (membresía/roles, tenant, TTL 300, respuesta sin `r2_key`, register a F1-05 con task-86, CI a task-87). |
-| `lead` | Recibió el **texto exacto del parche `docs/04` §4 EF-08**; abrió PR #36 con el ajuste de seguridad (sin `r2_key`, TTL 300 duro, firmar `Content-Type`). |
+| `lead` | El contrato `docs/04` §4 EF-08 está en `main` (PR #37, corrección TTL PR #41). Tras el VETO inicial de seguridad por la base vieja, el PR se actualizó con **merge de `main@40785b4`** y sin cambios en `docs/`. |
 | `arquitecto-bd` | Confirmó `fn_diag_role` solo `service_role`; `documents_ins` post-task-35 exige membresía+rol (sin bypass admin) ⇒ el presign es coherente; register F1-05 requerirá RPC atómica y `upload_status`/`expires_at` (task-86). |
 | `revisor-especificaciones` | Pre-lectura enviada (decisiones 1–5 del ADR); el PR lleva ADR-012 como propuesta para su dictamen. |
 | `seguridad-privacidad` | Pre-lectura de SEC checklist (sin credenciales, TTL, anti-enumeración, CORS, sin side effects); pendiente su revisión formal del PR. |
@@ -148,12 +148,20 @@ DevOps cargue credenciales; el firmador queda cubierto por vector + estructura.
 | 1 | Sin `R2_*` (B-03) ⇒ sin E2E real de presign/subida | DevOps carga secrets; prueba F1-16; firmador validado con vector AWS |
 | 2 | CORS del bucket R2 (`PUT` desde Pages) | DevOps en `docs/07` §5.3; `CORS_ALLOWED_ORIGINS` en secrets de EF |
 | 3 | `register` no implementado (501) | **task-86** (F1-05): RPC atómica `documents`+`audit_log`, validación de membresía/tenant, `upload_status`/`expires_at` para huérfanos |
-| 4 | CI Deno solo cubre `_shared` | **task-87** (extender a `supabase/functions/**` antes de F1-04/F1-05); mientras tanto `index.ts` verificado local con `deno check` |
+| 4 | CI Deno extendido a `supabase/functions/**` | **task-87 ya en `main` #38**: el job verifica `ef-08-documents/index.ts` y los tests de `_shared` |
 | 5 | Idempotencia sin `Idempotency-Key` puede dejar objetos huérfanos si no se registran | `upload_status='pendiente'` + limpieza en task-86; TTL 300 limita la ventana |
 | 6 | Rate limit no incluido (SEC-PR8-10) | Backlog de seguridad; WAF por IP en docs/07 §5.3 como refuerzo |
 | 7 | `presign` no audita (no tiene efectos) | Aceptado en ADR-012; auditoría en `register` (F1-05) |
 
 ---
+
+
+### 6.1 Cambios de base y resolución del VETO de seguridad
+
+- La rama se creó desde `a0db8a1`; al estar desactualizada, el PR mostraba `docs/04` con el contrato antiguo (VETO de `seguridad-privacidad` sobre `af48a67`).
+- **Merge de `main@40785b4`** (`9084427`, sin rebase ni force): `docs/04` queda **byte-idéntico a `main`** (PR #37 + TTL #41) y el PR de código no toca `docs/` (`git diff origin/main -- docs` vacío).
+- **TTL alineado al contrato**: `presign` emite **300 s** con máximo duro 300 s (la descarga futura usa 900 s aparte); sin override del cliente.
+- CI re-ejecutado con el job Deno extendido: **12/12 success** en `99e948c`.
 
 ## 7. Conclusión y siguiente paso
 
