@@ -54,13 +54,24 @@ jobs:
         with:
           deno-version: v2.9.6
       - name: Formato
-        run: deno fmt --check supabase/functions/_shared
+        run: deno fmt --check supabase/functions --ignore=supabase/functions/README.md
       - name: Lint
-        run: deno lint supabase/functions/_shared
+        run: deno lint supabase/functions
+      - name: Entrypoints EF detectados
+        run: |
+          echo "Entrypoints EF (supabase/functions/*/index.ts):"
+          find supabase/functions -mindepth 2 -maxdepth 2 -name index.ts -print | sort
       - name: Typecheck
-        run: deno check supabase/functions/_shared
+        run: |
+          deno check supabase/functions/_shared
+          for entrypoint in supabase/functions/*/index.ts; do
+            if [ -f "$entrypoint" ]; then
+              echo "deno check $entrypoint"
+              deno check "$entrypoint"
+            fi
+          done
       - name: Pruebas
-        run: deno test supabase/functions/_shared
+        run: deno test supabase/functions
 
   pgtap:
     name: pgTAP (Supabase local)

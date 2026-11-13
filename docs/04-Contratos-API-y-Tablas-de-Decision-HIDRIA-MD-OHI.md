@@ -116,7 +116,7 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | EF-05 | `POST /balances/{balance_id}/validate-r3` | M6 | coordinador, equipo | Sí | ref. bitácora R3, avance |
 | EF-06 | `POST /ivoh/{diagnostic_id}/score` · `POST /ivoh/{diagnostic_id}/validate-r4` | M8 | coordinador, equipo | Sí | gate F6, radial series |
 | EF-07 | `POST /diagnostics/{id}/emit-report` | M9 | coordinador | Sí | PDF → R2, folio `-R1`, estado `reportado` |
-| EF-08 | `POST /documents/presign` · `POST /documents/register` | M3 | miembro diagnóstico | No/ Sí | URL R2, hash SHA-256 |
+| EF-08 | `POST /documents/presign` (register → F1-05/501) | M3 | miembro diagnóstico (coord/equipo/empresa); register: cualquier miembro | No/Sí | URL R2, hash SHA-256 |
 | EF-09 | `POST /import/xlsx` | M5/M6 | coordinador, equipo | Sí | auditoría de mapeo |
 | EF-10 | `POST /samples/{sample_id}/dictamen` | M7 | coordinador, equipo | Sí | dictámenes por parámetro |
 | EF-11 | `POST /quiz/submit` | M12 | autenticado | Sí | calificación, badge OB3 |
@@ -230,17 +230,52 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 
 `POST /functions/v1/documents/presign` — `POST /functions/v1/documents/register`
 
+> **Estado (ADR-012 / task-39):** `presign` implementado en Fase 1 (`feature/F1-39-ef08-presign`);
+> `register` se implementa en **F1-05** (task-86: RPC atómica `documents` + `audit_log`).
+> Mientras tanto, `register` responde `501 NOT_IMPLEMENTED_PHASE` documentado.
+
 | Campo | Valor |
 |---|---|
-| Propósito | Flujo dos pasos: (1) el cliente obtiene URL `PUT` prefirmada de R2; (2) tras subir los bytes, registra los metadatos en `documents` y los vincula (checklist, evidencia de bitácora, informe de laboratorio) |
-| Cuerpo (presign) | `{ "filename": text, "doc_type": "layout"\|"planos_hidrosanitarios"\|"parametros_calidad"\|"informe_laboratorio"\|"reporte"\|"otro" (enum de `documents.doc_type`), "mime": text, "size_bytes": int, "exposure_level": "restringido_nda" (default) \| "anonimizado" \| "sintetico" \| "publico" }` |
-| Pre | Miembro del diagnóstico que contendrá el documento (el `diagnostic_id` va en el cuerpo de `register`); `size_bytes ≤ 100 MB`; `mime` en lista blanca (pdf, imágenes, xlsx, dwg, ofx) |
-| Tx (register) | `INSERT documents` (metadatos: `diagnostic_id`, `company_id`, `doc_type`, `title`, `r2_key`, `sha256`, `mime`, `size_bytes`, `exposure_level`, `uploaded_by`); `audit_log(action='create')` |
-| Post | El cliente ejecuta el `PUT` a R2 con la URL de (1); si el registro se vincula a checklist, el cliente invoca EF-03 |
-| Respuesta (presign) | `{ upload_url, r2_key, expira_en_seg: 900 }` · (register): `{ document_id, r2_key, sha256 }` |
-| Errores | `VALIDATION_FILE` (422) · `FORBIDDEN_NOT_MEMBER` (403) |
+| Propósito | Flujo en dos pasos: (1) el cliente obtiene una URL `PUT` prefirmada de R2 **solo si es miembro del diagnóstico**; (2) tras subir los bytes, registra los metadatos en `documents` y los vincula (checklist, evidencia de bitácora, informe de laboratorio). |
+| Cuerpo (presign) | `{ "diagnostic_id": uuid, "filename": text, "doc_type": "layout"\|"planos_hidrosanitarios"\|"parametros_calidad"\|"informe_laboratorio"\|"reporte"\|"otro" (enum de `documents.doc_type`), "mime": text, "size_bytes": int, "exposure_level": "restringido_nda" (default) \| "anonimizado" \| "sintetico" \| "publico" }` |
+| Pre (presign) | JWT válido; **miembro del diagnóstico con rol `coordinador`\|`equipo`\|`empresa`** (ADR-012: espejo de la RLS `documents_ins`; `observador`/`invitado` ⇒ `403 FORBIDDEN_ROLE`; un `admin_institucional`/`coordinador_srhds` **sin** membresía también es denegado); `diagnostics.organization_id` = claim de tenant (fail-closed); `size_bytes` entre 1 y 100 MB; `mime` en lista blanca (pdf, imágenes, xlsx, dwg, ofx); `filename` saneado (sin `/`, `\`, `..` ni caracteres de control; la extensión se deriva del `mime`); `Idempotency-Key` opcional. |
+| Tx (presign) | **Sin escritura en BD**: valida, genera `document_id` y `r2_key` del lado servidor y firma la URL. Sin auditoría (no hay efectos persistentes; la auditoría se registra en `register`). No apto para la cola offline (no es una operación de datos). |
+| Tx (register, F1-05) | Una sola transacción (RPC de task-86): valida `document_id`/`r2_key` derivada server-side/`sha256`/`size_bytes`/`mime`/`doc_type`/`exposure_level`; `INSERT documents` (metadatos, `uploaded_by`) y `audit_log(action='create')`; devuelve la fila. |
+| Post | El cliente ejecuta el `PUT` a R2 con la URL de (1) y el `Content-Type` del `mime`; si el registro se vincula a checklist, el cliente invoca EF-03 (F1-06). |
+| Respuesta (presign) | `{ upload_url, document_id, expira_en_seg: 300, metodo: "PUT" }`. `upload_url` es una URL S3 prefirmada de R2 (`PUT`) con vigencia **300 s** (tope duro 900 s, no configurable por el cliente). La respuesta **no** incluye `r2_key`, bucket, credenciales ni rutas internas: solo la URL firmada, el `document_id` y el TTL; `register` deriva la clave server-side desde `document_id`. |
+| Respuesta (register, F1-05) | `{ document_id, sha256 }` |
+| Errores (presign) | `AUTH_INVALID` (401) · `FORBIDDEN_NOT_MEMBER` (403; incluye diagnóstico inexistente o de otro tenant, sin filtrar su existencia) · `FORBIDDEN_ROLE` (403) · `VALIDATION_PARAMETRO_REQUERIDO` (422) · `VALIDATION_FILE` (422; tamaño/mime/filename) · `VALIDATION_DOC_TYPE` (422) · `VALIDATION_EXPOSURE_LEVEL` (422) · `INTERNAL_ERROR` (500; configuración R2/JWT ausente, sin detalles) |
+| Errores (register, F1-05) | `VALIDATION_FILE` (422) · `FORBIDDEN_NOT_MEMBER` (403) · `CONFLICT_STATE` (409; `r2_key`/`document_id` ya registrados) · `NOT_IMPLEMENTED_PHASE` (501, mientras no exista F1-05) |
 
-> El cliente **jamás** recibe credenciales de R2 ni ve URLs de descarga permanentes: la descarga pide `GET /documents/{id}/download` (Edge Function fuera del MVP que emite URL prefirmada de lectura de 15 min tras verificar RLS).
+**Convención de clave (server-side, `docs/01` §1):** `org/{organization_id}/diag/{diagnostic_id}/{document_id}.{ext}`. El cliente **nunca** propone ni recibe la clave. `document_id` es un UUID v4 aleatorio, o determinista (`sha256(user_id + payload canónico + Idempotency-Key)` con forma UUID) si el cliente envía `Idempotency-Key`, para que los reintentos reutilicen la misma clave de objeto (idempotencia sin estado).
+
+**Ejemplo de request (presign):**
+
+```json
+{
+  "diagnostic_id": "c1000000-0000-4000-8000-000000000001",
+  "filename": "layout_planta.pdf",
+  "doc_type": "layout",
+  "mime": "application/pdf",
+  "size_bytes": 482133,
+  "exposure_level": "restringido_nda"
+}
+```
+
+**Ejemplo de response (presign):**
+
+```json
+{
+  "upload_url": "https://<account>.r2.cloudflarestorage.com/hidria-docs/org/…/diag/…/<document_id>.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=…&X-Amz-Date=…&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=…",
+  "document_id": "<uuid>",
+  "expira_en_seg": 300,
+  "metodo": "PUT"
+}
+```
+
+> El cliente **jamás** recibe credenciales de R2 ni URLs de descarga permanentes: la descarga
+> pedirá `GET /documents/{id}/download` (Edge Function fuera del MVP) que emite URL prefirmada
+> de lectura de 15 min (900 s) tras verificar RLS.
 
 ## EF-09 — Importación XLSX (BHE e IIH)
 
