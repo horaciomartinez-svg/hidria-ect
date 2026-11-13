@@ -228,6 +228,7 @@ declare
   v_diag public.diagnostics%rowtype;
   v_entry_id uuid;
   v_entry_folio text;
+  v_prev_nueva date;
   v_count integer;
   v_semaforo text;
   v_audit text;
@@ -287,6 +288,21 @@ begin
     return jsonb_build_object('ok', false, 'code', 'VALIDATION_HITO_SIN_FICHA', 'message', 'No existe ficha de bitácora para el hito.');
   end if;
 
+  -- B1/spec: la fecha_original declarada debe coincidir con la última
+  -- fecha_nueva del mismo hito (la primera reprogramación es la declarada).
+  select fecha_nueva into v_prev_nueva
+    from public.milestone_reprogramming
+   where diagnostic_id = p_diagnostic_id and hito = p_hito
+   order by created_at desc
+   limit 1;
+  if found and p_fecha_original is distinct from v_prev_nueva then
+    return jsonb_build_object(
+      'ok', false, 'code', 'VALIDATION_REPROGRAMACION',
+      'message', 'fecha_original debe coincidir con la última fecha_nueva del mismo hito.',
+      'details', jsonb_build_object('fecha_original', p_fecha_original, 'ultima_fecha_nueva', v_prev_nueva)
+    );
+  end if;
+
   insert into public.milestone_reprogramming
     (diagnostic_id, organization_id, hito, fecha_original, fecha_nueva, causa, justificacion, reprogramado_por)
   values
@@ -299,7 +315,9 @@ begin
     '[]'::jsonb
   );
 
-  select count(*) into v_count from public.milestone_reprogramming where diagnostic_id = p_diagnostic_id;
+  select count(*) into v_count
+    from public.milestone_reprogramming
+   where diagnostic_id = p_diagnostic_id and hito = p_hito;
   v_semaforo := case
     when v_count >= 2 then 'rojo'
     when v_count = 1 and p_causa = 'empresa' then 'amarillo'

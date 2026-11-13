@@ -1,7 +1,7 @@
-﻿-- F1-04 â€” pgTAP: gates F2â€“F6, EF-01/EF-12 RPC, idempotencia y reprogramaciÃ³n.
+-- F1-04 â€” pgTAP: gates F2â€“F6, EF-01/EF-12 RPC, idempotencia y reprogramaciÃ³n.
 begin;
 
-select plan(44);
+select plan(57);
 
 -- Fixtures sintÃ©ticas.
 insert into public.organizations (id, name, org_type) values
@@ -139,6 +139,11 @@ select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000001','d5000
 select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000003',2::smallint,'{}'::jsonb))->>'code',
   'CONFLICT_STATE', 'diagnÃ³stico suspendido no avanza');
 
+-- M1: admin sin membresía y p_gate manipulado no autorizan.
+select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000004','d5000000-0000-4000-8000-000000000001',2::smallint,'{}'::jsonb))->>'code',
+  'FORBIDDEN_ROLE', 'admin sin membresía no avanza fase');
+select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000002',2::smallint,'{"ficha_clave":"R4","entregable":"fake"}'::jsonb))->>'code',
+  'GATE_CHECKLIST_R1', 'p_gate manipulado no autoriza');
 -- Idempotencia EF-01.
 reset role;
 set local request.jwt.claims = '{}';
@@ -152,22 +157,45 @@ select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000001','d5000
   'CONFLICT_STATE', 'EF-01 idem key con otro hash conflicto');
 select is((select fase_actual from public.diagnostics where id='d5000000-0000-4000-8000-000000000004'), 2::smallint, 'EF-01 replay no duplica fase');
 
--- EF-12: reprogramaciÃ³n, historial y semÃ¡foro.
-select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-01-10','2026-01-20','ReprogramaciÃ³n por causa de la empresa con justificaciÃ³n suficiente.','empresa'))->>'ok',
-  'true', 'EF-12 reprograma hito');
-select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001'), 1::bigint, 'historial 1 reprogramaciÃ³n');
-select is((select semaforo_atraso from public.diagnostics where id='d5000000-0000-4000-8000-000000000001'), 'amarillo', '1 reprogramaciÃ³n empresa â†’ amarillo');
-select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-02-01','2026-02-10','Segunda reprogramaciÃ³n de la empresa con justificaciÃ³n suficiente.','empresa'))->>'ok',
-  'true', 'EF-12 segunda reprogramaciÃ³n');
-select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001'), 2::bigint, 'historial 2 reprogramaciones');
-select is((select semaforo_atraso from public.diagnostics where id='d5000000-0000-4000-8000-000000000001'), 'rojo', '2+ reprogramaciones â†’ rojo');
-select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000002','d5000000-0000-4000-8000-000000000001','R1','2026-01-10','2026-01-20','ReprogramaciÃ³n por causa de la empresa con justificaciÃ³n suficiente.','empresa'))->>'code',
+-- EF-12: reprogramación, historial, B1 fecha_original y B2 semáforo por hito.
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-01-10','2026-01-20','Reprogramación por causa de la empresa con justificación suficiente.','empresa'))->>'ok',
+  'true', 'EF-12 reprograma primer hito');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001' and hito='R1'), 1::bigint, 'historial R1=1');
+select is((select semaforo_atraso from public.diagnostics where id='d5000000-0000-4000-8000-000000000001'), 'amarillo', '1 reprogramación empresa → amarillo');
+
+-- B2: una reprogramación de R2 no debe convertir en rojo el diagnóstico.
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R2','2026-01-12','2026-01-22','Reprogramación por causa de la empresa con justificación suficiente.','empresa','rep-2','rh-2'))->>'ok',
+  'true', 'EF-12 reprograma R2');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001' and hito='R2'), 1::bigint, 'historial R2=1');
+select is((select semaforo_atraso from public.diagnostics where id='d5000000-0000-4000-8000-000000000001'), 'amarillo', 'R1 una + R2 una no es rojo');
+
+-- M1: idempotencia EF-12 (replay y conflicto).
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R2','2026-01-12','2026-01-22','Reprogramación por causa de la empresa con justificación suficiente.','empresa','rep-2','rh-2'))->>'replayed',
+  'true', 'EF-12 replay idempotente');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001' and hito='R2'), 1::bigint, 'EF-12 replay no duplica historial');
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R2','2026-01-12','2026-01-22','Reprogramación por causa de la empresa con justificación suficiente.','empresa','rep-2','rh-x'))->>'code',
+  'CONFLICT_STATE', 'EF-12 idem key con otro hash conflicto');
+
+-- B1: la segunda reprogramación de R1 debe declarar la última fecha_nueva.
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-02-01','2026-02-10','Segunda reprogramación de la empresa con justificación suficiente.','empresa'))->>'code',
+  'VALIDATION_REPROGRAMACION', 'B1 fecha_original incoherente rechazada');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001' and hito='R1'), 1::bigint, 'B1 rechazo no inserta historial');
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-01-20','2026-02-10','Segunda reprogramación de la empresa con justificación suficiente.','empresa'))->>'ok',
+  'true', 'B1 segunda R1 coherente aceptada');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001' and hito='R1'), 2::bigint, 'historial R1=2');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001'), 3::bigint, 'historial total=3');
+select is((select semaforo_atraso from public.diagnostics where id='d5000000-0000-4000-8000-000000000001'), 'rojo', 'B2 mismo hito 2+ → rojo');
+
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000002','d5000000-0000-4000-8000-000000000001','R1','2026-01-10','2026-01-20','Reprogramación por causa de la empresa con justificación suficiente.','empresa'))->>'code',
   'FORBIDDEN_ROLE', 'equipo no reprograma');
-select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-01-10','2026-03-01','ReprogramaciÃ³n por causa de la empresa con justificaciÃ³n suficiente.','empresa'))->>'code',
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','R1','2026-01-10','2026-03-01','Reprogramación por causa de la empresa con justificación suficiente.','empresa'))->>'code',
   'VALIDATION_REPROGRAMACION', 'fecha fuera de 6 semanas rechazada');
-select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','V2','2026-01-10','2026-01-20','ReprogramaciÃ³n por causa de la empresa con justificaciÃ³n suficiente.','empresa'))->>'code',
+select is((public.fn_reprogram_milestone('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001','V2','2026-01-10','2026-01-20','Reprogramación por causa de la empresa con justificación suficiente.','empresa'))->>'code',
   'VALIDATION_HITO_SIN_FICHA', 'hito sin ficha rechazado');
 
+-- Auditoría en la misma tx (EF-01 ya movió fases; EF-12 actualizó).
+select ok((select count(*) from public.audit_log where entity='diagnostics' and action='move_phase') > 0, 'audit_log move_phase presente');
+select ok((select count(*) from public.audit_log where entity='diagnostics' and action='update') > 0, 'audit_log EF-12 update presente');
 -- RLS del historial y DML directo denegado.
 reset role;
 set local request.jwt.claims = '{}';
@@ -186,4 +214,6 @@ set local request.jwt.claims = '{}';
 reset request.jwt.claims;
 select * from finish();
 rollback;
+
+
 
