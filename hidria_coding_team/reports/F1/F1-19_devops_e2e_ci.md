@@ -140,7 +140,9 @@ solo E2E falló; los otros 5 jobs quedaron verdes, así que **no es una regresi�
 **Fix:** el job `E2E Playwright` se fija a `runs-on: ubuntu-24.04` (noble, soportada por
 `playwright install --with-deps`); los demás jobs siguen en `ubuntu-latest`. Es un hotfix de
 infraestructura que desbloquea todos los PRs con E2E hasta que Playwright soporte 26.04 o se
-actualice la versión.
+actualice la versión. **Run verde final (head `f30ba5a`):**
+[43345166355](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43345166355)
+**6/6** (E2E en ubuntu-24.04 ✅) y push `43345158752` 6/6.
 
 ## 8. Pendientes / siguiente paso
 

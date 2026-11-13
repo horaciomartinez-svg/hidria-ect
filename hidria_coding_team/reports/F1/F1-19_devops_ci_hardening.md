@@ -176,8 +176,14 @@ Error: ERROR: Playwright does not support chromium on ubuntu26.04-x64
 Causa: `ubuntu-latest` migró a **Ubuntu 26.04** y **Playwright 1.55 no soporta Chromium** en esa
 imagen (no es una regresión del código; los otros 5 jobs, incluido `Seguridad`, quedaron verdes).
 **Fix aplicado (solo job E2E):** `runs-on: ubuntu-24.04` (imagen noble soportada por
-`playwright install --with-deps`). No se tocan los demás jobs ni el guard. Se re-ejecuta el PR
-buscando 6/6; este pin es el hotfix que desbloquea también a los demás PRs con E2E.
+`playwright install --with-deps`). No se tocan los demás jobs ni el guard. Este pin es el
+hotfix de infraestructura que desbloquea también a los demás PRs con E2E.
+
+**Run verde final (head `f30ba5a`):**
+[43345166355](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43345166355)
+(`pull_request`, **6/6 success**: Guardas, Cliente, Deno, pgTAP, Seguridad y **E2E Playwright
+✅ en ubuntu-24.04**) y push `43345158752` (**6/6 success**). Se confirma que el fallo era
+únicamente del runner 26.04.
 
 ## 6. Seguridad y límites
 
@@ -195,12 +201,15 @@ buscando 6/6; este pin es el hotfix que desbloquea también a los demás PRs con
 
 - [x] **PR #29 publicado y verde**: **6/6 checks** en run `42516304140` (PR) y `42516279218`
       (push); job `Seguridad (dependencias y bundle)` success.
+- [x] **Hotfix runner E2E**: `runs-on: ubuntu-24.04` (Playwright 1.55 vs ubuntu 26.04); run
+      final `43345166355` (PR) y `43345158752` (push) **6/6**.
 - [ ] Proponer `Seguridad (dependencias y bundle)` como required cuando el usuario lo añada.
 - [ ] task-53: evaluar react-router 7.18.5 y retirar la allowlist si procede.
 
 ## Veredicto
 
-**VERDE CI** — run **42516304140** (6/6, job `Seguridad` `128839963195`): audit de producción
-sin high/critical, guard build-time 4/4, bundle sin credenciales; 5 checks previos intactos.
-Pendiente solo el squash del PR #29 y, opcionalmente, que el usuario marque el check como
-required. Sin secretos.
+**VERDE CI** — run final **43345166355** (head `f30ba5a`, **6/6**: Guardas, Cliente, Deno,
+pgTAP, **Seguridad (dependencias y bundle)** y **E2E Playwright** ya en `ubuntu-24.04`); push
+`43345158752` 6/6. Audit de producción sin high/critical, guard build-time 4/4, bundle sin
+credenciales; 5 checks previos intactos. Pendiente solo el squash del PR #29 y, opcionalmente,
+que el usuario marque el check como required. Sin secretos.
