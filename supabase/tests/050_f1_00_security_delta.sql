@@ -220,10 +220,10 @@ $sql$, '42501', NULL, 'admin_institucional no puede INSERTAR diagnostics (docs/0
 
 -- Sin regresión de aislamiento A/B: observador del tenant A solo ve A.
 set local request.jwt.claims = '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"observador"}';
-select is((select count(*) from public.diagnostics), 3::bigint,
-  'observador del tenant A solo ve 3 diagnósticos de A');
+select is((select count(*) from public.diagnostics), 1::bigint,
+  'observador del tenant A solo ve 1 diagnóstico (su membresía)');
 select is((select count(*) from public.companies), 1::bigint,
-  'observador del tenant A solo ve 1 empresa de A');
+  'observador del tenant A solo ve 1 empresa (la de su diagnóstico)');
 
 -- DELETE de diagnostics sigue sujeto a my_diagnostic_role(id).
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","tenant_id":"11111111-1111-4111-8111-111111111111","role":"authenticated","global_role":"coordinador_srhds"}';
