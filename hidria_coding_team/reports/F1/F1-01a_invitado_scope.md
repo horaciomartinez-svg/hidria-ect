@@ -5,7 +5,7 @@
 - **Tarea:** `task-35` — Q-02/QA + SEC-PR7-D2/seguridad (PR #7)
 - **Rama:** `fix/F1-task35-invitado`, base `main@13caf3b`; commits nuevos sobre `a33ba45`
 - **ADR:** `hidria_coding_team/decisions/ADR-011-alcance-invitado.md`
-- **Migraciones (7, forward-only, aplicadas vía MCP; todas en repo):**
+- **Migraciones (8, forward-only, aplicadas vía MCP; todas en repo):**
   - `20261108050000_f1_01a_invitado_scope.sql` — matriz base.
   - `20261108050010_f1_01a_invitado_scope_fix.sql` — B1 update trigger, VETO-2 claim, VETO-3, 5 tablas membership.
   - `20261108050020_f1_01a_invitado_scope_fix2.sql` — histórico: intento con agregado SRHDS (rechazado por revisor).
