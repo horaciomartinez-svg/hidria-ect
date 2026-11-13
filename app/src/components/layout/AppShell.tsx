@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/auth/AuthProvider';
 import { GLOBAL_ROLE_LABEL } from '../../lib/auth/claims';
 import { APP_VERSION } from '../../lib/config';
 import { useOnline } from '../../lib/online';
+import { UpdateBanner } from '../pwa/UpdateBanner';
 import {
   NAV_GROUPS,
   moduleByPath,
@@ -306,6 +307,7 @@ export function AppShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <UpdateBanner />
         <ConnectivityBanner online={online} />
 
         <header className="sticky top-0 z-20 border-b border-line bg-panel/95 backdrop-blur">

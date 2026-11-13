@@ -77,12 +77,23 @@ test.describe('rutas protegidas y sesión', () => {
     await expect(page.locator('dd').filter({ hasText: ORG_ID })).toBeVisible();
   });
 
-  test('con sesión válida, M5 /iih muestra fase F1 (ADR-003)', async ({ page }) => {
+  test('con sesión válida, M5 /iih muestra fase F2 y M7 /muestreo F1 mínimo (decisión híbrida)', async ({
+    page,
+  }) => {
     await seedSession(page, CLAIMS_EQUIPO);
+
+    // M5 (IIH): el módulo completo pasa a F2 (decisión híbrida; F1-08 → F2-06).
     await page.goto('/iih');
     await expect(page.getByRole('heading', { name: 'Inventario de infraestructura hidráulica' }))
       .toBeVisible();
+    await expect(page.getByText('Fase prevista F2', { exact: false })).toBeVisible();
+
+    // M7 (Muestreo): F1 mínimo / F2 completo, con su phaseNote visible.
+    await page.goto('/muestreo');
+    await expect(page.getByRole('heading', { name: 'Muestreo y cadena de custodia' }))
+      .toBeVisible();
     await expect(page.getByText('Fase prevista F1', { exact: false })).toBeVisible();
+    await expect(page.getByText('F1 mínimo / F2 completo', { exact: false })).toBeVisible();
   });
 
   test('rol invitado queda restringido en /kanban (no ve el placeholder)', async ({ page }) => {

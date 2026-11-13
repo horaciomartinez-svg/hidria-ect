@@ -9,6 +9,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.sw.json --noEmit",
     "check:sw": "node scripts/check-sw-origin.mjs",
+    "pwa:audit": "node scripts/pwa-audit.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -52,7 +52,7 @@ de instalación. PR de secuencia desde `main` (después del merge de #12), ~360 
 | D5 | `manifest: false` en el plugin y manifest propio en `public/` | El fichero queda versionado y revisable; el plugin no lo regenera (evita sorpresas entre build y repo) |
 | D6 | Navegación offline = **shell precacheado** (`/index.html`), no página estática | El requisito es offline-first: la app debe arrancar, mostrar el banner offline y (cuando exista) el espejo Dexie. `offline.html` es el fallback cuando el shell no está disponible (primer arranque sin red, cache eviction) |
 | D7 | SW **deshabilitado en `dev`** (`devOptions.enabled: false`) | Evitar cachés fantasma en desarrollo; pruebas con `vite build && vite preview` (localhost cuenta como contexto seguro) |
-| D8 | **Versionado del precache por revisiones de Workbox** + `cleanupOutdatedCaches` (no se usa un `cacheName` propio) | Cada entrada del precache lleva su `revision` (hash); al activar un SW nuevo, las cachés obsoletas se limpian. Un nombre `hidria-shell-<versión>` requeriría pasar `cacheName` a `precacheAndRoute` y se difiere a B/2/F1-16 junto con `__APP_BUILD__` |
+| D8 | **Caché versionada `hidria-shell-<vX.Y.Z>-<build>`** con `PrecacheController({ cacheName })` + limpieza propia de cachés `hidria-shell-*` antiguas al activar | Cumple lo prometido en el sign-off de seguridad sin acumular cachés: cada build tiene nombre propio y el `activate` borra las versiones anteriores. `__APP_VERSION__`/`__APP_BUILD__` se inyectan también en el build del SW |
 
 ---
 
@@ -439,8 +439,8 @@ commit de `feature/F1-02b-pwa` (PR #12 ya mergeado, `main` = `7ca0639`).*
 | `/privacidad` pública con texto íntegro de `docs/06` | **task-51** |
 | E2E Playwright versionado (sustituye al script local) | **task-49** (QA) |
 | `lighthouse@11.7.1` histórico en staging | **F1-16** |
-| `npm run pwa:audit` (script CDP) y `__APP_BUILD__` en `/acerca` | **B/2 (#22)** — no existen en A/2 |
-| Nombre de caché personalizado `hidria-shell-<v>-<build>` | B/2/F1-16 si se requiere; hoy Workbox versiona por revisiones |
+| `npm run pwa:audit` (script CDP) y `__APP_BUILD__` en `/acerca` | **Implementados en B/2 (#22)** — no existen en A/2 |
+| Caché versionada `hidria-shell-<v>-<build>` | **Implementada en B/2 (#22)**: `PrecacheController({cacheName})` + limpieza de cachés antiguas en `activate` |
 | Prueba de dos orígenes para el mensaje `SKIP_WAITING` | **task-49** (requiere segundo host); en A/2 hay guarda estática `scripts/check-sw-origin.mjs` |
 
 ### 13.4 Correcciones de la revisión de PR #21 (commits nuevos sobre `4b41f7e`)
@@ -453,8 +453,10 @@ commit de `feature/F1-02b-pwa` (PR #12 ya mergeado, `main` = `7ca0639`).*
   requiere un segundo host y queda en **task-49**.
 - **m1 — `pwa:audit`:** se retira de `package.json` en A/2 (el script llega en B/2); en su lugar
   A/2 declara `check:sw`.
-- **m2 — caché versionada:** D8 corregida: el versionado es por **revisiones de Workbox** +
-  `cleanupOutdatedCaches`; no se promete `cacheName` propio.
+- **m2 — caché versionada:** en A/2 el versionado era por revisiones de Workbox; **en B/2 se
+  implementa el nombre de caché prometido** `hidria-shell-<vX.Y.Z>-<build>` con
+  `PrecacheController({ cacheName })` y limpieza de cachés `hidria-shell-*` antiguas en el evento
+  `activate` (D8 actualizada).
 - **m3 — `offline.html`:** se elimina el `onclick` inline; el botón pasa a enlace `<a href="/">`
   (compatible con CSP `script-src 'self'` futura).
 - **m4 — estado del documento:** actualizado a «Implementado (A/2 + B/2)».

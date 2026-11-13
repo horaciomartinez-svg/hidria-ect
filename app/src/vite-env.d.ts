@@ -12,3 +12,6 @@ interface ImportMeta {
 
 /** Versión de `app/package.json`, inyectada por `vite define` (F1-02). */
 declare const __APP_VERSION__: string;
+
+/** SHA de build (CI) o `dev`, inyectado por `vite define` (F1-02b); no es sensible. */
+declare const __APP_BUILD__: string;
