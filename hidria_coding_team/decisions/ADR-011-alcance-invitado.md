@@ -18,19 +18,28 @@ vigencia y registro». El rol no tiene un `role` propio en `project_members`.
 
 | Tabla / vista | Regla |
 |---|---|
-| `diagnostics_sel` | `is_tenant_member(organization_id)` **+** (`my_diagnostic_role(id) IS NOT NULL` **o** `global_role IN ('admin_institucional','coordinador_srhds')`) |
-| `profiles_sel` | tenant, **excepto `invitado`**: solo `user_id = auth.uid()` (claim JWT, `IS DISTINCT FROM 'invitado'`) |
-| `companies_sel` | tenant **+** (agregado SRHDS **o** `EXISTS` diagnóstico del tenant con membresía) |
-| `documents_sel`, `iih_assets_sel`, `samples_sel`, `water_balances_sel` | tenant; **invitado solo si `is_diagnostic_member(diagnostic_id)`** |
-| `signatures_sel` | tenant; **invitado solo si el `document_id` pertenece a un diagnóstico del que es miembro** |
+| `diagnostics_sel` | claim `global_role` presente + `is_tenant_member` + (`my_diagnostic_role(id)` o agregado SRHDS admin/coord) |
+| `profiles_sel` | claim presente; tenant, **excepto `invitado`**: solo `user_id = auth.uid()`; sin claim → 0 |
+| `companies_sel` | claim presente + tenant + (agregado SRHDS o `EXISTS` diagnóstico del tenant con membresía) |
+| `documents_sel`, `iih_assets_sel`, `samples_sel`, `water_balances_sel` | claim presente + tenant + `is_diagnostic_member(diagnostic_id)` **para todos los roles**; **sin agregado SRHDS** |
+| `signatures_sel` | claim presente + tenant + membresía vía `documents.diagnostic_id`; **sin agregado SRHDS** |
 | `organizations_sel` | sin cambio: `is_tenant_member(id)` (tenant propio) |
 | `project_members_sel` | sin cambio: `is_diagnostic_member(diagnostic_id)` |
 | `v_*` `security_invoker` | heredan las policies; no se añade acceso |
 
+**Fail-closed (VETO-2):** todas las policies de alcance exigen `auth.jwt()->>'global_role' IS NOT NULL`
+(además de `coalesce(...,'invitado')` en profiles); un JWT sin claim no ve filas, no hereda
+tenant-wide.
+
 **Representación del invitado:** `profiles.global_role='invitado'` +
 `project_members.role='observador'` (no se crea un rol nuevo; el CHECK de `project_members`
-no incluye `invitado`). Un trigger BEFORE INSERT exige esa combinación y **una sola membresía
-activa** para el invitado; una segunda membresía o un `role` distinto → `42501`.
+no incluye `invitado`). El trigger `project_members_invitado_scope` es **BEFORE INSERT OR UPDATE**:
+exige `role='observador'`, una sola membresía activa y prohíbe cambiar `user_id`/`diagnostic_id`/
+`organization_id`/`role` en UPDATE; DELETE se permite para revocación.
+
+**VETO-3:** trigger `profiles_role_guard` (BEFORE UPDATE) exige `admin_institucional` para
+cambiar `profiles.global_role`; un coordinador no puede convertir `invitado` en staff. Puede
+seguir actualizando `full_name` y creando perfiles no-admin (INSERT).
 
 **Alta de diagnóstico:** trigger AFTER INSERT `diagnostics_creator_membership` crea la membresía
 del creador `coordinador_srhds`/`equipo` (rol `coordinador`/`equipo`) para que pueda leer el
@@ -50,19 +59,32 @@ a una EF de invitaciones.
 
 Revisadas las 9 policies SELECT con `is_tenant_member`: `companies`, `diagnostics`,
 `documents`, `iih_assets`, `organizations`, `profiles`, `samples`, `signatures`,
-`water_balances`. Se restringen para `invitado` las 6 primeras (ver tabla); `organizations`
-es el propio tenant y `project_members` ya era por membresía. No hay otras SELECT tenant-wide
-en `public` (catálogos/quiz no son tenant-wide; `v_quiz_questions` es definer sin `correcta`).
+`water_balances`. Para `documents`, `iih_assets`, `samples`, `signatures` y `water_balances`
+**todos los roles** requieren membresía del diagnóstico (sin agregado SRHDS, decisión del
+revisor); `companies`/`diagnostics` conservan el agregado admin/coord; `organizations` es el
+propio tenant y `project_members` ya era por membresía. No hay otras SELECT tenant-wide en
+`public` (catálogos/quiz no son tenant-wide; `v_quiz_questions` es definer sin `correcta`).
+
+**Drift BD↔repo:** la BD de desarrollo tiene 24 migraciones (task-35:
+`20261108050000` base, `…0010` B1/VETO-2/3, `…0020` intento con agregado rechazado por el
+revisor, `…0030` M2 final sin agregado). Las 4 están en el repo; `…0020` se conserva como
+historia forward-only y su efecto queda sustituido por `…0030`. `supabase db reset` debe
+aplicar exactamente esos 24 archivos.
 
 ## Consecuencias
 
 - El invitado deja de ver el tenant completo; con membresía ve solo su diagnóstico/empresa y su
   propio perfil. La UI debe usar una vista `security_invoker` limitada (nombre/rol) si necesita
   el equipo del diagnóstico, **sin** ampliar `profiles_sel`.
-- Observador/coordinador/equipo/empresa/admin conservan el alcance de `docs/01` §5.
+- En `documents/iih_assets/samples/signatures/water_balances` ni siquiera admin/coord tienen
+  agregado: deben ser miembros del diagnóstico. `diagnostics`/`companies` sí conservan su
+  agregado SRHDS.
+- Un JWT sin `global_role` no ve filas (fail-closed); un coordinador no puede cambiar
+  `global_role` de un perfil (solo admin).
 - Las vistas `security_invoker` heredan; `v_diagnostic_completeness` no filtra filas a invitado
   sin membresía.
 - Sin cambios de columnas/tablas; solo policies y triggers. Sin datos reales.
+- Tests `070` plan **55**; total suite **194** (21+9+9+15+34+51+55).
 
 ## Alternativas descartadas
 
@@ -83,6 +105,9 @@ en `public` (catálogos/quiz no son tenant-wide; `v_quiz_questions` es definer s
 ## Referencias
 
 - `supabase/migrations/20261108050000_f1_01a_invitado_scope.sql`
+- `supabase/migrations/20261108050010_f1_01a_invitado_scope_fix.sql`
+- `supabase/migrations/20261108050020_f1_01a_invitado_scope_fix2.sql` (histórico; sustituido por 0030)
+- `supabase/migrations/20261108050030_f1_01a_invitado_scope_fix3.sql`
 - `supabase/tests/070_f1_01a_invitado_scope.sql`
 - `docs/01` §5; `docs/Arquitectura` L451; `docs/04` §2.1
 - `reports/F1/F1-01a_invitado_scope.md`

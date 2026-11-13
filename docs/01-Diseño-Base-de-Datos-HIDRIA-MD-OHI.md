@@ -323,12 +323,13 @@ Hijas 1:1 o 1:N: `logbook_participants` (nombre, cargo, institución, contacto, 
 > (`diagnostics_update_lock`, ADR-010). Un RPC `security definer` autenticado no basta:
 > `auth.uid()` sigue no nulo y el trigger lo bloquea.
 >
-> **Nota task-35 (invitado, Q-02/SEC-PR7-D2):** `diagnostics`, `companies`, `documents`,
-> `iih_assets`, `samples`, `signatures` y `water_balances` no son tenant-wide para
-> `invitado`: requiere membresía del diagnóstico (`project_members.role='observador'`);
-> `profiles` le muestra solo su propia fila. `organizations` es el tenant propio y
-> `project_members` la membresía del diagnóstico. Un invitado tiene **una** membresía
-> activa; la vigencia temporal queda para F1-04 (ADR-011).
+> **Nota task-35 (Q-02/SEC-PR7-D2, M2):** en `documents`, `iih_assets`, `samples`,
+> `signatures` y `water_balances` **todos los roles** (incluidos admin/coord) requieren
+> `is_diagnostic_member(diagnostic_id)`; **no hay agregado SRHDS** en esas 5. `diagnostics` y
+> `companies` conservan membresía o agregado admin/coord. `profiles` muestra al invitado solo
+> su fila; sin claim `global_role` no hay filas. `organizations` es el tenant propio y
+> `project_members` la membresía del diagnóstico. Un invitado tiene **una** membresía activa;
+> la vigencia temporal queda para F1-04 (ADR-011).
 
 # 6. Reglas implementadas como triggers (en el DDL)
 
