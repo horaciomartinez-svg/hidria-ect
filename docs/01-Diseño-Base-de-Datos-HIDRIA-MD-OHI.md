@@ -305,15 +305,15 @@ Hijas 1:1 o 1:N: `logbook_participants` (nombre, cargo, institución, contacto, 
 
 | Tabla | SELECT | INSERT/UPDATE/DELETE |
 |---|---|---|
-| organizations, profiles | miembros del mismo tenant | admin del tenant |
-| companies, diagnostics | `my_diagnostic_role(diag)` not null, o agregado SRHDS | coordinador/equipo/empresa según módulo |
+| organizations, profiles | miembros del mismo tenant; **invitado solo su propio perfil** | admin del tenant |
+| companies, diagnostics | `my_diagnostic_role(diag)` not null, o agregado SRHDS (admin/coord); **invitado sin membresía: 0** | coordinador/equipo/empresa según módulo |
 | cat_responses, document_checklist_items | miembros del diagnóstico | `empresa` y `equipo`/`coordinador` (empresa solo sus aportaciones) |
 | iih_assets, balance_flows, logbook_* | miembros del diagnóstico | `equipo`/`coordinador` (empresa solo valida en R3/R4/R5 por flujo de firma) |
 | samples, custody_transfers, lab_results, ivoh_evaluations, alternatives | miembros del diagnóstico | `equipo`/`coordinador` |
 | ivoh_index_versions, catálogos, templates | autenticados | admin institucional |
 | quiz_attempts | propio usuario + SRHDS (agregado) | propio usuario |
 | audit_log | append-only vía trigger; SELECT admin/SRHDS | sin UPDATE/DELETE (revocado) |
-| documents (metadatos) | según exposure_level y membresía | miembros del diagnóstico; bytes solo vía R2 prefirmado |
+| documents (metadatos) | según exposure_level y membresía; **invitado solo con membresía** | miembros del diagnóstico; bytes solo vía R2 prefirmado |
 
 > **Nota F1-18 / task-59+66 (restricción por columna en `diagnostics`):** el INSERT se
 > limita a `coordinador_srhds`/`equipo` (empresa retirada hasta M2 por ownership); el
@@ -322,6 +322,14 @@ Hijas 1:1 o 1:N: `logbook_participants` (nombre, cargo, institución, contacto, 
 > IVOH/brecha, próximo hito, reprogramación) solo los actualiza `service_role`/EF
 > (`diagnostics_update_lock`, ADR-010). Un RPC `security definer` autenticado no basta:
 > `auth.uid()` sigue no nulo y el trigger lo bloquea.
+>
+> **Nota task-35 (Q-02/SEC-PR7-D2, M2):** en `documents`, `iih_assets`, `samples`,
+> `signatures` y `water_balances` **todos los roles** (incluidos admin/coord) requieren
+> `is_diagnostic_member(diagnostic_id)`; **no hay agregado SRHDS** en esas 5. `diagnostics` y
+> `companies` conservan membresía o agregado admin/coord. `profiles` muestra al invitado solo
+> su fila; sin claim `global_role` no hay filas. `organizations` es el tenant propio y
+> `project_members` la membresía del diagnóstico. Un invitado tiene **una** membresía activa;
+> la vigencia temporal queda para F1-04 (ADR-011).
 
 # 6. Reglas implementadas como triggers (en el DDL)
 
