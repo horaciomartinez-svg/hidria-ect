@@ -99,6 +99,7 @@ select throws_ok($sql$
     'Empresa Cross','Planta X','manufacturera','Calle','Parque','87000','Victoria','COMAPA',
     'c4000000-0000-4000-8000-000000000005')
 $sql$, '42501', NULL, 'contraparte de otro tenant rechazada');
+set local request.jwt.claims = '{"sub":"c4000000-0000-4000-8000-000000000007","organization_id":"a4000000-0000-4000-8000-0000000000a1","global_role":"invitado"}';
 select throws_ok($sql$
   insert into public.companies (id, organization_id, razon_social, nombre_planta, giro,
     calle, colonia_parque, cp, municipio, organismo_operador)
