@@ -81,9 +81,13 @@ export interface CompanyFilters {
   ciclo?: string;
 }
 
-/** Sanea un término de búsqueda para la sintaxis `or(...)` de PostgREST. */
+/**
+ * Sanea un término de búsqueda para la sintaxis `or(...)` de PostgREST. Se eliminan los
+ * delimitadores de la gramática (`,()`) y los caracteres de control/escape que podrían
+ * romperla (`"`, `\`, `:`, comodines); los valores unicode se conservan.
+ */
 function sanitizeTerm(term: string): string {
-  return term.replace(/[,()*%]/g, ' ').trim();
+  return term.replace(/[,()*%"\\:]/g, ' ').trim();
 }
 
 export async function listCompanies(filters: CompanyFilters = {}): Promise<Company[]> {

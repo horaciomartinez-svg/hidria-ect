@@ -1,7 +1,8 @@
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth, RequireGlobalRole } from './lib/auth/guards';
-import { MODULES, moduleById } from './routes/registry';
+import { COMPANY_CREATE_ROLES, COMPANY_WRITE_ROLES } from './features/empresas/types';
+import { MODULES } from './routes/registry';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
 import { EmpresaFormPage } from './routes/empresas/EmpresaFormPage';
 import { EmpresasListPage } from './routes/empresas/EmpresasListPage';
@@ -30,37 +31,31 @@ const placeholderRoutes: RouteObject[] = MODULES.filter((module) => module.id !=
   }),
 );
 
-const M1_ROLES = moduleById('M1').roles;
-
 const empresaRoutes: RouteObject[] = [
   {
+    // Lectura: RLS decide las filas (una `empresa` con membresía puede leer su empresa).
     path: 'empresas',
-    element: (
-      <RequireGlobalRole roles={M1_ROLES}>
-        <EmpresasListPage />
-      </RequireGlobalRole>
-    ),
+    element: <EmpresasListPage />,
   },
   {
+    // Alta: restringida a admin/coordinación hasta que F1-03a publique created_by + SELECT
+    // del creador (B2 de #35: sin lectura, una empresa de `equipo` no podría consultarse).
     path: 'empresas/nueva',
     element: (
-      <RequireGlobalRole roles={M1_ROLES}>
+      <RequireGlobalRole roles={COMPANY_CREATE_ROLES}>
         <EmpresaFormPage mode="create" />
       </RequireGlobalRole>
     ),
   },
   {
+    // Lectura del expediente: RLS decide (empresa propia o roles institucionales).
     path: 'empresas/:companyId',
-    element: (
-      <RequireGlobalRole roles={M1_ROLES}>
-        <EmpresaDetailPage />
-      </RequireGlobalRole>
-    ),
+    element: <EmpresaDetailPage />,
   },
   {
     path: 'empresas/:companyId/editar',
     element: (
-      <RequireGlobalRole roles={M1_ROLES}>
+      <RequireGlobalRole roles={COMPANY_WRITE_ROLES}>
         <EmpresaFormPage mode="edit" />
       </RequireGlobalRole>
     ),

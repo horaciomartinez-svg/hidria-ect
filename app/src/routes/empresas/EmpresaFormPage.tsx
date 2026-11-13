@@ -11,6 +11,7 @@ import { useCompany } from '../../features/empresas/hooks';
 import {
   CICLOS_VIDA,
   CICLO_LABEL,
+  COMPANY_CREATE_ROLES,
   COMPANY_WRITE_ROLES,
   GIROS,
   GIRO_LABEL,
@@ -105,6 +106,21 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
   }, [isEdit, companyState.status, companyState.data, initialized]);
 
   const canWrite = claims ? COMPANY_WRITE_ROLES.includes(claims.globalRole) : false;
+  const canCreate = claims ? COMPANY_CREATE_ROLES.includes(claims.globalRole) : false;
+  /** El alta está restringida temporalmente hasta F1-03a (created_by + SELECT del creador). */
+  const allowed = isEdit ? canWrite : canCreate;
+  /** Sólo coordinación/administración cambian la etapa del ciclo de vida (regla de negocio). */
+  const canEditCiclo =
+    claims?.globalRole === 'admin_institucional' || claims?.globalRole === 'coordinador_srhds';
+
+  useEffect(() => {
+    // Al cambiar de empresa (o de modo), se reinicia el formulario y la carga inicial.
+    setInitialized(!isEdit);
+    setInput(emptyCompanyInput());
+    setErrors([]);
+    setSubmitError(null);
+  }, [companyId, isEdit]);
+
   const errorFor = (field: keyof CompanyInput): FieldError | undefined =>
     errors.find((item) => item.field === field);
 
@@ -153,12 +169,18 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
     }
   };
 
-  if (!canWrite) {
+  if (!allowed) {
     return (
       <EstadoNotice
         kind="forbidden"
-        title="Tu rol no permite editar empresas"
-        detail="La escritura de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS."
+        title={
+          isEdit ? 'Tu rol no permite editar empresas' : 'Tu rol no permite dar de alta empresas'
+        }
+        detail={
+          isEdit
+            ? 'La escritura de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS.'
+            : 'El alta está limitada temporalmente a coordinación/administración hasta que F1-03a publique el ownership del creador (created_by + lectura del creador). La RLS del servidor es la autoridad final.'
+        }
         action={
           <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">
             Volver al listado
@@ -175,6 +197,26 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
       </p>
     );
   }
+
+  if (isEdit && (companyState.status === 'config' || companyState.status === 'error')) {
+    return (
+      <EstadoNotice
+        kind={companyState.status === 'config' ? 'config' : 'error'}
+        title="No fue posible cargar la empresa"
+        detail={
+          import.meta.env.DEV
+            ? companyState.error?.message
+            : 'Intenta de nuevo; si persiste, contacta a la Coordinación SRHDS.'
+        }
+        action={
+          <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">
+            Volver al listado
+          </Link>
+        }
+      />
+    );
+  }
+
   if (isEdit && (companyState.status === 'forbidden' || companyState.status === 'empty')) {
     return (
       <EstadoNotice
@@ -198,11 +240,22 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
     );
   }
 
-  const fieldProps = (field: keyof CompanyInput) => ({
+  const fieldProps = (
+    field: keyof CompanyInput,
+    options: { required?: boolean; hint?: boolean } = {},
+  ) => ({
     id: `empresa-${field}`,
     name: field,
+    required: options.required ? true : undefined,
+    'aria-required': options.required ? true : undefined,
     'aria-invalid': errorFor(field) ? true : undefined,
-    'aria-describedby': errorFor(field) ? `empresa-${field}-error` : undefined,
+    'aria-describedby':
+      [
+        options.hint ? `empresa-${field}-hint` : null,
+        errorFor(field) ? `empresa-${field}-error` : null,
+      ]
+        .filter(Boolean)
+        .join(' ') || undefined,
     disabled: submitting,
     className: inputClass,
   });
@@ -241,9 +294,11 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
             kind={submitError.kind === 'forbidden' ? 'forbidden' : 'error'}
             title="No se pudo guardar la empresa"
             detail={
-              submitError.code
-                ? `${submitError.message} (código ${submitError.code})`
-                : submitError.message
+              import.meta.env.DEV
+                ? submitError.code
+                  ? `${submitError.message} (código ${submitError.code})`
+                  : submitError.message
+                : 'No fue posible guardar la empresa. Revisa los datos e inténtalo de nuevo; si persiste, contacta a la Coordinación SRHDS.'
             }
           />
         </div>
@@ -288,7 +343,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
               error={errorFor('razon_social')}
             >
               <input
-                {...fieldProps('razon_social')}
+                {...fieldProps('razon_social', { required: true })}
                 value={input.razon_social}
                 onChange={(event) => setField('razon_social', event.target.value)}
                 autoComplete="organization"
@@ -302,7 +357,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
               error={errorFor('nombre_planta')}
             >
               <input
-                {...fieldProps('nombre_planta')}
+                {...fieldProps('nombre_planta', { required: true })}
                 value={input.nombre_planta}
                 onChange={(event) => setField('nombre_planta', event.target.value)}
                 data-testid="empresa-field-nombre_planta"
@@ -310,7 +365,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
             </FieldShell>
             <FieldShell id="empresa-giro" label="Giro industrial" required error={errorFor('giro')}>
               <select
-                {...fieldProps('giro')}
+                {...fieldProps('giro', { required: true })}
                 value={input.giro}
                 onChange={(event) => setField('giro', event.target.value as CompanyInput['giro'])}
                 data-testid="empresa-field-giro"
@@ -325,11 +380,16 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
             <FieldShell
               id="empresa-ciclo_vida"
               label="Ciclo de vida"
-              hint="Etapa acordada con la empresa; el cambio de etapa se documenta en el expediente."
+              hint={
+                canEditCiclo
+                  ? 'Etapa acordada con la empresa; el cambio de etapa se documenta en el expediente.'
+                  : 'Sólo coordinación o administración institucional pueden cambiar la etapa; RLS/EF del servidor es la autoridad.'
+              }
               error={errorFor('ciclo_vida')}
             >
               <select
-                {...fieldProps('ciclo_vida')}
+                {...fieldProps('ciclo_vida', { hint: true })}
+                disabled={submitting || !canEditCiclo}
                 value={input.ciclo_vida}
                 onChange={(event) =>
                   setField('ciclo_vida', event.target.value as CompanyInput['ciclo_vida'])
@@ -353,7 +413,8 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
           <div className="mt-2 grid gap-4 sm:grid-cols-2">
             <FieldShell id="empresa-calle" label="Calle y número" required error={errorFor('calle')}>
               <input
-                {...fieldProps('calle')}
+                {...fieldProps('calle', { required: true })}
+                data-testid="empresa-field-calle"
                 value={input.calle}
                 onChange={(event) => setField('calle', event.target.value)}
                 autoComplete="street-address"
@@ -366,7 +427,8 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
               error={errorFor('colonia_parque')}
             >
               <input
-                {...fieldProps('colonia_parque')}
+                {...fieldProps('colonia_parque', { required: true })}
+                data-testid="empresa-field-colonia_parque"
                 value={input.colonia_parque}
                 onChange={(event) => setField('colonia_parque', event.target.value)}
               />
@@ -378,7 +440,8 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
               error={errorFor('cp')}
             >
               <input
-                {...fieldProps('cp')}
+                {...fieldProps('cp', { required: true })}
+                data-testid="empresa-field-cp"
                 value={input.cp}
                 onChange={(event) => setField('cp', event.target.value)}
                 inputMode="numeric"
@@ -387,7 +450,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
             </FieldShell>
             <FieldShell id="empresa-municipio" label="Municipio" required error={errorFor('municipio')}>
               <input
-                {...fieldProps('municipio')}
+                {...fieldProps('municipio', { required: true })}
                 value={input.municipio}
                 onChange={(event) => setField('municipio', event.target.value)}
                 autoComplete="address-level2"
@@ -402,7 +465,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
               hint="COMAPA, JAD u otro. Se usa para el contexto del municipio."
             >
               <input
-                {...fieldProps('organismo_operador')}
+                {...fieldProps('organismo_operador', { required: true, hint: true })}
                 value={input.organismo_operador}
                 onChange={(event) => setField('organismo_operador', event.target.value)}
                 data-testid="empresa-field-organismo_operador"
@@ -437,7 +500,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
 
         <fieldset className="rounded-lg border border-line bg-panel p-5">
           <legend className="px-1 text-sm font-semibold text-hidria-900">
-            Operación y contraparte
+            Operación
           </legend>
           <div className="mt-2 grid gap-4 sm:grid-cols-2">
             <FieldShell id="empresa-empleados" label="Número de empleados" error={errorFor('empleados')}>
@@ -477,24 +540,14 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
                 placeholder="piezas, ton, kWh, litros"
               />
             </FieldShell>
-            <FieldShell
-              id="empresa-contraparte_user_id"
-              label="Contraparte designada (UUID de usuario)"
-              hint="Opcional. El usuario debe existir en el directorio institucional; la coordinación asigna este enlace."
-              error={errorFor('contraparte_user_id')}
-            >
-              <input
-                {...fieldProps('contraparte_user_id')}
-                value={input.contraparte_user_id ?? ''}
-                onChange={(event) =>
-                  setField(
-                    'contraparte_user_id',
-                    event.target.value === '' ? null : event.target.value,
-                  )
-                }
-                placeholder="00000000-0000-0000-0000-000000000000"
-              />
-            </FieldShell>
+            <div className="sm:col-span-2 rounded-md border border-dashed border-line p-3 text-[11px] leading-relaxed text-slate-500">
+              <p className="font-medium text-slate-700">Contraparte designada</p>
+              <p className="mt-1">
+                {isEdit && input.contraparte_user_id
+                  ? `Asignada por la coordinación; no se edita en este formulario (referencia ${input.contraparte_user_id}).`
+                  : 'Se asigna desde el directorio institucional por la coordinación. Este formulario no acepta un UUID libre: la validación de existencia, organización y rol se implementará en el servidor (F1-03a) junto con el selector de usuarios.'}
+              </p>
+            </div>
           </div>
         </fieldset>
 

@@ -6,6 +6,7 @@ import { useCompaniesList } from '../../features/empresas/hooks';
 import {
   CICLOS_VIDA,
   CICLO_LABEL,
+  COMPANY_CREATE_ROLES,
   COMPANY_WRITE_ROLES,
   GIROS,
   GIRO_LABEL,
@@ -34,6 +35,8 @@ export function EmpresasListPage() {
   );
   const { status, data, error } = useCompaniesList(filters, reloadKey);
   const canWrite = claims ? COMPANY_WRITE_ROLES.includes(claims.globalRole) : false;
+  const canCreate = claims ? COMPANY_CREATE_ROLES.includes(claims.globalRole) : false;
+  const writePendingOwnership = canWrite && !canCreate;
 
   const clearFilters = () => {
     setSearch('');
@@ -55,7 +58,7 @@ export function EmpresasListPage() {
             determina la seguridad por organización (RLS).
           </p>
         </div>
-        {canWrite && (
+        {canCreate && (
           <Link
             to="/empresas/nueva"
             data-testid="alta-empresa"
@@ -63,6 +66,12 @@ export function EmpresasListPage() {
           >
             Alta de empresa
           </Link>
+        )}
+        {writePendingOwnership && (
+          <p className="max-w-xs text-[11px] leading-relaxed text-slate-500" data-testid="alta-pendiente">
+            El alta para tu rol se habilitará cuando F1-03a publique el ownership del creador
+            (<code>created_by</code> + lectura del creador).
+          </p>
         )}
       </header>
 
@@ -189,7 +198,7 @@ export function EmpresasListPage() {
           <EstadoNotice
             kind="error"
             title="No fue posible cargar las empresas"
-            detail={error?.message}
+            detail={import.meta.env.DEV ? error?.message : 'Intenta de nuevo; si persiste, contacta a la Coordinación SRHDS.'}
             action={
               <button
                 type="button"
@@ -208,12 +217,14 @@ export function EmpresasListPage() {
               kind="empty"
               title="Sin empresas registradas"
               detail={
-                canWrite
+                canCreate
                   ? 'Aún no hay empresas que coincidan con los filtros. Puedes dar de alta la primera.'
-                  : 'Aún no hay empresas que coincidan con los filtros.'
+                  : writePendingOwnership
+                    ? 'Aún no hay empresas que coincidan con los filtros. El alta estará disponible para tu rol cuando F1-03a publique el ownership del creador (created_by + SELECT del creador).'
+                    : 'Aún no hay empresas que coincidan con los filtros.'
               }
               action={
-                canWrite ? (
+                canCreate ? (
                   <Link
                     to="/empresas/nueva"
                     className="rounded-md bg-hidria-700 px-3 py-1.5 text-xs font-semibold text-white"

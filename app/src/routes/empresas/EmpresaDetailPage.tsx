@@ -72,7 +72,7 @@ export function EmpresaDetailPage() {
       <EstadoNotice
         kind={state.status === 'config' ? 'config' : 'error'}
         title="No fue posible cargar la empresa"
-        detail={state.error?.message}
+        detail={import.meta.env.DEV ? state.error?.message : 'Intenta de nuevo; si persiste, contacta a la Coordinación SRHDS.'}
         action={
           <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">
             Volver al listado

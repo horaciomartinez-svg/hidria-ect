@@ -119,3 +119,14 @@ export const COMPANY_WRITE_ROLES: readonly GlobalRole[] = [
   'coordinador_srhds',
   'equipo',
 ];
+
+/**
+ * Roles con **alta** de empresa en la UI. Temporalmente limitado a admin/coordinación hasta
+ * que F1-03a publique `companies.created_by` + `companies_sel` del creador (B2 de #35): sin
+ * esa lectura, una empresa creada por `equipo` no podría consultarse (0 filas/42501). La RLS
+ * de INSERT sí permite a `equipo`; al mergear F1-03a esta lista vuelve a `COMPANY_WRITE_ROLES`.
+ */
+export const COMPANY_CREATE_ROLES: readonly GlobalRole[] = [
+  'admin_institucional',
+  'coordinador_srhds',
+];
