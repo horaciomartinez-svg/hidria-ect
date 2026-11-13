@@ -22,6 +22,14 @@ incompatibles (hallazgo B2).
 
 ## 2. Decisión
 
+> **Nota de supersesión (2026-11-13; `revisor-especificaciones`/Lead).** La decisión híbrida del 2026-11-08 (BACKLOG: F1-08/F2-06, F1-13/F1-14/F1-15, F2-02) sustituye en este ADR-003 los siguientes puntos:
+>
+> - **M5 (IIH) y EF-09** dejan de estar en Fase 1 y pasan a **F2-06**.
+> - **M7 mínimo** (captura de muestras y 3 transferencias de custodia; resultados de laboratorio con dictamen manual; cartera de alternativas) permanece en **Fase 1** como **F1-13/F1-14/F1-15**.
+> - **M7 completo y EF-10** siguen en **Fase 2** como **F2-02**.
+>
+> El resto del plan de este ADR no cambia. Esta nota prevalece sobre las menciones de M5/EF-09 en la Fase 1 y aclara el alcance de M7; las etiquetas de UI se materializan en `app/src/routes/registry.tsx` (M5 `phase:'F2'`, M7 `phase:'F1'` + `phaseNote:'F1 mínimo / F2 completo'`) y en `tests/e2e/shell.spec.ts`.
+
 Se adopta el siguiente **plan operativo** (la instrucción de la Coordinación prevalece
 sobre `docs/07` §3 en lo que aquí se indica; el resto de `docs/07` sigue vigente):
 
