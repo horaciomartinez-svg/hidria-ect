@@ -82,7 +82,10 @@ export const MODULES: readonly ModuleDef[] = [
     summary: 'Alta y expediente maestro de la empresa atendida y sus contrapartes.',
     phase: 'F1',
     contract: 'tabla companies (RLS por organización) · folio de diagnóstico server-side',
-    roles: OPERACION,
+    // Lectura para todos los roles autenticados: las filas las decide RLS (una `empresa`
+    // con membresía lee su empresa; `invitado` sin membresía no verá filas). La escritura
+    // se gatea aparte en las rutas de alta/edición (COMPANY_WRITE_ROLES).
+    roles: TODOS,
   },
   {
     id: 'M2',
