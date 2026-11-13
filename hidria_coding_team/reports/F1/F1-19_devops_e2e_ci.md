@@ -129,7 +129,20 @@ verdes no obligatorios, sin configurarse por API con el token actual).
   `localStorage`; la autorización real (RLS/EF) no se prueba aquí.
 - Artefactos de CI con retención 7 días; sin datos reales.
 
-## 7. Pendientes / siguiente paso
+## 7. Hotfix de runner (2026-11-12)
+
+`ubuntu-latest` migró a **Ubuntu 26.04**; **Playwright 1.55 no soporta Chromium en
+`ubuntu26.04-x64`** (`ERROR: Playwright does not support chromium on ubuntu26.04-x64`). El
+fallo apareció al rebasar PR #29 sobre `main@a6cc7e6` (run
+[43344792439](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43344792439)):
+solo E2E falló; los otros 5 jobs quedaron verdes, así que **no es una regresión del código**.
+
+**Fix:** el job `E2E Playwright` se fija a `runs-on: ubuntu-24.04` (noble, soportada por
+`playwright install --with-deps`); los demás jobs siguen en `ubuntu-latest`. Es un hotfix de
+infraestructura que desbloquea todos los PRs con E2E hasta que Playwright soporte 26.04 o se
+actualice la versión.
+
+## 8. Pendientes / siguiente paso
 
 - [x] **PR #23 abierto y verde**: 5/5 checks en los runs `42514177112` (PR) y `42514158085`
       (push); merge squash `cf7faa5` y post-merge `42514381567` verde.

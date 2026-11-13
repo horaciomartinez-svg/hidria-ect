@@ -84,7 +84,9 @@ jobs:
 
   e2e:
     name: E2E Playwright
-    runs-on: ubuntu-latest
+    # Playwright 1.55 no soporta Chromium en ubuntu-26.04 (ubuntu-latest desde 2026-11);
+    # se fija a la imagen 24.04 (noble), soportada por `playwright install --with-deps`.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout

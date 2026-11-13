@@ -162,6 +162,23 @@ Salida CI relevante:
 [dist-scan] 8 archivos escaneados; sin claves secretas/JWT de servicio (3 avisos de literal).
 ```
 
+### 5.1 Hotfix de runner E2E (2026-11-12)
+
+Al rebasar sobre `main@a6cc7e6` (head `8be7e3c`), el run
+[43344792439](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43344792439)
+falló **solo** en `E2E Playwright`:
+
+```text
+Failed to install browsers
+Error: ERROR: Playwright does not support chromium on ubuntu26.04-x64
+```
+
+Causa: `ubuntu-latest` migró a **Ubuntu 26.04** y **Playwright 1.55 no soporta Chromium** en esa
+imagen (no es una regresión del código; los otros 5 jobs, incluido `Seguridad`, quedaron verdes).
+**Fix aplicado (solo job E2E):** `runs-on: ubuntu-24.04` (imagen noble soportada por
+`playwright install --with-deps`). No se tocan los demás jobs ni el guard. Se re-ejecuta el PR
+buscando 6/6; este pin es el hotfix que desbloquea también a los demás PRs con E2E.
+
 ## 6. Seguridad y límites
 
 - Sin secretos en el diff: los scripts solo contienen **patrones** de detección; la allowlist
