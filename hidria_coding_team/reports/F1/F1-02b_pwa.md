@@ -210,13 +210,21 @@ A hace la app instalable y offline; B cierra el aviso de versión, la instalaci�
 - `lint` **0**; `typecheck` (cliente + SW) **0**; `build` **0**; `check:sw` ejecutado en build.
 - **Auditoría CDP local: 11/11** (Chrome 156.0.8078.80) — incluye E3b con caché versionada
   `hidria-shell-0.1.0-f1-02b-b2`; el build id queda visible en `/acerca`.
-- **Head de B/2 y CI:** _pendiente al publicar_ (§10.2).
+- **Head de B/2 y CI:** ver §10.2.
 - Revisión solicitada: spec (alcance B/2 y fases), seguridad (SW/caché/secretos/APP_BUILD) y
   QA (auditoría CDP E1–E10 + offline).
 
 ### 10.2 Head y CI del PR de B/2
 
-- Head: _pendiente al publicar_.
-- CI: _pendiente al publicar_ (Guardas + Cliente + Edge Functions Deno + pgTAP + E2E Playwright).
+- **Head de código verificado por revisiones:** `e1d01d1` — CI **10/10** check-runs
+  (Guardas, Cliente, Edge Functions (Deno), pgTAP 133 aserciones, **E2E Playwright 11/11**).
+- **Fix de la revisión incluido:** `tests/e2e/shell.spec.ts` alineado con la decisión híbrida
+  (M5 `/iih` → «Fase prevista F2»; M7 `/muestreo` → F1 con `phaseNote` «F1 mínimo / F2 completo»),
+  sin cambiar producto ni el resto de casos.
+- **Merge de `main@a6cc7e6`** (solo docs, sin cambios de código) en la rama; sin conflictos de lock.
+  Validación local sobre el resultado del merge (`9a246f2`): `lint` 0 · `typecheck` 0 · `build` 0 ·
+  `npm run test:e2e` **11 passed** (Chrome local).
+- **Head final del PR:** el de este commit documental (sólo reporte); el código es idéntico a
+  `e1d01d1` + merge de docs. CI del head final: 5 checks en el PR.
 
 *Reporte de `dev-frontend-pwa` para F1-02b.*
