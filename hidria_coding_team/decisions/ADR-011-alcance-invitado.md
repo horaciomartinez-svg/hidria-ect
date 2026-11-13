@@ -65,12 +65,13 @@ revisor); `companies`/`diagnostics` conservan el agregado admin/coord; `organiza
 propio tenant y `project_members` ya era por membresía. No hay otras SELECT tenant-wide en
 `public` (catálogos/quiz no son tenant-wide; `v_quiz_questions` es definer sin `correcta`).
 
-**Drift BD↔repo:** la BD de desarrollo tiene 26 migraciones (task-35:
+**Drift BD↔repo:** la BD de desarrollo tiene 27 migraciones (task-35:
 `20261108050000` base, `…0010` B1/VETO-2/3, `…0020` intento con agregado rechazado por el
 revisor, `…0030` M2 final sin agregado, `…0040` split de `documents_write`, `…0050` split de
-`iih_assets_write`/`samples_write`/`water_balances_write` para que `FOR ALL` no re-abra SELECT).
-Las 6 están en el repo; `…0020` se conserva como historia forward-only y su efecto queda
-sustituido por `…0030`. `supabase db reset` debe aplicar exactamente esos 26 archivos.
+`iih_assets_write`/`samples_write`/`water_balances_write`, `…0060` split de `companies_write`
+y retiro del OR de agregado en `documents_ins/upd/del`). Las 7 están en el repo; `…0020` se
+conserva como historia forward-only y su efecto queda sustituido por `…0030`. `supabase db reset`
+debe aplicar exactamente esos 27 archivos.
 
 ## Consecuencias
 
@@ -111,6 +112,7 @@ sustituido por `…0030`. `supabase db reset` debe aplicar exactamente esos 26 a
 - `supabase/migrations/20261108050030_f1_01a_invitado_scope_fix3.sql`
 - `supabase/migrations/20261108050040_f1_01a_invitado_scope_fix4.sql` (split documents_write)
 - `supabase/migrations/20261108050050_f1_01a_invitado_scope_fix5.sql` (split otros write ALL)
+- `supabase/migrations/20261108050060_f1_01a_invitado_scope_fix6.sql` (companies write + documents B1)
 - `supabase/tests/070_f1_01a_invitado_scope.sql`
 - `docs/01` §5; `docs/Arquitectura` L451; `docs/04` §2.1
 - `reports/F1/F1-01a_invitado_scope.md`

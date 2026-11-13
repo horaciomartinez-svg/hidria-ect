@@ -5,14 +5,15 @@
 - **Tarea:** `task-35` — Q-02/QA + SEC-PR7-D2/seguridad (PR #7)
 - **Rama:** `fix/F1-task35-invitado`, base `main@13caf3b`; commits nuevos sobre `a33ba45`
 - **ADR:** `hidria_coding_team/decisions/ADR-011-alcance-invitado.md`
-- **Migraciones (4, forward-only, aplicadas vía MCP; todas en repo):**
+- **Migraciones (7, forward-only, aplicadas vía MCP; todas en repo):**
   - `20261108050000_f1_01a_invitado_scope.sql` — matriz base.
   - `20261108050010_f1_01a_invitado_scope_fix.sql` — B1 update trigger, VETO-2 claim, VETO-3, 5 tablas membership.
   - `20261108050020_f1_01a_invitado_scope_fix2.sql` — histórico: intento con agregado SRHDS (rechazado por revisor).
   - `20261108050030_f1_01a_invitado_scope_fix3.sql` — M2 final: sin agregado en las 5; claim requerido.
   - `20261108050040_f1_01a_invitado_scope_fix4.sql` — split de `documents_write` (FOR ALL) para que no re-abra SELECT a admin/coord sin membresía.
   - `20261108050050_f1_01a_invitado_scope_fix5.sql` — split de `iih_assets_write`/`samples_write`/`water_balances_write` por la misma razón.
-- **BD:** `schema_migrations = 26`; CI aplica los 26 archivos desde `supabase/migrations/**`.
+  - `20261108050060_f1_01a_invitado_scope_fix6.sql` — VETO-4: split `companies_write`; B1: quita OR de agregado en `documents_ins/upd/del`.
+- **BD:** `schema_migrations = 27`; CI aplica los 27 archivos desde `supabase/migrations/**`.
 - **Alcance:** policies/triggers/tests/docs; sin datos reales, sin cambios de columnas/tablas.
 
 ## Resultado: VERDE (DB)
@@ -71,19 +72,21 @@ Catálogos/quiz no son tenant-wide; `v_quiz_questions` definer sin `correcta`.
 
 ## 4. pgTAP
 
-- Suite `070_f1_01a_invitado_scope.sql` (**plan 55**): matriz por tabla (sin/con membresía,
+- Suite `070_f1_01a_invitado_scope.sql` (**plan 68**): matriz por tabla (sin/con membresía,
   admin/coord sin membresía, cross-tenant, signatures de otro diagnóstico), vistas,
-  crear→leer, B1/VETO-1, VETO-2 sin claim, VETO-3.
+  crear→leer, B1/VETO-1, VETO-2 sin claim, VETO-3, VETO-4 y escrituras M1.
 - `050` ajustada: observador ve su diagnóstico/empresa, no tenant-wide.
-- Total suite: **194 aserciones** (21+9+9+15+34+51+55); pgTAP CI (task-13) ejecuta desde archivos.
+- Total suite: **207 aserciones** (21+9+9+15+34+51+68); pgTAP CI (task-13) ejecuta desde archivos.
 - pglast 8.7: migraciones y 070 OK.
-- **Drift BD↔repo resuelto:** las 6 migraciones de task-35 están en el repo; `supabase db reset`
-  aplica 26 archivos (las fix son forward-only; `…0020` es historia sustituida por `…0030`).
+- **Drift BD↔repo resuelto:** las 7 migraciones de task-35 están en el repo; `supabase db reset`
+  aplica 27 archivos (las fix son forward-only; `…0020` es historia sustituida por `…0030`).
 - **Fix post-CI:** las policies `*_write` eran `FOR ALL`; su `USING` también aplicaba a SELECT y
-  re-abría filas a admin/coord sin membresía. `…0040` separa `documents_write` y `…0050`
-  `iih_assets_write`/`samples_write`/`water_balances_write` en INSERT/UPDATE/DELETE. El SELECT
-  queda únicamente en `*_sel` (membresía estricta). Así los tests M2 admin/coord sin membresía
-  dan 0.
+  re-abría filas a admin/coord sin membresía. `…0040` separa `documents_write`, `…0050`
+  `iih_assets_write`/`samples_write`/`water_balances_write`, y `…0060` `companies_write` en
+  INSERT/UPDATE/DELETE; además `…0060` quita el OR de agregado en `documents_ins/upd/del`. El
+  SELECT queda únicamente en `*_sel`.
+- **VETO-4/B1:** `equipo` sin membresía → 0 companies; escrituras de documents/iih/samples/water
+  sin membresía → 42501; con membresía/rol → OK.
 
 ## 5. Docs / límites
 

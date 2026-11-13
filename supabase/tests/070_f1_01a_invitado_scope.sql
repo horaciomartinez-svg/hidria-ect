@@ -3,7 +3,7 @@
 -- companies EXISTS; resto de tenant-wide invitado solo con membresía.
 begin;
 
-select plan(55);
+select plan(68);
 
 -- Fixtures sintéticas (postgres; sin datos reales)
 insert into public.organizations (id, name, org_type) values
@@ -111,6 +111,7 @@ select is((select count(*) from public.diagnostics where id='d2000000-0000-4000-
 
 set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000005","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"admin_institucional"}';
 select is((select count(*) from public.diagnostics), 2::bigint, 'admin: 2 diagnósticos del tenant');
+select is((select count(*) from public.companies), 2::bigint, 'admin: 2 empresas del tenant (agregado)');
 select is((select count(*) from public.documents), 0::bigint, 'M2 admin sin membresía: 0 documents');
 select is((select count(*) from public.iih_assets), 0::bigint, 'M2 admin sin membresía: 0 iih_assets');
 select is((select count(*) from public.samples), 0::bigint, 'M2 admin sin membresía: 0 samples');
@@ -128,8 +129,10 @@ select is((select count(*) from public.water_balances), 0::bigint, 'M2 coordinad
 -- Equipo sin membresía: 0; empresa con membresía: 1.
 set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000006","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"equipo"}';
 select is((select count(*) from public.diagnostics), 0::bigint, 'equipo sin membresía: 0 diagnósticos');
+select is((select count(*) from public.companies), 0::bigint, 'equipo sin membresía: 0 companies (VETO-4)');
 set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000007","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"empresa"}';
 select is((select count(*) from public.diagnostics), 1::bigint, 'empresa con membresía: 1 diagnóstico');
+select is((select count(*) from public.companies), 1::bigint, 'empresa con membresía: 1 company');
 
 -- Crear -> leer: el creador equipo recibe membresía.
 set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000006","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"equipo"}';
@@ -206,6 +209,52 @@ select lives_ok($sql$
   values ('c3000000-0000-4000-8000-000000000009','a1000000-0000-4000-8000-0000000000a1',
     'Nuevo perfil','nuevoperfil@example.invalid','equipo')
 $sql$, 'VETO-3: coordinador sí puede insertar perfil no-admin');
+
+-- M1: escrituras legítimas con membresía y denegadas sin membresía.
+set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000005","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"admin_institucional"}';
+select throws_ok($sql$
+  insert into public.documents (id, organization_id, diagnostic_id, doc_type, title, r2_key, sha256, mime, size_bytes, uploaded_by)
+  values ('e4000000-0000-4000-8000-000000000004','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001','otro','Doc write','org/w.pdf','abc','application/pdf',1,'c3000000-0000-4000-8000-000000000005')
+$sql$, '42501', NULL, 'M1 admin sin membresía: INSERT documents denegado');
+select throws_ok($sql$
+  insert into public.iih_assets (id, organization_id, diagnostic_id, folio, stage_code, asset_type_id, tag, ubicacion, estado_fisico, opera, criticidad, intervencion, prioridad)
+  values ('e4000000-0000-4000-8000-000000000012','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001','CAP-35-02','CAP',(select id from public.iih_asset_types where stage_code='CAP' limit 1),'T35W','U','bueno','si','alta','ninguna','media')
+$sql$, '42501', NULL, 'M1 admin sin membresía: INSERT iih_assets denegado');
+select throws_ok($sql$
+  insert into public.samples (id, organization_id, diagnostic_id, codigo, punto, tipo_muestra, params_solicitados, acreditacion_ema, estado)
+  values ('e4000000-0000-4000-8000-000000000022','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001','T35-W','descarga_final','simple','[]'::jsonb,false,'planificada')
+$sql$, '42501', NULL, 'M1 admin sin membresía: INSERT samples denegado');
+select throws_ok($sql$
+  insert into public.water_balances (id, organization_id, diagnostic_id, periodo_anio, mes_inicio, estado)
+  values ('e4000000-0000-4000-8000-000000000042','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001',2026,2,'borrador')
+$sql$, '42501', NULL, 'M1 admin sin membresía: INSERT water_balances denegado');
+select throws_ok($sql$
+  insert into public.signatures (id, organization_id, document_id, signer_name, signer_role, signer_org)
+  values ('e4000000-0000-4000-8000-000000000033','a1000000-0000-4000-8000-0000000000a1','e4000000-0000-4000-8000-000000000001','Firma W','coordinador','SRHDS')
+$sql$, '42501', NULL, 'M1 admin sin membresía: INSERT signatures denegado');
+
+set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000004","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
+select lives_ok($sql$
+  insert into public.documents (id, organization_id, diagnostic_id, doc_type, title, r2_key, sha256, mime, size_bytes, uploaded_by)
+  values ('e4000000-0000-4000-8000-000000000005','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001','otro','Doc write OK','org/wok.pdf','abc','application/pdf',1,'c3000000-0000-4000-8000-000000000004')
+$sql$, 'M1 coordinador con membresía: INSERT documents OK');
+select lives_ok($sql$
+  insert into public.iih_assets (id, organization_id, diagnostic_id, folio, stage_code, asset_type_id, tag, ubicacion, estado_fisico, opera, criticidad, intervencion, prioridad)
+  values ('e4000000-0000-4000-8000-000000000013','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001','CAP-35-03','CAP',(select id from public.iih_asset_types where stage_code='CAP' limit 1),'T35W2','U','bueno','si','alta','ninguna','media')
+$sql$, 'M1 coordinador con membresía: INSERT iih_assets OK');
+select lives_ok($sql$
+  insert into public.samples (id, organization_id, diagnostic_id, codigo, punto, tipo_muestra, params_solicitados, acreditacion_ema, estado)
+  values ('e4000000-0000-4000-8000-000000000023','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001','T35-W2','descarga_final','simple','[]'::jsonb,false,'planificada')
+$sql$, 'M1 coordinador con membresía: INSERT samples OK');
+select lives_ok($sql$
+  insert into public.water_balances (id, organization_id, diagnostic_id, periodo_anio, mes_inicio, estado)
+  values ('e4000000-0000-4000-8000-000000000043','a1000000-0000-4000-8000-0000000000a1','d2000000-0000-4000-8000-000000000001',2026,2,'borrador')
+$sql$, 'M1 coordinador con membresía: INSERT water_balances OK');
+set local request.jwt.claims = '{"sub":"c3000000-0000-4000-8000-000000000001","organization_id":"a1000000-0000-4000-8000-0000000000a1","global_role":"invitado"}';
+select throws_ok($sql$
+  insert into public.companies (id, organization_id, razon_social, nombre_planta, giro, calle, colonia_parque, cp, municipio, organismo_operador)
+  values ('b2000000-0000-4000-8000-0000000000a3','a1000000-0000-4000-8000-0000000000a1','Empresa W','Planta W','manufacturera','Calle','Parque','87000','Victoria','COMAPA')
+$sql$, '42501', NULL, 'M1 invitado no puede INSERT companies');
 
 reset role;
 reset request.jwt.claims;
