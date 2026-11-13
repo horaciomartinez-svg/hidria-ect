@@ -39,11 +39,16 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       await precacheController.activate(event);
-      // Limpieza de precaches de versiones anteriores de HIDRIA.
+      // Limpieza de precaches de versiones anteriores de HIDRIA, incluida la caché con el
+      // nombre por defecto de Workbox que usaba A/2 (`workbox-precache-v2-*`).
+      const legacyPrefixes = ['hidria-shell-', 'workbox-precache'];
       const names = await caches.keys();
       await Promise.all(
         names
-          .filter((name) => name.startsWith('hidria-shell-') && name !== PRECACHE_NAME)
+          .filter(
+            (name) =>
+              name !== PRECACHE_NAME && legacyPrefixes.some((prefix) => name.startsWith(prefix)),
+          )
           .map((name) => caches.delete(name)),
       );
     })(),

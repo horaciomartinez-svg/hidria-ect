@@ -16,10 +16,11 @@
 
 - **App instalable y offline:** manifest es-MX + iconos 192/512/maskable/180 + service worker
   (Workbox `injectManifest`) con precache del shell público y `NetworkOnly` para Supabase/R2.
-- **Evidencia CDP (ADR-008):** `npm run pwa:audit` → **11/11 OK** con Chrome 156: manifest servido y
-  completo, `Page.getInstallabilityErrors` **vacío**, SW registrado/activo y controlando, 11 entradas
-  de caché **todas same-origin** (sin Supabase/R2), arranque offline con banner, `offline.html` sin
-  red y versión/build visibles.
+- **Evidencia CDP (ADR-008):** `npm run pwa:audit` → **12/12 OK** (Chrome 157, perfil temporal):
+  manifest servido y completo, `Page.getInstallabilityErrors` **vacío**, SW registrado/activo y
+  controlando, caché versionada `hidria-shell-<v>-<build>`, 11 entradas **todas same-origin** (sin
+  Supabase/R2), arranque offline con banner, `offline.html` sin red y accesible, versión/build
+  visibles y **E8** sin secretos en `dist/`. El script sólo acepta hosts locales (SEC-PR22-01).
 - **Aviso de versión:** `registerType: 'prompt'`; banner accesible «Hay una versión nueva» con
   «Actualizar ahora / Después»; **nunca** `skipWaiting` automático. Verificado que el SW queda en
   `waiting` y el banner aparece (`data-pwa-update`); la aplicación del update se valida en la suite
@@ -78,27 +79,36 @@
 
 ## 4. Evidencia CDP (ADR-008) — `npm run pwa:audit`
 
-Ejecutado contra `vite preview` del build de producción (Chrome 156.0.8078.80, CDP local;
-`BUILD_ID=f1-02b-b2`, registrado en `/acerca` y en el nombre de caché):
+Ejecutado contra `vite preview` del build de producción. El script **lanza su propio Chrome con
+perfil temporal** (SEC-PR22-01), que elimina al terminar, y exige `APP_URL`/`CDP_URL` locales:
 
 ```
-Chrome/CDP: Chrome/156.0.8078.80
+Chrome/CDP: Chrome/157.0.8103.51 (http://127.0.0.1:<puerto efímero>)
 App: http://localhost:4173
+Perfil: temporal (se elimina al terminar)
 
+OK   E8 sin secretos en artefactos de dist/ — 6 artefactos revisados
 OK   E3 service worker registrado y activo
 OK   E1 manifest servido con campos e iconos requeridos — 200 manifest.webmanifest · display=standalone · 192x192/512x512 · maskable=true
 OK   E1b Page.getAppManifest sin errores de parseo
 OK   E2 Page.getInstallabilityErrors vacío
 OK   E3 service worker controlando la página
-OK   E3b caché versionada hidria-shell-<version>-<build> — hidria-shell-0.1.0-f1-02b-b2
+OK   E3b caché versionada hidria-shell-<version>-<build> — hidria-shell-0.1.0-f1-02b-fixes
 OK   E7 caché sólo shell público same-origin — 11 entradas, 0 ajenas
-OK   E7 la app está en línea antes de la prueba offline
-OK   E4 shell arranca sin red y muestra banner offline
+OK   E10 offline.html accesible, es-MX y sin datos/handlers inline — 3,243 bytes
+OK   E4 shell arranca sin red y muestra banner offline — banner=true
 OK   E5 offline.html se sirve sin red
 OK   E9 versión y build visibles en /acerca
+NOTA E6 aviso de versión nueva: verificación manual/QA (task-49); no se automatiza en este script.
 
-RESUMEN: 11/11 comprobaciones OK
+RESUMEN: 12/12 comprobaciones OK
 ```
+
+**Mapa de comprobaciones (coherente con la cabecera del script):** E1/E1b manifest, **E2**
+instalabilidad (con **fallback ADR-008** manifest+SW+offline si `Page.getInstallabilityErrors` no
+existe), E3/E3b service worker y caché versionada, E4 offline, E5 `offline.html`, **E6 aviso de
+versión = manual/QA (task-49, PWA-05)**, E7 caché same-origin, **E8 escaneo de secretos en
+`dist/`**, E9 versión/build, **E10 `offline.html` accesible y sin datos**.
 
 **Aviso de versión (E6):** con `BUILD_ID` distinto y `registration.update()` se verificó
 `SW en waiting=true` y `[data-pwa-update]` presente en la UI. La **aplicación** del update
@@ -111,20 +121,22 @@ versionada (**task-49**, QA) y por la validación manual en staging (F1-16).
 ## 5. Build y verificación estática
 
 ```
-# Estado del PR-A aislado (commit 4b41f7e)
 npm run lint       → eslint src ..................................... EXIT 0
 npm run typecheck  → tsc --noEmit && tsc -p tsconfig.sw.json --noEmit  EXIT 0
-npm run build      → tsc … && vite build ........................... EXIT 0
-                     ✓ 91 modules transformed
-                     dist/assets/index-*.js   482.24 kB │ gzip: 139.56 kB
-                     PWA v2.0.0 · injectManifest · precache 11 entries (539.51 KiB)
-                     dist/sw.js generado (18.3 kB)
+npm run build      → tsc … && node scripts/check-sw-origin.mjs && vite build  EXIT 0
+                     ✓ 91 modules transformed · JS ≈ 482 kB │ gzip ≈ 139.6 kB
+                     PWA v2.0.0 · injectManifest · precache 11 entries (≈ 545 KiB)
+                     dist/sw.js generado (≈ 18 kB)
 ```
 
 - Build **sin `.env`** (equivalente a CI): verde (la app arranca en modo «configuración incompleta»).
-- `dist/**`: `sb_secret_*` y `SUPABASE_SERVICE_ROLE_KEY` → **0 coincidencias**; `service_role` sigue
-  apareciendo sólo en la guarda de runtime de F1-02a.
+- **E8 (automático, en la auditoría):** escaneo de `dist/` (`sw.js`, manifest, JS, HTML) → sin
+  `sb_secret_*`, sin `SUPABASE_SERVICE_ROLE_KEY` con valor y sin JWT con `role=service_role`.
+  `service_role` sólo aparece como constante de comparación de la guarda de runtime.
 - Guard build-time de clave pública intacto (probado en F1-02a; no se relajó).
+- **SEC-PR22-01 probado en negativo:** `APP_URL=https://hidria.pages.dev` y
+  `CDP_URL=https://example.com` **abortan** con mensaje explícito (la auditoría nunca apunta a
+  staging/producción).
 
 ---
 
@@ -138,10 +150,11 @@ npm run build      → tsc … && vite build ........................... EXIT 0
 | PWA-04 | `offline.html` sin red | OK (E5) |
 | PWA-05 | Aviso de versión nueva | Banner verificado; aplicación → task-49/F1-16 |
 | PWA-06 | Caché sólo same-origin | OK (E7) |
-| PWA-06b | Caché versionada `hidria-shell-<v>-<build>` | OK (E3b: `hidria-shell-0.1.0-f1-02b-b2`) |
-| PWA-07 | Sin secretos en artefactos | OK (§5) |
+| PWA-06b | Caché versionada `hidria-shell-<v>-<build>` | OK (E3b: `hidria-shell-0.1.0-<build>`) |
+| PWA-07 | Sin secretos en artefactos | OK (E8 automático: `dist/` escaneado) |
 | PWA-08 | Versión + build en `/acerca` | OK (E9) |
 | PWA-09 | a11y de banners/offline (320 px, contraste) | Revisión manual: `role=status`, `aria-live`, contraste AA, sin scroll horizontal |
+| PWA-10 | `offline.html` accesible y sin datos | OK (E10: es-MX, landmark, sin handlers inline, sin tokens) |
 
 ---
 
@@ -204,27 +217,41 @@ A hace la app instalable y offline; B cierra el aviso de versión, la instalaci�
 
 ### 10.1 Verificación del head de B/2
 
-- Base: `main` = `057ad79` (A/2 mergeada en `7cc84a2`; #26 incluido). Rama `feature/F1-02b-pwa-ui`
-  actualizada por merge (sin reescritura de historia).
-- `npm ci`: **OK** (514 paquetes; conserva `@playwright/test` y Workbox).
+- Base: `main` = `a6cc7e6` (A/2 mergeada en `7cc84a2`; #26/#27/#28 incluidos). Rama
+  `feature/F1-02b-pwa-ui` actualizada por merge (sin reescritura de historia).
+- `npm ci`: **OK** (conserva `@playwright/test` y Workbox).
 - `lint` **0**; `typecheck` (cliente + SW) **0**; `build` **0**; `check:sw` ejecutado en build.
-- **Auditoría CDP local: 11/11** (Chrome 156.0.8078.80) — incluye E3b con caché versionada
-  `hidria-shell-0.1.0-f1-02b-b2`; el build id queda visible en `/acerca`.
+- **Auditoría CDP local: 12/12** (Chrome 157.0.8103.51, perfil temporal) — E8 (secretos), E3b
+  (caché versionada `hidria-shell-0.1.0-<build>`) y E10 (`offline.html` a11y) incluidos; build id
+  visible en `/acerca`.
+- `tests/e2e`: **11 passed** (Chrome local) con la aserción híbrida M5 F2 / M7 F1.
 - **Head de B/2 y CI:** ver §10.2.
-- Revisión solicitada: spec (alcance B/2 y fases), seguridad (SW/caché/secretos/APP_BUILD) y
-  QA (auditoría CDP E1–E10 + offline).
 
 ### 10.2 Head y CI del PR de B/2
 
-- **Head de código verificado por revisiones:** `e1d01d1` — CI **10/10** check-runs
-  (Guardas, Cliente, Edge Functions (Deno), pgTAP 133 aserciones, **E2E Playwright 11/11**).
+- **Heads verificados:** `e1d01d1` (CI **10/10**: Guardas, Cliente, Deno, pgTAP 133 y
+  E2E Playwright 11/11) y `2cf6cc4` (merge de `main@a6cc7e6` + cierre documental; E2E en rojo
+  **por el runner** `ubuntu-latest` 26.04 con Playwright 1.55, no por el código — hotfix de CI en
+  #29/DevOps).
 - **Fix de la revisión incluido:** `tests/e2e/shell.spec.ts` alineado con la decisión híbrida
   (M5 `/iih` → «Fase prevista F2»; M7 `/muestreo` → F1 con `phaseNote` «F1 mínimo / F2 completo»),
   sin cambiar producto ni el resto de casos.
-- **Merge de `main@a6cc7e6`** (solo docs, sin cambios de código) en la rama; sin conflictos de lock.
-  Validación local sobre el resultado del merge (`9a246f2`): `lint` 0 · `typecheck` 0 · `build` 0 ·
-  `npm run test:e2e` **11 passed** (Chrome local).
-- **Head final del PR:** el de este commit documental (sólo reporte); el código es idéntico a
-  `e1d01d1` + merge de docs. CI del head final: 5 checks en el PR.
+- **Batch de re-revisión aplicado (spec + seguridad):**
+  - **SEC-PR22-01 (MAYOR):** `pwa:audit` **sólo acepta hosts locales** (`localhost`/`127.0.0.1`/
+    `[::1]`) en `APP_URL`/`CDP_URL` — probado en negativo con `hidria.pages.dev` y `example.com`
+    (aborta con mensaje); lanza **Chrome propio con perfil temporal** y lo elimina al terminar
+    (verificado: 0 perfiles `hidria-pwa-audit-*` tras la ejecución).
+  - **SEC-PR22-02 / M1:** **E8 implementado** (escaneo de `dist/`) y **E10 implementado**
+    (`offline.html` a11y); **E6 mapeado explícitamente como manual/QA** (task-49, PWA-05).
+  - **M2:** fallback ADR-008 si `Page.getInstallabilityErrors` no existe (manifest + SW + offline),
+    en lugar de fallar.
+  - **M3:** storageKey sintética documentada — se deriva del host de `AUDIT_SUPABASE_URL`
+    (`sb-127-auth-token` en local), no es la clave del proyecto real; sesión `auditoria@ejemplo.invalid`.
+  - **m1:** limpieza de la caché heredada `workbox-precache-*` (A/2) en `activate`.
+  - **m2:** `promptInstall` con `catch` y mensaje accesible en la UI.
+  - **B2:** este §10 con base/head/CI y conteo CDP unificado (12/12 comprobaciones; IDs
+    E1/E1b/E2/E3/E3b/E4/E5/E7/E8/E9/E10 + E6 manual).
+- **Head final del PR y CI:** se actualiza tras el merge del hotfix de CI (#29) y la re-ejecución
+  de los 5 checks (Guardas, Cliente, Deno, pgTAP, E2E).
 
 *Reporte de `dev-frontend-pwa` para F1-02b.*

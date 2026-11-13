@@ -11,6 +11,18 @@ type StorageState = 'idle' | 'granted' | 'denied' | 'unsupported';
 export function InstallCta() {
   const { canInstall, standalone, promptInstall } = useInstallPrompt();
   const [storage, setStorage] = useState<StorageState>('idle');
+  const [installError, setInstallError] = useState<string | null>(null);
+
+  const handleInstall = useCallback(async () => {
+    setInstallError(null);
+    try {
+      await promptInstall();
+    } catch {
+      setInstallError(
+        'No se pudo completar la instalación desde este navegador. Usa el menú del navegador («Instalar aplicación»).',
+      );
+    }
+  }, [promptInstall]);
 
   const requestPersistence = useCallback(async () => {
     if (!('storage' in navigator) || typeof navigator.storage.persist !== 'function') {
@@ -37,13 +49,18 @@ export function InstallCta() {
     <div className="space-y-2" data-install-state={canInstall ? 'available' : 'manual'}>
       <button
         type="button"
-        onClick={() => void promptInstall()}
+        onClick={() => void handleInstall()}
         disabled={!canInstall}
         className="rounded-md bg-hidria-700 px-3 py-2 text-sm font-semibold text-white hover:bg-hidria-800 disabled:cursor-not-allowed disabled:opacity-50"
         data-install-cta="true"
       >
         Instalar HIDRIA
       </button>
+      {installError && (
+        <p className="text-xs text-semaforo-warn" role="alert">
+          {installError}
+        </p>
+      )}
       {!canInstall && (
         <p className="text-xs leading-relaxed text-slate-600">
           Si tu navegador no ofrece el botón de instalación, usa el menú del navegador
