@@ -242,8 +242,8 @@ se mantiene. Sin `secrets.*` (los JWT de prueba son sintéticos).
   `success`) — 3/3 jobs verdes: «Guardas de repositorio», «Cliente (lint + typecheck +
   build)» y **«Edge Functions (Deno)»** (`deno test` → **58 passed**).
 - El check «Edge Functions (Deno)» queda como parte del CI (4.º job tras sumar pgTAP en
-  task-13); no está en `required_status_checks` porque el ruleset está en `count=0`
-  (pendiente de que el usuario lo añada en UI).
+  task-13); **actualizado 2026-11-12:** ya es required en `proteccion-main` (6 checks;
+  SEC-PR29-02 cerrado en #39), ver §9.5.
 - **task-44 completada.** El bloqueo previo fue **solo de credencial** (el PAT no tenía el
   scope `workflow` para publicar el YAML); el contenido del job no cambió entre el commit
   preparado (`960d8d3`) y el mergeado.
@@ -308,18 +308,20 @@ mergee la EF, aparecerá en ese listado y `deno check` la cubrirá sin cambios d
 - El job no usa red salvo que una EF importe módulos remotos en `deno check` (comportamiento
   estándar de Deno); no hay claves ni `.env`.
 
-### 9.5 Pendientes
+### 9.5 Ruleset y pendientes
 
+- **`Edge Functions (Deno)` ya es check required** en `proteccion-main` (ruleset id `26780941`),
+  junto a Guardas, Cliente, pgTAP, E2E y Seguridad (**6 required**; SEC-PR29-02 cerrado en #39).
+  No requiere acción del usuario ni cambios adicionales.
 - [x] **PR #38 abierto y verde**: 6/6 en run `43351427378` (PR) y `43351401913` (push); job
       Deno `131643143340` (8 s, 58/58).
 - [ ] Cuando task-39 mergee `ef-08-documents/index.ts`, verificar que el log liste el entrypoint
       y el check pase (sin cambios de CI).
-- [ ] Mantener `Edge Functions (Deno)` estable para el ruleset (sigue **no required** hasta que
-      el usuario lo añada).
 
 ### 9.6 Veredicto
 
 **VERDE CI** — job Deno extendido a `supabase/functions/**` con fmt/lint/check por entrypoint y
-suites completas; run `43351427378` 6/6 (58/58 en CI). La EF real `ef-08` se cubrirá
-automáticamente al mergear task-39 (mecanismo validado localmente con un entrypoint sintético
-temporal, retirado). Sin secretos ni `R2_*`; los otros 5 checks intactos.
+suites completas; run `43351427378` 6/6 (58/58 en CI). El check ya es **required** en el ruleset
+`proteccion-main` (6 checks). La EF real `ef-08` se cubrirá automáticamente al mergear task-39
+(mecanismo validado localmente con un entrypoint sintético temporal, retirado). Sin secretos ni
+`R2_*`; los otros 5 checks intactos.
