@@ -68,13 +68,14 @@ consciente y con fecha de revisión (no silenciosa).
 | 4 | `node scripts/ci/dist-scan.mjs` | exit 0 (8 archivos; sin credenciales; 3 avisos de literal) |
 | 5 | `node --check` de los scripts | exit 0 |
 
-## 6. Evidencia CI (se completa con run id)
+## 6. Evidencia CI — run verde
 
 | Dato | Valor |
 |---|---|
-| Checks esperados | **6/6** (Guardas, Cliente, Deno, pgTAP, E2E, Seguridad) |
-| Run CI | _pendiente_ |
-| Job `Seguridad` | _pendiente_ — debe incluir el self-test de fixtures |
+| Run PR | [43346535511](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43346535511) (`pull_request`, head `aa06d91`, **success**) |
+| Run push | `43346510763` (`push`, mismo head, **success**) |
+| Checks | **6/6**: Guardas · Cliente · Deno · pgTAP · E2E · **Seguridad (dependencias y bundle)** |
+| Job `Seguridad` | success — incluye `npm-audit`, build, `build-guard-test` (5/5), `dist-scan` y **`hardening-selftest` (6/6 fixtures)**; `Guardas` verde con fixtures excluidos del secret scan |
 
 ## 7. Seguridad y límites
 
@@ -87,7 +88,7 @@ consciente y con fecha de revisión (no silenciosa).
 
 ## 8. Pendientes / siguiente paso
 
-- [ ] Abrir PR desde `13caf3b` y verificar **6/6** (run id en §6).
+- [x] **PR #34 abierto y verde**: 6/6 en run `43346535511` (PR) y `43346510763` (push).
 - [ ] Actualizar `qa/trazabilidad.md`/reporte QA de #29 si el supervisor lo pide (fuera de
       este PR; QA no hace git).
 - [ ] Usuario: añadir `Seguridad (dependencias y bundle)` a required checks antes de G1.
@@ -95,6 +96,8 @@ consciente y con fecha de revisión (no silenciosa).
 
 ## Veredicto
 
-**VERDE local** — SEC-PR29-01 cerrada (schema estricto, sin wildcard), SEC-PR29-03 cerrada
-(fixtures versionados + self-test en CI), SEC-PR29-05/06 cubiertas. Pendiente run de CI para
-el VERDE definitivo. Sin secretos ni cambios de producto.
+**VERDE CI** — run `43346535511` (6/6; job `Seguridad` con self-test de fixtures 6/6 y guard
+build-time 5/5). SEC-PR29-01 cerrada (schema estricto, sin wildcard), SEC-PR29-03 cerrada
+(fixtures versionados + self-test en CI), SEC-PR29-05/06 cubiertas. Sin secretos ni cambios de
+producto. Pendiente squash del supervisor; SEC-PR29-02 (required check) sigue siendo acción del
+usuario.
