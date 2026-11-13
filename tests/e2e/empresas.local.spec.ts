@@ -106,7 +106,7 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
     await page.getByTestId('empresa-field-nombre_planta').fill('Planta E2E Equipo Editada');
     await page.getByTestId('empresa-submit').click();
     await expect(page).toHaveURL(new RegExp(`/empresas/${companyId}$`));
-    await expect(page.getByText('Planta E2E Equipo Editada')).toBeVisible();
+    await expect(page.getByText('Planta E2E Equipo Editada', { exact: true })).toBeVisible();
   });
 
   test('empresa dedicada (contraparte A1) ve solo A1; sin membresía seed', async ({
