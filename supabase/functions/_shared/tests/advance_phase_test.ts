@@ -267,7 +267,7 @@ Deno.test("EF-01 409 gates replicados: checklist y ficha de respaldo", async () 
   )(await makeRequest({ diagnostic_id: DIAG_ID, to_phase: 2 }));
   assertEquals(ficha.status, 409);
   const fichaError = errorOf(await body(ficha));
-  assertEquals(fichaError.code, "GATE_CHECKLIST_R1");
+  assertEquals(fichaError.code, "GATE_FICHA");
   assertEquals(fichaError.details?.reason, "ficha");
 });
 

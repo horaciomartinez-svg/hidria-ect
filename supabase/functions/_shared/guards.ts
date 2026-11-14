@@ -15,7 +15,8 @@ export type GateCode =
   | "GATE_CAT_R2"
   | "GATE_IIH_V1"
   | "GATE_BHE_R3"
-  | "GATE_IVOH_R4";
+  | "GATE_IVOH_R4"
+  | "GATE_FICHA";
 
 /** Datos mínimos que la EF lee para replicar el gate de la fase origen. */
 export interface GateData {
@@ -63,6 +64,8 @@ export const GATE_MESSAGES: Readonly<Record<GateCode, string>> = {
   GATE_IIH_V1: "Gate F4: el IIH tiene activos sin verificar en V1.",
   GATE_BHE_R3: "Gate F5: el balance hídrico no está validado en R3.",
   GATE_IVOH_R4: "Gate F6: el IVOH no está validado en R4.",
+  GATE_FICHA:
+    "La ficha de bitácora de respaldo del hito no existe o no está cerrada.",
 };
 
 /** Hito que sigue al entrar a cada fase (decisión del revisor; `3→V1`, no `V2`). */
@@ -138,18 +141,19 @@ export function evaluatePhaseGate(
   if (ficha === null || ficha === undefined || ficha.clave !== fichaClave) {
     return {
       ok: false,
-      code,
-      message: GATE_MESSAGES[code],
-      details: { reason: "ficha", ficha_clave: fichaClave },
+      code: "GATE_FICHA",
+      message: GATE_MESSAGES.GATE_FICHA,
+      details: { reason: "ficha", fase_gate: code, ficha_clave: fichaClave },
     };
   }
   if (ficha.estado !== "cerrada") {
     return {
       ok: false,
-      code,
-      message: GATE_MESSAGES[code],
+      code: "GATE_FICHA",
+      message: GATE_MESSAGES.GATE_FICHA,
       details: {
         reason: "ficha",
+        fase_gate: code,
         ficha_clave: fichaClave,
         estado_ficha: ficha.estado,
       },

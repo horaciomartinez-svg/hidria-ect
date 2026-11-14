@@ -48,12 +48,16 @@ Deno.test("gate F2: checklist no validado ⇒ GATE_CHECKLIST_R1 con mensaje del 
   });
 });
 
-Deno.test("gate: ficha ausente o abierta ⇒ mismo GATE_* con reason='ficha'", () => {
+Deno.test("gate: ficha ausente o abierta ⇒ GATE_FICHA con reason='ficha'", () => {
   const missing = evaluatePhaseGate(3, data({ ficha: null }));
   assertEquals(missing.ok, false);
   if (missing.ok) throw new Error("se esperaba fail");
-  assertEquals(missing.code, "GATE_IIH_V1");
-  assertEquals(missing.details, { reason: "ficha", ficha_clave: "V1" });
+  assertEquals(missing.code, "GATE_FICHA");
+  assertEquals(missing.details, {
+    reason: "ficha",
+    fase_gate: "GATE_IIH_V1",
+    ficha_clave: "V1",
+  });
 
   const open = evaluatePhaseGate(
     4,

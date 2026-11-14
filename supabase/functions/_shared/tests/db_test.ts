@@ -227,8 +227,46 @@ Deno.test("db: gates (checklist, IIH, BHE, IVOH, ficha) y miembros", async () =>
   assert(
     calls.some((call) =>
       call.url.includes("/logbook_entries") &&
+      call.url.includes("estado=eq.cerrada") &&
       call.url.includes("order=fecha.desc")
     ),
+  );
+});
+
+Deno.test("db: fetchLatestFicha filtra cerrada y no devuelve la abierta más reciente (B1)", async () => {
+  const { fetchImpl, calls } = fakeFetch((call) => {
+    if (call.url.includes("/logbook_entries")) {
+      if (call.url.includes("estado=eq.cerrada")) {
+        return json([{
+          id: "entry-closed",
+          clave: "R3",
+          estado: "cerrada",
+          folio: "BIT-R3-01",
+        }]);
+      }
+      return json([{
+        id: "entry-open",
+        clave: "R3",
+        estado: "abierta",
+        folio: "BIT-R3-02",
+      }]);
+    }
+    return json([]);
+  });
+  const client = createServiceClient(ENV, fetchImpl);
+
+  assertEquals(await client.fetchLatestFicha(DIAG_ID, "R3"), {
+    id: "entry-closed",
+    clave: "R3",
+    estado: "cerrada",
+    folio: "BIT-R3-01",
+  });
+  assert(
+    calls.some((call) =>
+      call.url.includes("/logbook_entries") &&
+      call.url.includes("estado=eq.cerrada")
+    ),
+    "fetchLatestFicha debe pedir estado=eq.cerrada",
   );
 });
 

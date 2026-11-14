@@ -344,7 +344,7 @@ export function createServiceClient(
       `/rest/v1/logbook_entries?diagnostic_id=eq.${
         encodeURIComponent(diagnosticId)
       }&clave=eq.${encodeURIComponent(clave)}` +
-        "&select=id,clave,estado,folio&order=fecha.desc,horario_inicio.desc&limit=1",
+        "&estado=eq.cerrada&select=id,clave,estado,folio&order=fecha.desc,horario_inicio.desc&limit=1",
     );
     if (rows.length === 0) return null;
     const row = rows[0];
