@@ -257,6 +257,10 @@ post-merge `42514381567`, **5/5 checks**, E2E job success (`11 passed`) y artefa
 | CI hardening task-50: SEC-PR29-01/03 cerrados en PR #34 `c624eca` (allowlist schema estricto, fixtures negativos versionados + selftest en job); **SEC-PR29-02 cerrado 2026-11-13** (ruleset con **6 checks required**, incluido `Seguridad (dependencias y bundle)`) | **✓ 01/02/03** | `reports/qa/PR-34_qa.md`; job `131628150844`; ruleset `26780941` |
 | F1-01a task-35 (PR #32 `fe5c150`): matriz invitado/observador, profiles solo propio, companies membresía/agregado, 5 tablas sin agregado, VETO-1/2/3/4, B1 writes, M2(a), RES-1 crear→leer; BD=repo **28** | **✓ estático + pgTAP** | `reports/qa/PR-32_qa.md` §1–§3 |
 | F1-01a task-35: suite `070` plan **68**, total **207/207** en CI; `docs/02` intacto, sin drift/secretos | **✓** | runs 43349789216 / 43349782169; `PR-32_qa.md` §3–§4 |
+| F1-03a (PR #36 `1fdc77b`): `created_by` server-side, `companies_sel` creador/ownership, `companies_upd` empresa, contraparte trigger, `company_in_tenant` tenant-locked; suite `080` plan **24**, total **231/231**, BD=repo **29** | **✓ estático + pgTAP** | `reports/qa/PR-36_qa.md` §1–§3; runs 43351421413/43351415061 |
+| F1-03b (PR #35 `555422f`): UI M1 lista/alta/detalle/edición, E2E **22/22** (shell 11 + Empresas 11), B1/SEC-PR35-01, M1–M5, **B2 habilitado con 3 roles** (alta equipo); CI 12/12 | **✓ UI/código**; E2E real backend en F1-03c | `reports/qa/PR-35_qa.md` §1–§5; runs 43353090946/43353084854 |
+| F1-39 EF-08 presign (PR #40 `eb5f62e`): membresía/rol/tenant antes de firmar, TTL 300, clave R2 server-side, respuesta sin `r2_key`, `register` 501 sin efectos, CORS estricto; tests Deno **101/101**, fmt/lint/check 0 | **✓ unit/integración Deno** | `reports/qa/PR-40_qa.md` §1–§3; runs 43353874625/43353866750 |
+| F1-39: contrato `docs/04` (main) sin `r2_key`/TTL300/501; sin `R2_*` ni E2E real (diferido F1-16); P3 doc TTL 300/900 a alinear | **✓ contrato; E2E real diferido** | `PR-40_qa.md` §2–§3 |
 
 **Ninguna fila de la matriz cambia a `verde` con esta evidencia**: es verificación SQL
 equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las suites.
@@ -345,3 +349,19 @@ equivalente sobre la capa BD, no ejecución de los casos `docs/05` ni de las sui
   `070` plan **68**, total **6 suites/207/207**; BD=repo **28** migraciones, `docs/02` intacto,
   sin drift ni secretos. Vigencia temporal diferida a F1-04 (ADR-011). Sin verdes R-* (evidencia
   BD/RLS).
+- **F1-03a (PR #36, head `1fdc77b`): VERDE — F1-03a lista.** `companies.created_by` server-side
+  e inmutable, `companies_sel` con creador/empresa/membresía/agregado, `companies_upd` empresa
+  propia, contraparte validada por trigger (mismo tenant/rol empresa/solo admin-coord),
+  `company_in_tenant` tenant-locked. Suite `080` plan **24**, total **8 suites/231/231**; BD=repo
+  **29**, `docs/02` intacto; sin regresión ni secretos.
+- **F1-03b (PR #35, head final `555422f`): VERDE UI — B2 habilitado.** Rutas reales M1,
+  PostgREST+RLS, validaciones/estados/a11y, E2E **22/22**, B1 lectura `empresa` y SEC-PR35-01
+  resueltos; `COMPANY_CREATE_ROLES` vuelve a los 3 roles (incl. equipo) y el alta E2E usa el claim
+  de equipo; CI 12/12. La lectura real `created_by`/`companies_sel` está probada por pgTAP
+  #36/080; la E2E con backend real/RLS queda en **F1-03c/task-82**. Sin verdes de reglas R-*.
+- **F1-39 EF-08 presign (PR #40, head `99e948c`): VERDE — task-39 cerrada.** Membresía/rol/tenant
+  antes de firmar (admin/coord sin membresía denegados), TTL **300 s** duro, clave R2 server-side,
+  respuesta mínima sin `r2_key`, `register` **501 sin efectos**, CORS estricto; tests Deno
+  **101/101**, fmt/lint/check 0; CI 12/12 (Deno extendido a `functions/**`). Sin `R2_*`/E2E real
+  (diferido F1-16); P3 documental TTL 300/900 a alinear. task-86 (register) futura, task-87
+  (Deno CI) efectiva. Sin verdes E2E/R2 ni reglas R-*.

@@ -1,6 +1,6 @@
 # ADR-011 — Alcance del rol `invitado` y visibilidad por membresía (Q-02/SEC-PR7-D2)
 
-- **Estado:** Aceptado (dirección de revisor/seguridad); pendiente sign-off final del delta
+- **Estado:** Aceptado (spec/seguridad/QA; task-35 cerrada 2026-11-13, squash `a0db8a1`)
 - **Fecha:** 2026-11-12
 - **Tarea:** `task-35` (Q-02 de QA / SEC-PR7-D2 de seguridad, PR #7)
 - **Dueño:** `arquitecto-bd`; revisión: `revisor-especificaciones`; sign-off: `seguridad-privacidad`
@@ -86,7 +86,7 @@ sustituido por `…0030`. `supabase db reset` debe aplicar exactamente esos 28 a
 - Las vistas `security_invoker` heredan; `v_diagnostic_completeness` no filtra filas a invitado
   sin membresía.
 - Sin cambios de columnas/tablas; solo policies y triggers. Sin datos reales.
-- Tests `070` plan **55**; total suite **194** (21+9+9+15+34+51+55).
+- Tests `070` plan **68**; total suite **207** (21+9+9+15+34+51+68).
 
 ## Alternativas descartadas
 
@@ -100,9 +100,10 @@ sustituido por `…0030`. `supabase db reset` debe aplicar exactamente esos 28 a
 
 | Rol | Agente | Fecha | Veredicto |
 |---|---|---|---|
-| Revisor de especificaciones | `revisor-especificaciones` | 2026-11-12 | Matriz vinculante aprobada; pendiente revisión del delta |
-| Seguridad y privacidad | `seguridad-privacidad` | 2026-11-12 | Dirección aprobada con condiciones; pendiente sign-off del delta |
-| Supervisor | `supervisor-hidria` | 2026-11-12 | Autoriza implementación; merge solo supervisor |
+| Revisor de especificaciones | `revisor-especificaciones` | 2026-11-13 | APROBADO delta final `fe5c150`; task-35 cerrada |
+| Seguridad y privacidad | `seguridad-privacidad` | 2026-11-13 | APROBADO CON OBSERVACIONES, SIN VETO (VETO-1..4, B1, M2(a), RES-1); task-76 cerrada |
+| QA | `qa-tester` | 2026-11-13 | VERDE `fe5c150` (207/207); task-77 cerrada |
+| Supervisor | `supervisor-hidria` | 2026-11-13 | Squash #32 `a0db8a1`; task-35 cerrada |
 
 ## Referencias
 
