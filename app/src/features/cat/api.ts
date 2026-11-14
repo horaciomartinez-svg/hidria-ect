@@ -216,13 +216,13 @@ export async function getCatDiagnostic(
 /* ------------------------------------------------------------------------- */
 
 /**
- * Guarda/actualiza una respuesta. La UI no envía `created_by` en updates (se conserva el
- * autor original) y nunca toca `diagnostics.cat_estado`.
+ * Guarda/actualiza una respuesta. **`created_by` nunca se envía desde el cliente**: lo fija
+ * server-side el trigger (`auth.uid()`, F1-07c) y es inmutable en UPDATE. La UI nunca toca
+ * `diagnostics.cat_estado`.
  */
 export async function saveCatAnswer(input: {
   diagnosticId: string;
   itemId: string;
-  userId: string;
   answer: AnswerState;
   exists: boolean;
 }): Promise<CatResponse> {
@@ -244,7 +244,6 @@ export async function saveCatAnswer(input: {
     .insert({
       diagnostic_id: input.diagnosticId,
       item_id: input.itemId,
-      created_by: input.userId,
       ...payload,
     })
     .select('item_id, valor, no_se, na, document_id, updated_at')

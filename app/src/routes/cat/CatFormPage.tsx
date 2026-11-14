@@ -107,7 +107,6 @@ export function CatFormPage() {
       const saved = await saveCatAnswer({
         diagnosticId,
         itemId: item.id,
-        userId: claims.sub,
         answer: next,
         exists: Boolean(responsesMap[item.id]),
       });

@@ -267,6 +267,24 @@ test.describe('M4 — CAT', () => {
     await expect(page.getByTestId('cat-estado')).toHaveText('En captura');
   });
 
+  test('SEC-PR61-01: el borrador no envía created_by (lo fija el trigger server-side)', async ({
+    page,
+  }) => {
+    const state = await mockCat(page, { role: 'empresa' });
+    await seedSession(page, CLAIMS_EMPRESA);
+    await page.goto(`/cat/${DIAG}`);
+
+    await page.getByTestId('cat-item-A1').getByRole('textbox').fill('Intento de spoof');
+    await page.getByTestId('cat-input-A1').blur();
+
+    expect(state.saveCalls.length).toBeGreaterThan(0);
+    for (const call of state.saveCalls) {
+      // El cliente no envía ownership/creador: lo fija auth.uid()/trigger (F1-07c).
+      expect(call.body).not.toHaveProperty('created_by');
+    }
+    await expect(page.getByTestId('cat-progress')).toContainText('1/47');
+  });
+
   test('submit bloqueado por validación local si faltan obligatorias (sin llamar EF-04)', async ({
     page,
   }) => {

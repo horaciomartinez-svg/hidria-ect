@@ -26,8 +26,9 @@
   R2) o **«No aplica»**, mutuamente excluyentes.
 - **Guardado del borrador:** PostgREST sobre `cat_responses` (insert/update bajo RLS
   `cat_responses_ins/upd` para `coordinador|equipo|empresa`; confirmado por `arquitecto-bd`),
-  `created_by` server-side (trigger) y **sin tocar `diagnostics.cat_estado`**. Guardado por pregunta
-  (blur/opciones) con indicador accesible «Guardando…/Guardado/Error».
+  **`created_by` lo fija server-side el trigger (`auth.uid()`, F1-07c) y la UI no lo envía**
+  (SEC-PR61-01), y **sin tocar `diagnostics.cat_estado`**. Guardado por pregunta (blur/opciones) con
+  indicador accesible «Guardando…/Guardado/Error».
 - **Submit / gate R2:** **EF-04** (`docs/04` §EF-04). `submit` visible para empresa/coord/equipo
   cuando el CAT no está en revisión/validado; `validate-r2` visible sólo a coordinador/equipo y sólo
   con `cat_estado='en_revision'`. Gate **F3** visible y bloqueado hasta `validado_r2` (TD-1 #2), con
@@ -52,6 +53,9 @@
   `created_by=auth.uid()` inmutable y `updated_at`; **no** hay transición automática de `cat_estado` al
   guardar; seed 47 ya existente y **sin `condicion`** (la UI no inventa condicionales); evidencia por
   pregunta no bloquea si `resuelta_en_campo=false` (no se expone en F1-07a).
+- **SEC-PR61-01 (seguridad, aplicado):** el INSERT del borrador **no incluye `created_by`**; la UI no
+  puede fijar ownership (el trigger/`auth.uid` gana). El E2E verifica que ningún payload lo envía; el
+  rechazo del spoof en DB queda cubierto por el pgTAP de F1-07c (trigger).
 - **`dev-edge-functions` (F1-07b) confirmó** (head `117e7a7`, PR #59 draft hasta RPC):
   `POST /functions/v1/ef-04-cat/cat/{diagnostic_id}/submit` y `…/validate-r2`; `submit` con body
   `{}` (la EF valida contra DB), `Idempotency-Key` opcional (la UI envía UUID);
@@ -87,6 +91,7 @@ mockeados (con preflight CORS):
 |---|---|---|
 | 1 | empresa: lista diagnóstico, abre el CAT, renderiza **47** preguntas en A–H | OK |
 | 2 | guardado de borrador por PostgREST (1/47) sin cambiar `cat_estado` | OK |
+| 2b | **SEC-PR61-01:** el borrador **no envía `created_by`** (lo fija el trigger/server) | OK |
 | 3 | submit bloqueado por faltantes (lista 47 códigos) **sin** llamar EF-04 | OK |
 | 4 | submit completo → EF-04 y estado `en_revision`; gate R2 pendiente; empresa no ve validate | OK |
 | 5 | coordinador: validate-r2 (con `r2_logbook_id`) → `validado_r2`, gate desbloqueado | OK |
@@ -105,7 +110,7 @@ npm run lint       → eslint src ..................................... EXIT 0
 npm run typecheck  → tsc --noEmit && tsc -p tsconfig.sw.json --noEmit  EXIT 0
 npm run build      → … vite build ................................... EXIT 0
                      PWA v2.0.0 · injectManifest · precache 11 entries (618.18 KiB)
-npm run test:e2e   → 41 passed + 6 skipped (11 shell + 14 M1 + 2 guard + 7 M3 + 7 M4) EXIT 0
+npm run test:e2e   → 42 passed + 6 skipped (11 shell + 14 M1 + 2 guard + 7 M3 + 8 M4) EXIT 0
 ```
 
 ## 6. Pendientes / coordinación
