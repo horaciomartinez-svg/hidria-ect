@@ -287,17 +287,17 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 
 ## EF-09 — Importación XLSX (BHE e IIH)
 
-`POST /functions/v1/import/xlsx`
+`POST /functions/v1/ef-09-import/import/xlsx` (alias `/import/xlsx`)
 
 | Campo | Valor |
 |---|---|
-| Propósito | Importar la plantilla oficial de captura (BHE o IIH) validando estructura, mapeo celda↔campo y consistencia mínima |
-| Cuerpo | multipart: archivo + `{ "diagnostic_id": uuid, "kind": "bhe" \| "iih", "periodo_anio"?: int }` |
-| Pre | Rol `coordinador|equipo`; estructura del archivo idéntica a la plantilla oficial (hojas, encabezados, unidades) — desviación → rechazo con diff de columnas |
-| Tx | Parseo y mapeo validado; `INSERT water_balances (fuente_origen='importada_excel', estado='en_captura')` + `balance_flows` o `iih_assets` según kind; el mapeo usado queda en `audit_log.meta`; nunca valida R3 (eso es EF-05) |
+| Propósito | Importar la plantilla oficial de captura (**IIH** en F1-08; BHE en F1-09) validando estructura, mapeo celda↔campo y consistencia mínima |
+| Cuerpo | **JSON**: `{ "diagnostic_id": uuid, "document_id": uuid, "kind": "iih", "periodo_anio"?: int }`. `document_id` viene de **EF-08 `register`**; el archivo ya está en R2 y la EF lo descarga server-side (sin `r2_key`/bucket en cliente). |
+| Pre | Rol `coordinador|equipo`; JWT/claims (`verifyProfile`, `nbf`, `p_user_id`); tenant/membresía (403 anti-enumeración); `document_id` del mismo diagnóstico/tenant y `upload_status='registered'`; XLSX **≤10 MB / ≤500 filas**; ZIP saneado (sin zip-bomb), sin fórmulas/macros. Plantilla IIH: hojas `1. Captación`…`6. Evacuación`, encabezados fila **7** (21 columnas), datos desde fila **8**; columna B = código `iih_asset_types` → `stage_code`/`asset_type_id`. Desviación → `422 VALIDATION_XLSX_ESTRUCTURA` con `faltantes`/`sobrantes`. |
+| Tx | RPC `fn_import_iih_assets(p_user_id, p_diagnostic_id, p_document_id, p_rows jsonb, p_checksum text, p_idempotency_key, p_request_hash)` `service_role`-only y atómica: `INSERT iih_assets` con **folio server-side**, `prioridad` **recalculada** (no se acepta la columna calc. del archivo), `verificado_v1=false` (no valida V1), `audit_log(action='create')` y `api_idempotency`. El mapeo/documento queda en `audit_log.meta`; **no** valida R3 (eso es EF-05). |
 | Post | Notificación con resumen (filas leídas, rechazadas, advertencias) |
-| Respuesta | `{ kind, destino_id, filas_ok, filas_rechazadas: [{fila, razon}], advertencias: [text] }` |
-| Errores | `VALIDATION_XLSX_ESTRUCTURA` (422) · `FORBIDDEN_ROLE` |
+| Respuesta | `{ kind, destino_id, filas_ok, filas_rechazadas: [{fila, razon}], advertencias: [text] }` (fila 1-based) |
+| Errores | `VALIDATION_XLSX_ESTRUCTURA`/`VALIDATION_XLSX_CONTENIDO` (422) · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` (403 anti-enumeración) · `CONFLICT_STATE` (409 estado/idempotencia) · `INTERNAL_ERROR` (500 saneado) |
 
 ## EF-10 — Dictamen de laboratorio y cierre de cadena de custodia
 

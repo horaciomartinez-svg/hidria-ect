@@ -75,7 +75,7 @@ Herramientas: **pgTAP** (SQL), **Vitest + React Testing Library** (unidad), **Pl
 | Idempotencia (`Idempotency-Key`) | API-00 |
 | Sincronización offline (cola Dexie, LWW por campos, gates no offline) | OFF-01…OFF-04 |
 | Realtime (canales y payloads) | RT-01, RT-02 |
-| Importador XLSX (estructura oficial) | XLS-01, XLS-02 |
+| Importador XLSX (estructura oficial) | XLS-01, XLS-02 (BHE), XLS-03, XLS-04 (IIH) |
 | Examen del aula: calificación server-side, ≥ 80 %, badge OB3 (TD-7) | AUL-01…AUL-03 |
 | Reprogramación de hito con semáforo (EF-12, TD-1 nota) | PG-12 |
 | Criterios de aceptación del piloto (arquitectura §11) | CAP-01…CAP-04 |
@@ -224,6 +224,8 @@ Una suite automatizada por EF con la matriz: **(rol válido, happy path) · (rol
 |---|---|---|---|
 | XLS-01 | Plantilla oficial BHE con 12 meses completos | EF-09 | 200; `water_balances.fuente_origen='importada_excel'`; `filas_ok=12`; queda en `en_captura` (la importación **no** valida R3) |
 | XLS-02 | Archivo con hoja renombrada y columna faltante | EF-09 | 422 `VALIDATION_XLSX_ESTRUCTURA` con diff de columnas; `audit_log.meta` registra el mapeo intentado |
+| XLS-03 | Plantilla oficial IIH (`1. Captación`…`6. Evacuación`) con filas válidas | EF-09 `kind='iih'` | 200; `iih_assets` con folio server-side y `verificado_v1=false`; `filas_ok` = filas de datos; `audit_log(action='create')` |
+| XLS-04 | IIH con hoja renombrada/columna faltante o fila inválida | EF-09 `kind='iih'` | 422 `VALIDATION_XLSX_ESTRUCTURA`/`VALIDATION_XLSX_CONTENIDO` con `faltantes`/fila 1-based; sin insertar activos |
 
 ## 4.7 Aula (AUL)
 
