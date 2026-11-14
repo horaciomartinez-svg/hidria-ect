@@ -5,7 +5,7 @@
 | **Tarea** | `task-99` — Follow-ups F1-03c (M1/M2/M3) |
 | **Agente** | `dev-frontend-pwa` (04) |
 | **Rama** | `feature/F1-03c-followups` |
-| **Base** | `main` = `5514ec3` |
+| **Base** | `main` = `226d885` (mergeado en la rama; squash final `ecfd17b`) |
 | **Alcance** | (M1) edición de la **empresa propia** para rol `empresa` en `/empresas`; (M2) residual `ciclo_vida` UI-only documentado; (M3) revisión manual de a11y con fixes; E2E UI-level + real |
 | **Conclusión** | **VERDE local** — `lint` 0 · `typecheck` 0 · `build` 0 · E2E mock **27 passed + 6 skipped**; CI 7/7 en el PR (incluye job E2E real) |
 
@@ -119,8 +119,9 @@ npm run test:e2e   → 27 passed + 6 skipped (11 shell, 14 M1 mock, 2 guard) EXI
 ```
 
 Los 6 tests del spec local (E2E real) se ejecutan en el job CI `E2E real M1 (Supabase local)`
-(7 checks esperados: Guardas, Cliente, Deno, pgTAP, E2E, Seguridad + E2E real M1). No se ejecutó
-localmente (sin Docker/CLI Supabase), igual que en F1-03c.
+(7 checks: Guardas, Cliente, Deno, pgTAP, E2E, Seguridad + E2E real M1). **CI 7/7 verde** en el head
+de código `05b4a16` (runs `43638655118` PR y `43638659622` push); squash en `main` = `ecfd17b`.
+No se ejecutó localmente (sin Docker/CLI Supabase), igual que en F1-03c.
 
 ## 7. Pendientes / coordinación
 
