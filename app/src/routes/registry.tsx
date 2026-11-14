@@ -99,10 +99,11 @@ export const MODULES: readonly ModuleDef[] = [
   },
   {
     id: 'M3',
-    path: '/documentos',
-    title: 'Repositorio documental',
-    short: 'Documentos',
-    summary: 'Carga con URL prefirmada, versiones y lista de cotejo validada en R1.',
+    path: '/checklist',
+    title: 'Checklist documental',
+    short: 'Checklist',
+    summary:
+      'Lista de cotejo documental con estados TD-2, carga de documentos por URL prefirmada y validación en R1.',
     phase: 'F1',
     contract: 'EF-08 documents/presign+register · EF-03 checklist/transition',
     roles: TODOS,

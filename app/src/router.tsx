@@ -1,8 +1,9 @@
-import { createBrowserRouter, type RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth, RequireGlobalRole } from './lib/auth/guards';
 import { COMPANY_CREATE_ROLES, COMPANY_EDIT_ROLES } from './features/empresas/types';
 import { MODULES } from './routes/registry';
+import { ChecklistPage } from './routes/checklist/ChecklistPage';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
 import { EmpresaFormPage } from './routes/empresas/EmpresaFormPage';
 import { EmpresasListPage } from './routes/empresas/EmpresasListPage';
@@ -20,16 +21,16 @@ import { AboutPage, NotFoundPage, PrivacyPage, RouteErrorPage } from './routes/S
  *   como placeholder con su contrato.
  * - Rutas de servicio: `/sincronizacion`, `/acerca`, `/privacidad`, 404.
  */
-const placeholderRoutes: RouteObject[] = MODULES.filter((module) => module.id !== 'M1').map(
-  (module) => ({
-    path: module.path.slice(1),
-    element: (
-      <RequireGlobalRole roles={module.roles}>
-        <ModulePlaceholderPage module={module} />
-      </RequireGlobalRole>
-    ),
-  }),
-);
+const placeholderRoutes: RouteObject[] = MODULES.filter(
+  (module) => module.id !== 'M1' && module.id !== 'M3',
+).map((module) => ({
+  path: module.path.slice(1),
+  element: (
+    <RequireGlobalRole roles={module.roles}>
+      <ModulePlaceholderPage module={module} />
+    </RequireGlobalRole>
+  ),
+}));
 
 const empresaRoutes: RouteObject[] = [
   {
@@ -80,6 +81,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <PanelPage /> },
       ...empresaRoutes,
+      // M3 — checklist documental (F1-06a); `/documentos` queda como alias del path anterior.
+      { path: 'checklist', element: <ChecklistPage /> },
+      { path: 'documentos', element: <Navigate to="/checklist" replace /> },
       ...placeholderRoutes,
       { path: 'sincronizacion', element: <SincronizacionPage /> },
       { path: 'acerca', element: <AboutPage /> },
