@@ -116,7 +116,7 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | EF-05 | `POST /balances/{balance_id}/validate-r3` | M6 | coordinador, equipo | Sí | ref. bitácora R3, avance |
 | EF-06 | `POST /ivoh/{diagnostic_id}/score` · `POST /ivoh/{diagnostic_id}/validate-r4` | M8 | coordinador, equipo | Sí | gate F6, radial series |
 | EF-07 | `POST /diagnostics/{id}/emit-report` | M9 | coordinador | Sí | PDF → R2, folio `-R1`, estado `reportado` |
-| EF-08 | `POST /documents/presign` (register → F1-05/501) | M3 | miembro diagnóstico (coord/equipo/empresa); register: cualquier miembro | No/Sí | URL R2, hash SHA-256 |
+| EF-08 | `POST /documents/presign` (register → F1-05/501) | M3 | presign: miembro diagnóstico (coord/equipo/empresa); register: coord/equipo/empresa (observador/invitado 403) | No/Sí | URL R2, hash SHA-256 |
 | EF-09 | `POST /import/xlsx` | M5/M6 | coordinador, equipo | Sí | auditoría de mapeo |
 | EF-10 | `POST /samples/{sample_id}/dictamen` | M7 | coordinador, equipo | Sí | dictámenes por parámetro |
 | EF-11 | `POST /quiz/submit` | M12 | autenticado | Sí | calificación, badge OB3 |
