@@ -331,4 +331,127 @@ test.describe('M1 — Empresas', () => {
     await expect(page.getByText(/no se guardan cambios en este dispositivo/i)).toBeVisible();
     await page.context().setOffline(false);
   });
+
+  test('empresa contraparte edita su propia ficha (UI-level)', async ({ page }) => {
+    await mockSupabase(page);
+    let actual = { ...COMPANY, contraparte_user_id: CLAIMS_EMPRESA.sub };
+    await page.route('**/rest/v1/companies**', async (route) => {
+      const request = route.request();
+      if (request.method() === 'PATCH') {
+        const body = JSON.parse(request.postData() ?? '{}') as Record<string, unknown>;
+        actual = { ...actual, ...body };
+        await json(route, 200, actual);
+        return;
+      }
+      if (request.url().includes('id=eq.')) {
+        await json(route, 200, actual);
+        return;
+      }
+      await json(route, 200, [actual]);
+    });
+
+    await seedSession(page, CLAIMS_EMPRESA);
+    await page.goto(`/empresas/${COMPANY_ID}`);
+    await expect(page.getByTestId('empresa-editar')).toBeVisible();
+
+    await page.getByTestId('empresa-editar').click();
+    await expect(page).toHaveURL(new RegExp(`/empresas/${COMPANY_ID}/editar$`));
+    await page.getByTestId('empresa-field-nombre_planta').fill('Planta Propia Editada');
+    await page.getByTestId('empresa-submit').click();
+
+    await expect(page).toHaveURL(new RegExp(`/empresas/${COMPANY_ID}$`));
+    await expect(
+      page.getByTestId('empresa-detail').getByText('Planta Propia Editada').first(),
+    ).toBeVisible();
+  });
+
+  test('empresa que no es contraparte no ve edición y el formulario la rechaza', async ({
+    page,
+  }) => {
+    await mockSupabase(page);
+    await page.route('**/rest/v1/companies**', (route) => json(route, 200, COMPANY));
+    await seedSession(page, CLAIMS_EMPRESA);
+
+    await page.goto(`/empresas/${COMPANY_ID}`);
+    await expect(page.getByTestId('empresa-editar')).toHaveCount(0);
+
+    await page.goto(`/empresas/${COMPANY_ID}/editar`);
+    await expect(page.getByText('Tu rol no permite editar esta empresa')).toBeVisible();
+  });
+
+  test('a11y: foco al navegar, tabulación y resumen de errores navegable', async ({ page }) => {
+    await mockSupabase(page);
+    await page.route('**/rest/v1/companies**', (route) => json(route, 200, []));
+    await seedSession(page, CLAIMS_EQUIPO);
+
+    // 1) Foco al contenido principal tras un cambio de ruta SPA.
+    await page.goto('/');
+    await page.getByRole('link', { name: /Empresas/ }).first().click();
+    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('contenido');
+
+    // 2) Orden de tabulación dentro del formulario (siguiente campo natural).
+    await page.goto('/empresas/nueva');
+    await page.getByTestId('empresa-field-razon_social').focus();
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('empresa-field-nombre_planta')).toBeFocused();
+
+    // 3) El resumen de errores lleva el foco al campo (no sólo hace scroll).
+    await page.getByTestId('empresa-submit').click();
+    await expect(page.getByTestId('empresa-error-summary')).toBeVisible();
+    await page.getByTestId('empresa-error-summary').getByRole('link').first().click();
+    await expect(page.getByTestId('empresa-field-razon_social')).toBeFocused();
+
+    // 4) Landmarks y aria-current del módulo activo.
+    await page.goto('/empresas');
+    await expect(page.getByRole('main')).toBeVisible();
+    await expect(page.getByRole('banner')).toBeVisible();
+    await expect(page.getByRole('contentinfo')).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Módulos de la plataforma' }),
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: /Empresas/ }).first()).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    // 5) 320 px: sin desbordamiento horizontal de página (la tabla scrollea en su contenedor).
+    await page.setViewportSize({ width: 320, height: 700 });
+    const overflowSmall = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflowSmall).toBeLessThanOrEqual(1);
+
+    // 6) Foco visible con teclado (outline global, no sólo color).
+    await page.goto('/empresas/nueva');
+    await page.getByTestId('empresa-field-razon_social').focus();
+    await page.keyboard.press('Tab');
+    const outline = await page.evaluate(() => {
+      const element = document.activeElement as HTMLElement;
+      const styles = getComputedStyle(element);
+      return { style: styles.outlineStyle, width: styles.outlineWidth };
+    });
+    expect(outline.style).not.toBe('none');
+    expect(Number.parseFloat(outline.width)).toBeGreaterThan(0);
+
+    // 7) Texto al 200 % en 640 px: sin desbordamiento horizontal de página.
+    await page.setViewportSize({ width: 640, height: 800 });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    const overflowZoom = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflowZoom).toBeLessThanOrEqual(1);
+
+    // 8) Texto al 200 % en la lista: la tabla scrollea en su región, la página no.
+    await page.setViewportSize({ width: 640, height: 800 });
+    await page.goto('/empresas');
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    const overflowListZoom = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflowListZoom).toBeLessThanOrEqual(1);
+  });
 });
