@@ -306,12 +306,12 @@ Deno.test("EF-03: documento de otro diagnóstico ⇒ 422 con reason documento_no
   );
 });
 
-Deno.test("EF-03: ítem inexistente ⇒ 404; otro tenant/no miembro ⇒ 403", async () => {
+Deno.test("EF-03: ítem inexistente/otro tenant/no miembro ⇒ 403 anti-enumeración", async () => {
   const notFound = await call({ to: "recibido", solicitud_nota: "x" }, {}, {
     item: null,
   });
-  assertEquals(notFound.response.status, 404);
-  assertEquals(errorOf(notFound.payload).code, "NOT_FOUND");
+  assertEquals(notFound.response.status, 403);
+  assertEquals(errorOf(notFound.payload).code, "FORBIDDEN_NOT_MEMBER");
 
   const otherTenant = await call({ to: "recibido", solicitud_nota: "x" }, {}, {
     diagnostic: { organizationId: OTHER_ORG_ID },

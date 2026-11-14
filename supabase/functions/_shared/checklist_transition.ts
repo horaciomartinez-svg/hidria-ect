@@ -226,11 +226,16 @@ export function matchChecklistRoute(
     ? new URL(pathOrUrl).pathname
     : pathOrUrl.split("?")[0].split("#")[0];
   const segments = pathname.split("/").filter((segment) => segment.length > 0);
-  if (segments[segments.length - 1] !== "transition") return false;
-  return segments.includes("checklist") || segments.includes("ef-03-checklist");
+  const index = segments.lastIndexOf("transition");
+  if (index < 1 || !isUuid(segments[index - 1])) return false;
+  // Canónico: `/ef-03-checklist/{item_id}/transition` (despliegue) y
+  // `/checklist/{item_id}/transition` (contrato). Se acepta además el alias
+  // histórico `/ef-03-checklist/checklist/{item_id}/transition` (UI F1-06a).
+  return segments.includes("checklist") ||
+    segments.includes("ef-03-checklist");
 }
 
-/** `item_id` de la ruta (`/checklist/{uuid}/transition`) o del cuerpo (alias). */
+/** `item_id` de la ruta (`…/{uuid}/transition`) o del cuerpo (alias). */
 export function extractItemId(
   pathOrUrl: string,
   body: Record<string, unknown>,
@@ -240,10 +245,9 @@ export function extractItemId(
     ? new URL(pathOrUrl).pathname
     : pathOrUrl.split("?")[0].split("#")[0];
   const segments = pathname.split("/").filter((segment) => segment.length > 0);
-  const index = segments.lastIndexOf("checklist");
-  if (index >= 0 && index + 2 < segments.length) {
-    const candidate = segments[index + 1];
-    if (isUuid(candidate)) return candidate;
+  const index = segments.lastIndexOf("transition");
+  if (index >= 1 && isUuid(segments[index - 1])) {
+    return segments[index - 1];
   }
   const fromBody = body.item_id;
   return typeof fromBody === "string" && isUuid(fromBody) ? fromBody : null;
@@ -308,10 +312,12 @@ export function createChecklistTransitionHandler(
         );
       }
 
-      // 404 antes de revelar nada; el ítem de otro tenant se trata como no-miembro (403).
+      // Anti-enumeración: ítem inexistente y otro tenant/no-miembro devuelven el MISMO 403.
       const item = await deps.client.fetchChecklistItemById(itemId);
       if (item === null) {
-        throw new ApiError("NOT_FOUND", "El ítem no existe.");
+        throw new ApiError("FORBIDDEN_NOT_MEMBER", undefined, {
+          motivo: "item_inexistente_o_sin_acceso",
+        });
       }
       const diagnostic = await deps.client.fetchDiagnostic(item.diagnosticId);
       if (
