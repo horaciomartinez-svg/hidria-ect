@@ -76,6 +76,24 @@ export interface DocumentScopeRow {
   organizationId: string;
 }
 
+export interface CatItemRow {
+  id: string;
+  codigo: string;
+  seccion: string;
+  tipo: string;
+  admiteEvidencia: boolean;
+  condicion: Record<string, unknown> | null;
+}
+
+export interface CatResponseRow {
+  itemId: string;
+  valor: unknown;
+  noSe: boolean;
+  na: boolean;
+  documentId: string | null;
+  resueltaEnCampo: boolean;
+}
+
 export interface ReprogrammingRow {
   fechaOriginal: string;
   fechaNueva: string;
@@ -112,6 +130,20 @@ export interface ServiceClient {
   fetchDocumentById?(documentId: string): Promise<DocumentScopeRow | null>;
   /** F1-06b: usuarios de un rol del diagnóstico (notificación a empresa). */
   listRoleUserIds?(diagnosticId: string, role: string): Promise<string[]>;
+  /** F1-07b: ítems del banco CAT A1-v1. */
+  fetchCatItems?(version: string): Promise<CatItemRow[]>;
+  /** F1-07b: respuestas del CAT del diagnóstico. */
+  fetchCatResponses?(diagnosticId: string): Promise<CatResponseRow[]>;
+  /** F1-07b: ficha de bitácora por id (validación R2). */
+  fetchLogbookEntryById?(entryId: string): Promise<
+    | {
+      id: string;
+      diagnosticId: string;
+      clave: string;
+      estado: string;
+    }
+    | null
+  >;
   insertNotifications(
     rows: Array<
       { userId: string; kind: string; payload: Record<string, unknown> }
@@ -470,6 +502,84 @@ export function createServiceClient(
       .filter((value): value is string => typeof value === "string");
   };
 
+  const fetchCatItems = async (version: string): Promise<CatItemRow[]> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/cat_items?version=eq.${encodeURIComponent(version)}` +
+        "&select=id,codigo,seccion,tipo,admite_evidencia,condicion" +
+        "&order=orden.asc",
+    );
+    return rows
+      .map((row): CatItemRow | null => {
+        if (
+          typeof row.id !== "string" || typeof row.codigo !== "string" ||
+          typeof row.seccion !== "string" || typeof row.tipo !== "string"
+        ) {
+          return null;
+        }
+        return {
+          id: row.id,
+          codigo: row.codigo,
+          seccion: row.seccion,
+          tipo: row.tipo,
+          admiteEvidencia: row.admite_evidencia === true,
+          condicion: typeof row.condicion === "object" && row.condicion !== null
+            ? row.condicion as Record<string, unknown>
+            : null,
+        };
+      })
+      .filter((row): row is CatItemRow => row !== null);
+  };
+
+  const fetchCatResponses = async (
+    diagnosticId: string,
+  ): Promise<CatResponseRow[]> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/cat_responses?diagnostic_id=eq.${
+        encodeURIComponent(diagnosticId)
+      }&select=item_id,valor,no_se,na,document_id,resuelta_en_campo`,
+    );
+    return rows
+      .map((row): CatResponseRow | null => {
+        if (typeof row.item_id !== "string") return null;
+        return {
+          itemId: row.item_id,
+          valor: row.valor,
+          noSe: row.no_se === true,
+          na: row.na === true,
+          documentId: typeof row.document_id === "string"
+            ? row.document_id
+            : null,
+          resueltaEnCampo: row.resuelta_en_campo === true,
+        };
+      })
+      .filter((row): row is CatResponseRow => row !== null);
+  };
+
+  const fetchLogbookEntryById = async (
+    entryId: string,
+  ): Promise<
+    { id: string; diagnosticId: string; clave: string; estado: string } | null
+  > => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/logbook_entries?id=eq.${encodeURIComponent(entryId)}` +
+        "&select=id,diagnostic_id,clave,estado&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.id !== "string" || typeof row.diagnostic_id !== "string" ||
+      typeof row.clave !== "string" || typeof row.estado !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: row.id,
+      diagnosticId: row.diagnostic_id,
+      clave: row.clave,
+      estado: row.estado,
+    };
+  };
+
   const listMemberUserIds = async (
     diagnosticId: string,
   ): Promise<string[]> => {
@@ -535,6 +645,9 @@ export function createServiceClient(
     fetchChecklistItemById,
     fetchDocumentById,
     listRoleUserIds,
+    fetchCatItems,
+    fetchCatResponses,
+    fetchLogbookEntryById,
     insertNotifications,
     callRpc,
   };

@@ -102,8 +102,28 @@ Reglas obligatorias (detalle en
   `{item_id, item_code, estado, document_id}`. Post-commit: notificación
   `validacion` a empresa (si aplica) y `checklist_updated`/`kanban_refresh`.
 - Errores: 401, 403 `FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE` (ítem inexistente y
-  otro tenant comparten 403 anti-enumeración), 409 `CONFLICT_STATE` (TD-2/terminal),
-  422 `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY`, 500 saneado.
+  otro tenant comparten 403 anti-enumeración), 409 `CONFLICT_STATE`
+  (TD-2/terminal), 422
+  `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY`, 500 saneado.
+
+### EF-04 — `ef-04-cat` (task-126 / F1-07b)
+
+- Rutas: `POST /functions/v1/ef-04-cat/cat/{diagnostic_id}/submit` y
+  `…/validate-r2` (contrato `/cat/{diagnostic_id}/submit|validate-r2`).
+- **submit** (empresa/coordinador/equipo): valida el banco **A1-v1**
+  (`cat_items`, 47): toda pregunta aplicable con `valor`/`no_se`/`na`;
+  `admite_evidencia` resuelta en campo exige `document_id`;
+  `cat_estado='en_captura'` → `en_revision`; incompleto ⇒
+  `422 VALIDATION_CAT_INCOMPLETO` con `{faltantes, pendientes}`.
+- **validate-r2** (coordinador/equipo): `cat_estado='en_revision'` + ficha
+  `BIT-R2-*` **cerrada** (`409 GATE_R2_FICHA`); → `validado_r2`; post-commit:
+  notificación `validacion` a empresa + `cat_validated`/`kanban_refresh`.
+- Persistencia: RPC `fn_submit_cat`/`fn_validate_cat_r2` (F1-07c,
+  `service_role`) con `audit_log` + `api_idempotency`; `Idempotency-Key`
+  opcional.
+- Errores: 401 · 403 `FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE` · 409
+  `CONFLICT_STATE`/`GATE_R2_FICHA` · 422 `VALIDATION_CAT_INCOMPLETO`/
+  `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY` · 500 saneado.
 
 ## Variables de entorno de las EF
 
@@ -127,6 +147,6 @@ El job `Edge Functions (Deno)` del CI (#38) ejecuta
 `deno fmt --check
 supabase/functions --ignore=supabase/functions/README.md`,
 `deno lint`, `deno check supabase/functions/_shared` + cada
-`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**182
-pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b). Sin red ni permisos:
-DB/RPC, HEAD de R2 y broadcast se inyectan en las pruebas.
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**194
+pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b + 12 F1-07b). Sin red ni
+permisos: DB/RPC, HEAD de R2 y broadcast se inyectan en las pruebas.
