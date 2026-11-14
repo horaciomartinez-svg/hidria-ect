@@ -17,6 +17,7 @@ import {
   makeRequest,
   OTHER_ORG_ID,
   SERVICE_KEY,
+  signToken,
   TEST_SECRET,
   USER_EQUIPO,
 } from "./ef_fakes.ts";
@@ -378,5 +379,49 @@ Deno.test("EF-01: CORS/preflight, ruta y diagnóstico faltante", async () => {
   assertEquals(
     errorOf(await body(missingDiagnostic)).code,
     "VALIDATION_PARAMETRO_REQUERIDO",
+  );
+});
+
+Deno.test("EF-01 SEC-PR44-01: token manipulado ⇒ 401; p_user_id es el sub verificado", async () => {
+  const forgedToken = await signToken({ secret: "otro-secreto-no-valido" });
+  const forged = await createAdvancePhaseHandler(CONFIG, makeDeps().deps)(
+    await makeRequest({ diagnostic_id: DIAG_ID, to_phase: 2 }, {
+      token: forgedToken,
+    }),
+  );
+  assertEquals(forged.status, 401);
+  assertEquals(errorOf(await body(forged)).code, "AUTH_INVALID");
+
+  const { deps, fake } = makeDeps();
+  const spoofedBody = {
+    diagnostic_id: DIAG_ID,
+    to_phase: 2,
+    user_id: "a1000000-0000-4000-8000-000000000009",
+    p_user_id: "a1000000-0000-4000-8000-000000000009",
+  };
+  const response = await createAdvancePhaseHandler(CONFIG, deps)(
+    await makeRequest(spoofedBody),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(fake.rpcCalls[0].args.p_user_id, USER_EQUIPO);
+});
+
+Deno.test("EF-01: la RPC devuelve GATE_FICHA con mensaje y se mapea a 409", async () => {
+  const { deps } = makeDeps({
+    rpcResult: {
+      ok: false,
+      code: "GATE_FICHA",
+      message: "Gate Ficha: la ficha de respaldo del hito no está cerrada.",
+    },
+  });
+  const response = await createAdvancePhaseHandler(CONFIG, deps)(
+    await makeRequest({ diagnostic_id: DIAG_ID, to_phase: 2 }),
+  );
+  assertEquals(response.status, 409);
+  const envelope = await body(response);
+  assertEquals(errorOf(envelope).code, "GATE_FICHA");
+  assertEquals(
+    (envelope.error as { message: string }).message,
+    "Gate Ficha: la ficha de respaldo del hito no está cerrada.",
   );
 });

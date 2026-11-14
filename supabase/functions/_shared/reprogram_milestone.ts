@@ -242,6 +242,19 @@ export function createReprogramMilestoneHandler(
         );
       }
 
+      // Fecha original progresiva (decisión Lead/revisor): la primera vez se declara; en las
+      // siguientes debe coincidir con la última `fecha_nueva` del mismo hito.
+      const previous = await deps.client.fetchLastReprogramming(
+        diagnosticId,
+        body.hito,
+      );
+      if (previous !== null && previous.fechaNueva !== body.fechaOriginal) {
+        validationFailure("fecha_original", "fecha_original_no_progresiva", {
+          fecha_original_declarada: body.fechaOriginal,
+          fecha_nueva_previa: previous.fechaNueva,
+        });
+      }
+
       const idempotencyKey = request.headers.get("idempotency-key");
       if (idempotencyKey !== null && !isUuidLike(idempotencyKey)) {
         throw new ApiError(
@@ -277,7 +290,7 @@ export function createReprogramMilestoneHandler(
       if (result.ok !== true) {
         throw new ApiError(
           typeof result.code === "string" ? result.code : "INTERNAL_ERROR",
-          undefined,
+          typeof result.message === "string" ? result.message : undefined,
           result.details ?? {},
         );
       }
@@ -295,7 +308,7 @@ export function createReprogramMilestoneHandler(
       }
 
       const data = (result.data ?? {}) as Record<string, unknown>;
-      return json(request, config, {
+      const responseBody: Record<string, unknown> = {
         hito: typeof data.hito === "string" ? data.hito : body.hito,
         fecha_nueva: typeof data.fecha_nueva === "string"
           ? data.fecha_nueva
@@ -303,7 +316,19 @@ export function createReprogramMilestoneHandler(
         semaforo_atraso: typeof data.semaforo_atraso === "string"
           ? data.semaforo_atraso
           : "verde",
-      });
+      };
+      // Campos añadidos por la RPC (task-94): ficha del hallazgo y nº de reprogramaciones
+      // del hito (semáforo por hito). El contrato base de docs/04 sigue siendo el mínimo.
+      if (typeof data.entry_id === "string") {
+        responseBody.entry_id = data.entry_id;
+      }
+      if (typeof data.folio_ficha === "string") {
+        responseBody.folio_ficha = data.folio_ficha;
+      }
+      if (typeof data.reprogramaciones === "number") {
+        responseBody.reprogramaciones = data.reprogramaciones;
+      }
+      return json(request, config, responseBody);
     } catch (error) {
       return errorResponse(error, {
         headers: buildCors(request, config),

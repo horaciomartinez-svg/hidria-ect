@@ -272,3 +272,64 @@ Deno.test("EF-12: CORS/preflight, ruta y diagnóstico faltante", async () => {
     "VALIDATION_PARAMETRO_REQUERIDO",
   );
 });
+
+Deno.test("EF-12 fecha_original progresiva: debe coincidir con la última fecha_nueva del hito", async () => {
+  const previous = {
+    fechaOriginal: "2026-11-01",
+    fechaNueva: "2026-11-10",
+    causa: "empresa",
+  };
+  const stale = await call(
+    { ...VALID_BODY, fecha_original: "2026-11-15" },
+    {},
+    { lastReprogramming: previous },
+  );
+  assertEquals(stale.response.status, 422);
+  const staleError = errorOf(await body(stale.response));
+  assertEquals(staleError.code, "VALIDATION_REPROGRAMACION");
+  assertEquals(staleError.details?.reason, "fecha_original_no_progresiva");
+  assertEquals(staleError.details?.fecha_nueva_previa, "2026-11-10");
+  assertEquals(stale.fake.rpcCalls.length, 0);
+
+  const chained = await call(
+    { ...VALID_BODY, fecha_original: "2026-11-10" },
+    {},
+    {
+      lastReprogramming: previous,
+      rpcResult: {
+        ok: true,
+        replayed: false,
+        data: { semaforo_atraso: "rojo" },
+      },
+    },
+  );
+  assertEquals(chained.response.status, 200);
+});
+
+Deno.test("EF-12 200: incluye entry_id, folio_ficha y reprogramaciones de la RPC", async () => {
+  const { response } = await call(VALID_BODY, {}, {
+    lastReprogramming: {
+      fechaOriginal: "2026-11-01",
+      fechaNueva: "2026-11-10",
+      causa: "empresa",
+    },
+    rpcResult: {
+      ok: true,
+      replayed: false,
+      data: {
+        hito: "V2",
+        fecha_nueva: "2026-11-20",
+        semaforo_atraso: "rojo",
+        entry_id: "e-v2",
+        folio_ficha: "BIT-V2-01",
+        reprogramaciones: 2,
+      },
+    },
+  });
+  assertEquals(response.status, 200);
+  const payload = await body(response);
+  assertEquals(payload.entry_id, "e-v2");
+  assertEquals(payload.folio_ficha, "BIT-V2-01");
+  assertEquals(payload.reprogramaciones, 2);
+  assertEquals(payload.semaforo_atraso, "rojo");
+});

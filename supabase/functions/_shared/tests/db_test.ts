@@ -305,3 +305,30 @@ Deno.test("db: mapTriggerGateError mapea F2–F6 y descarta otros", () => {
   assertEquals(mapTriggerGateError("Gate F6: x")?.code, "GATE_IVOH_R4");
   assertEquals(mapTriggerGateError("otro error"), null);
 });
+
+Deno.test("db: fetchLastReprogramming lee el historial del hito (orden created_at desc)", async () => {
+  const { fetchImpl } = fakeFetch((call) => {
+    assertEquals(
+      call.url.includes("/milestone_reprogramming?diagnostic_id=eq."),
+      true,
+    );
+    assertEquals(call.url.includes("hito=eq.V2"), true);
+    assertEquals(call.url.includes("order=created_at.desc"), true);
+    return json([
+      {
+        fecha_original: "2026-11-01",
+        fecha_nueva: "2026-11-10",
+        causa: "empresa",
+      },
+    ]);
+  });
+  const client = createServiceClient(ENV, fetchImpl);
+  assertEquals(await client.fetchLastReprogramming(DIAG_ID, "V2"), {
+    fechaOriginal: "2026-11-01",
+    fechaNueva: "2026-11-10",
+    causa: "empresa",
+  });
+
+  const empty = createServiceClient(ENV, fakeFetch(() => json([])).fetchImpl);
+  assertEquals(await empty.fetchLastReprogramming(DIAG_ID, "V2"), null);
+});

@@ -54,9 +54,18 @@ export interface RpcResult {
   ok: boolean;
   replayed?: boolean;
   code?: string;
+  message?: string;
   details?: Record<string, unknown>;
   data?: Record<string, unknown>;
   audit_ref?: string;
+}
+
+/** Última reprogramación del historial `milestone_reprogramming` para un hito. */
+export interface ReprogrammingRow {
+  fechaOriginal: string;
+  fechaNueva: string;
+  causa: string;
+  reparaciones?: number;
 }
 
 export interface ServiceClient {
@@ -77,6 +86,10 @@ export interface ServiceClient {
     diagnosticId: string,
     clave: string,
   ): Promise<FichaRow | null>;
+  fetchLastReprogramming(
+    diagnosticId: string,
+    hito: string,
+  ): Promise<ReprogrammingRow | null>;
   listMemberUserIds(diagnosticId: string): Promise<string[]>;
   insertNotifications(
     rows: Array<
@@ -346,6 +359,31 @@ export function createServiceClient(
     };
   };
 
+  const fetchLastReprogramming = async (
+    diagnosticId: string,
+    hito: string,
+  ): Promise<ReprogrammingRow | null> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/milestone_reprogramming?diagnostic_id=eq.${
+        encodeURIComponent(diagnosticId)
+      }&hito=eq.${encodeURIComponent(hito)}` +
+        "&select=fecha_original,fecha_nueva,causa&order=created_at.desc&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.fecha_original !== "string" ||
+      typeof row.fecha_nueva !== "string"
+    ) {
+      return null;
+    }
+    return {
+      fechaOriginal: row.fecha_original,
+      fechaNueva: row.fecha_nueva,
+      causa: typeof row.causa === "string" ? row.causa : "externa",
+    };
+  };
+
   const listMemberUserIds = async (
     diagnosticId: string,
   ): Promise<string[]> => {
@@ -406,6 +444,7 @@ export function createServiceClient(
     fetchBalance,
     fetchIvohValidatedCount,
     fetchLatestFicha,
+    fetchLastReprogramming,
     listMemberUserIds,
     insertNotifications,
     callRpc,

@@ -24,6 +24,8 @@ export async function signToken(options: {
   organizationId?: string;
   globalRole?: string;
   extraClaims?: Record<string, unknown>;
+  /** Solo para pruebas de token manipulado (firma con otro secreto). */
+  secret?: string;
 } = {}): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = base64UrlEncode(
@@ -44,7 +46,7 @@ export async function signToken(options: {
   const signingInput = `${header}.${payload}`;
   const key = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(TEST_SECRET),
+    encoder.encode(options.secret ?? TEST_SECRET),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -120,6 +122,9 @@ export interface ClientOverrides {
   balance?: { estado: string; maxBrechaPct: number | null } | null;
   ivohValidatedCount?: number;
   ficha?: Awaited<ReturnType<ServiceClient["fetchLatestFicha"]>>;
+  lastReprogramming?: Awaited<
+    ReturnType<ServiceClient["fetchLastReprogramming"]>
+  >;
   members?: string[];
   rpcResult?: RpcResult;
   rpcError?: Error;
@@ -164,6 +169,8 @@ export function makeFakeClient(
       ),
     fetchIvohValidatedCount: () =>
       Promise.resolve(overrides.ivohValidatedCount ?? 6),
+    fetchLastReprogramming: () =>
+      Promise.resolve(overrides.lastReprogramming ?? null),
     fetchLatestFicha: () =>
       Promise.resolve(
         overrides.ficha !== undefined ? overrides.ficha : {

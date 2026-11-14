@@ -49,7 +49,10 @@ Reglas obligatorias (detalle en
   `phase_changed` (`diagnostic:{id}`) + `kanban_refresh` (`org:{id}`).
 - Persistencia: **RPC transaccional** `fn_advance_phase` (task-94,
   `service_role`-only): UPDATE + `audit_log` + idempotencia atómica
-  (`api_idempotency`) en una transacción. Lógica en `_shared/advance_phase.ts`
+  (`api_idempotency`) en una transacción; captura `P0001` y devuelve
+  `{ok:false, code, message}` (`GATE_*`/`GATE_FICHA`), no propaga excepción;
+  `p_gate` solo se usa para auditoría/respuesta (la RPC deriva la ficha del mapa
+  DB y su folio real). Lógica en `_shared/advance_phase.ts`
   - `_shared/guards.ts` + `_shared/db.ts`.
 
 ### EF-12 — `ef-12-reprogram-milestone` (ADR-013 / task-95)
@@ -60,9 +63,12 @@ Reglas obligatorias (detalle en
   20, `causa ∈ {empresa,equipo,externa}`, `fecha_nueva` dentro de las 6 semanas
   desde `fecha_inicio` y `≥ fecha_original`; ficha más reciente del hito o
   `422 VALIDATION_HITO_SIN_FICHA`.
-- Semáforo (historial `milestone_reprogramming`, task-94): 1.ª reprogramación
-  con `causa='empresa'` ⇒ `amarillo`; `≥2` ⇒ `rojo`; «vencido sin cerrar» queda
-  fuera (tarea aparte).
+- Semáforo **por hito** (historial `milestone_reprogramming`, task-94): 1.ª
+  reprogramación con `causa='empresa'` ⇒ `amarillo`; `≥2` del mismo hito ⇒
+  `rojo`; «vencido sin cerrar» queda fuera (tarea aparte). `fecha_original` es
+  **progresiva**: primera declarada; siguientes = última `fecha_nueva` del mismo
+  hito (`422 VALIDATION_REPROGRAMACION` si no). La respuesta incluye
+  `entry_id`/`folio_ficha`/`reprogramaciones` cuando la RPC los devuelve.
 - Persistencia: RPC `fn_reprogram_milestone` (`service_role`-only) que inserta
   hallazgo en la ficha, actualiza `proximo_hito`/`semaforo_atraso`/
   `reprogramacion_justificacion` y audita en una transacción. Post-commit:
@@ -109,6 +115,6 @@ El job `Edge Functions (Deno)` del CI (#38/task-87) ejecuta
 `deno fmt --check
 supabase/functions --ignore=supabase/functions/README.md`,
 `deno lint`, `deno check supabase/functions/_shared` + cada
-`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (146
-pruebas: 101 previas + 45 de F1-04). Sin red, sin permisos: cliente DB/RPC y
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (151
+pruebas: 101 previas + 50 de F1-04). Sin red, sin permisos: cliente DB/RPC y
 broadcast se inyectan en las pruebas.

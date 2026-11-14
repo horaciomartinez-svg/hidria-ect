@@ -266,7 +266,7 @@ export function createAdvancePhaseHandler(
       if (result.ok !== true) {
         throw new ApiError(
           typeof result.code === "string" ? result.code : "INTERNAL_ERROR",
-          undefined,
+          typeof result.message === "string" ? result.message : undefined,
           result.details ?? {},
         );
       }

@@ -30,11 +30,16 @@ F1-04 implementa el primer EF real de fase con roles. Restricciones vigentes:
    `REVOKE ALL … FROM public,anon,authenticated`, `GRANT EXECUTE … TO service_role`. En una sola
    transacción: revalidar defensa (rol/to_phase/estado/ficha), `UPDATE diagnostics`,
    `fn_audit_write`, idempotencia con `api_idempotency` (claim/replay/conflicto) y persistir
-   `status_code`/`response_body`/`response_ref`. La EF las invoca con `service_role`.
+   `status_code`/`response_body`/`response_ref`. La EF las invoca con `service_role`. La RPC
+   **captura** internamente `P0001` y devuelve `{ ok:false, code:"GATE_*", message }` (no propaga
+   la excepción); `p_gate` **no autoriza**: la RPC deriva la ficha de respaldo del mapa DB
+   (fase 1→R1, 2→R2, 3→V1, 4→R3, 5→R4), exige `estado='cerrada'` y usa el folio real; `p_gate`
+   solo se usa para auditoría/respuesta (contrato final de task-94, PR #44).
 2. **La EF mantiene la autoridad de contrato.** Auth/claims (`verifyProfile`, `nbf` numérico
    estricto), rol de contrato, tenant/membresía, validación de body, **replicación de gates TD-1**
    (filas 1–5) y ficha de respaldo, mapeo de errores y post-commit. `p_gate` lo calcula **solo la
-   EF** (nunca el cliente); la RPC no lo usa para autorizar.
+   EF** (nunca el cliente); **`p_user_id` se toma del `sub` del JWT verificado** (SEC-PR44-01),
+   nunca de body/claim sin verificar; la RPC no lo usa para autorizar.
 3. **EF-01 (`advance-phase`)**: roles `coordinador|equipo` con membresía, **sin bypass admin**;
    tenant fail-closed; `estado='activo'` (si no ⇒ `409 CONFLICT_STATE` con `details.estado_actual`);
    `to_phase` entero 2..6 (`422 VALIDATION_PHASE_TRANSICION` si malformado) y `= fase_actual+1`
@@ -52,9 +57,15 @@ F1-04 implementa el primer EF real de fase con roles. Restricciones vigentes:
    `justificacion ≥ 20`; `causa ∈ {empresa,equipo,externa}`; `fecha_nueva ≥ fecha_original` y
    dentro de las 6 semanas desde `fecha_inicio`; **ficha más reciente** con `clave = hito` (si no
    existe ⇒ `422 VALIDATION_HITO_SIN_FICHA`). La RPC inserta el hallazgo en la ficha, actualiza
-   `proximo_hito`/`semaforo_atraso`/`reprogramacion_justificacion` y audita. Semáforo: 1.ª
-   reprogramación con `causa='empresa'` ⇒ `amarillo`; `≥2` reprogramaciones ⇒ `rojo` (historial
-   `milestone_reprogramming`, task-94); «vencido sin cerrar» es tarea aparte.
+   `proximo_hito`/`semaforo_atraso`/`reprogramacion_justificacion` y audita. **`fecha_original`
+   es progresiva:** la primera vez se declara; en las siguientes debe coincidir con la última
+   `fecha_nueva` del mismo hito (si no ⇒ `422 VALIDATION_REPROGRAMACION` con
+   `details.reason='fecha_original_no_progresiva'`). Semáforo **por hito**: 1.ª reprogramación con
+   `causa='empresa'` ⇒ `amarillo`; `≥2` del mismo hito ⇒ `rojo` (historial
+   `milestone_reprogramming`, task-94); «vencido sin cerrar» es tarea aparte. La respuesta incluye
+   además `entry_id`, `folio_ficha` y `reprogramaciones` cuando la RPC los devuelve: **extensión
+   documentada del contrato acordada con `arquitecto-bd` (2026-11-14)**, sin cambiar el mínimo de
+   `docs/04` (`{hito, fecha_nueva, semaforo_atraso}`).
 7. **Idempotencia atómica (ADR-006, M-01).** `Idempotency-Key` opcional (los gates no van
    offline); la RPC persiste en `api_idempotency` en la misma transacción: misma clave + mismo
    `request_hash` ⇒ `200` con el cuerpo original **sin** notificación ni evento; misma clave +
@@ -64,9 +75,10 @@ F1-04 implementa el primer EF real de fase con roles. Restricciones vigentes:
    (no define notificación en el contrato). Un fallo de Realtime/notificación **no revierte** el
    negocio ya auditado (`broadcast` devuelve `false` y se ignora).
 9. **Códigos nuevos en el catálogo (`docs/04` §8):** `VALIDATION_PHASE_TRANSICION` (422),
-   `VALIDATION_HITO_SIN_FICHA` (422); se reutilizan `CONFLICT_PHASE`/`CONFLICT_STATE`/`GATE_*`.
-   `RATE_LIMIT` (429) sigue en el catálogo pero el objeto DB no existe: **follow-up** (no se
-   implementa en F1-04).
+   `VALIDATION_HITO_SIN_FICHA` (422), `GATE_FICHA` (409) y `NOT_FOUND` (404); se reutilizan
+   `CONFLICT_PHASE`/`CONFLICT_STATE`/`GATE_*`. La RPC puede devolver `GATE_FICHA` (la ficha de
+   respaldo no está cerrada) además de los `GATE_*` del trigger. `RATE_LIMIT` (429) sigue en el
+   catálogo pero el objeto DB no existe: **follow-up** (no se implementa en F1-04).
 10. **Alcance F1 (Lead):** fases **1→2 y 2→3 reales**; F4–F6 se prueban con **fixtures/contrato**
     (el gate F4 depende de M5/IIH, movido a F2-06). La fase 4 real queda para F2-06.
 
@@ -89,8 +101,9 @@ F1-04 implementa el primer EF real de fase con roles. Restricciones vigentes:
   hasta entonces las pruebas Deno usan un cliente/RPC inyectado (contrato congelado en este ADR).
 - Sin migraciones nuevas por parte del equipo EF; `docs/**` se actualiza vía Lead/revisor
   (propuesta de texto entregada al supervisor).
-- 45 pruebas Deno nuevas (146 totales) cubren roles, tenant, to_phase, gates TD-1, ficha,
-  ventana de 6 semanas, idempotencia replay/conflicto, errores y efectos post-commit.
+- 50 pruebas Deno nuevas (**151 totales**) cubren roles, tenant, to_phase, gates TD-1, ficha,
+  ventana de 6 semanas, `fecha_original` progresiva, idempotencia replay/conflicto, errores,
+  `p_user_id` vinculado al JWT (SEC-PR44-01) y efectos post-commit.
 - Riesgo declarado: gate F4/IIH (M5 en F2-06); rate limit follow-up; F4–F6 solo con fixtures en
   F1.
 
