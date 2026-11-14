@@ -234,9 +234,10 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 
 `POST /functions/v1/documents/presign` — `POST /functions/v1/documents/register`
 
-> **Estado (ADR-012 / task-39):** `presign` implementado en Fase 1 (`feature/F1-39-ef08-presign`);
-> `register` se implementa en **F1-05** (task-86: RPC atómica `documents` + `audit_log`).
-> Mientras tanto, `register` responde `501 NOT_IMPLEMENTED_PHASE` documentado.
+> **Estado (ADR-012 / task-39 / task-86 / task-106):** `presign` y `register` implementados en Fase 1
+> (F1-05: RPC atómica `fn_register_document` + EF-08 `register`; `upload_status='registered'`).
+> `sha256` es **declarado por el cliente**; el HEAD a R2 valida existencia/tamaño/MIME, no el hash
+> (verificación server-side del hash es follow-up). `expires_at`/limpieza de huérfanos, follow-up.
 
 | Campo | Valor |
 |---|---|
@@ -244,12 +245,14 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Cuerpo (presign) | `{ "diagnostic_id": uuid, "filename": text, "doc_type": "layout"\|"planos_hidrosanitarios"\|"parametros_calidad"\|"informe_laboratorio"\|"reporte"\|"otro" (enum de `documents.doc_type`), "mime": text, "size_bytes": int, "exposure_level": "restringido_nda" (default) \| "anonimizado" \| "sintetico" \| "publico" }` |
 | Pre (presign) | JWT válido; **miembro del diagnóstico con rol `coordinador`\|`equipo`\|`empresa`** (ADR-012: espejo de la RLS `documents_ins`; `observador`/`invitado` ⇒ `403 FORBIDDEN_ROLE`; un `admin_institucional`/`coordinador_srhds` **sin** membresía también es denegado); `diagnostics.organization_id` = claim de tenant (fail-closed); `size_bytes` entre 1 y 100 MB; `mime` en lista blanca (pdf, imágenes, xlsx, dwg, ofx); `filename` saneado (sin `/`, `\`, `..` ni caracteres de control; la extensión se deriva del `mime`); `Idempotency-Key` opcional. |
 | Tx (presign) | **Sin escritura en BD**: valida, genera `document_id` y `r2_key` del lado servidor y firma la URL. Sin auditoría (no hay efectos persistentes; la auditoría se registra en `register`). No apto para la cola offline (no es una operación de datos). |
-| Tx (register, F1-05) | Una sola transacción (RPC de task-86): valida `document_id`/`r2_key` derivada server-side/`sha256`/`size_bytes`/`mime`/`doc_type`/`exposure_level`; `INSERT documents` (metadatos, `uploaded_by`) y `audit_log(action='create')`; devuelve la fila. |
+| Cuerpo (register) | `{ "diagnostic_id": uuid, "document_id": uuid, "filename": text, "doc_type": enum, "mime": text, "size_bytes": int, "exposure_level": enum, "sha256": text }` — **sin `r2_key`** (se deriva server-side). `title` se toma de `filename` saneado (sin extensión). |
+| Pre (register) | JWT válido; roles **`coordinador`/`equipo`/`empresa`** (observador/invitado ⇒ 403); tenant/membresía fail-closed; **HEAD a R2 con credenciales de la EF** verifica existencia, `Content-Length` y `Content-Type`; fallo ⇒ `422 VALIDATION_FILE` sin rutas/credenciales; `Idempotency-Key` opcional. |
+| Tx (register, F1-05) | Una sola transacción (RPC `fn_register_document`, `service_role`): valida `document_id`/`r2_key` derivada/`sha256`/`size_bytes`/`mime`/`doc_type`/`exposure_level`; `INSERT documents` (`upload_status='registered'`, `uploaded_by`) + `audit_log(action='create')` + `api_idempotency`; replay mismo hash ⇒ 200 sin duplicar efectos; hash distinto ⇒ 409. |
 | Post | El cliente ejecuta el `PUT` a R2 con la URL de (1) y el `Content-Type` del `mime`; si el registro se vincula a checklist, el cliente invoca EF-03 (F1-06). |
 | Respuesta (presign) | `{ upload_url, document_id, expira_en_seg: 300, metodo: "PUT" }`. `upload_url` es una URL S3 prefirmada de R2 (`PUT`) con vigencia **300 s** (máximo duro **300 s**, no configurable por el cliente; la descarga futura usará 900 s). La respuesta **no** incluye `r2_key`, bucket, credenciales ni rutas internas: solo la URL firmada, el `document_id` y el TTL; `register` deriva la clave server-side desde `document_id`. |
 | Respuesta (register, F1-05) | `{ document_id, sha256 }` |
 | Errores (presign) | `AUTH_INVALID` (401) · `FORBIDDEN_NOT_MEMBER` (403; incluye diagnóstico inexistente o de otro tenant, sin filtrar su existencia) · `FORBIDDEN_ROLE` (403) · `VALIDATION_PARAMETRO_REQUERIDO` (422) · `VALIDATION_FILE` (422; tamaño/mime/filename) · `VALIDATION_DOC_TYPE` (422) · `VALIDATION_EXPOSURE_LEVEL` (422) · `INTERNAL_ERROR` (500; configuración R2/JWT ausente, sin detalles) |
-| Errores (register, F1-05) | `VALIDATION_FILE` (422) · `FORBIDDEN_NOT_MEMBER` (403) · `CONFLICT_STATE` (409; `r2_key`/`document_id` ya registrados) · `NOT_IMPLEMENTED_PHASE` (501, mientras no exista F1-05) |
+| Errores (register) | `AUTH_INVALID` (401) · `FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE` (403 anti-enumeración) · `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_FILE`/`VALIDATION_DOC_TYPE`/`VALIDATION_EXPOSURE_LEVEL` (422) · `CONFLICT_STATE` (409; replay con hash distinto/duplicado) · `INTERNAL_ERROR` (500 saneado) |
 
 **Convención de clave (server-side, `docs/01` §1):** `org/{organization_id}/diag/{diagnostic_id}/{document_id}.{ext}`. El cliente **nunca** propone ni recibe la clave. `document_id` es un UUID v4 aleatorio, o determinista (`sha256(user_id + payload canónico + Idempotency-Key)` con forma UUID) si el cliente envía `Idempotency-Key`, para que los reintentos reutilicen la misma clave de objeto (idempotencia sin estado).
 
