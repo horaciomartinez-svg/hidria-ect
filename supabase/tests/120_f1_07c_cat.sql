@@ -107,10 +107,12 @@ select throws_ok($sql$
    where diagnostic_id='d8000000-0000-4000-8000-000000000001' and item_id=(select id from public.cat_items where version='A1-v1' and codigo='A3')
 $sql$, '42501', NULL, 'created_by inmutable en UPDATE');
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000004","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"observador"}';
-select throws_ok($sql$
+with updated as (
   update public.cat_responses set valor='"manufacturera"'::jsonb
    where diagnostic_id='d8000000-0000-4000-8000-000000000001' and item_id=(select id from public.cat_items where version='A1-v1' and codigo='A3')
-$sql$, '42501', NULL, 'observador no actualiza CAT');
+  returning 1
+)
+select is((select count(*) from updated), 0::bigint, 'observador no actualiza CAT (0 filas)');
 
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000003","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"empresa"}';
 select throws_ok($sql$
