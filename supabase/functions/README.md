@@ -43,7 +43,8 @@ Reglas obligatorias (detalle en
 - Gates TD-1 replicados (filas 1–5) + ficha de respaldo; `p_gate` calculado solo
   por la EF; el trigger `diagnostics_phase_gate` es la autoridad final.
 - Persistencia: RPC `fn_advance_phase` (`service_role`): UPDATE + `audit_log` +
-  idempotencia atómica; responde `{diagnostic_id, folio, fase_actual,
+  idempotencia atómica; responde
+  `{diagnostic_id, folio, fase_actual,
   proximo_hito, avance_pct, gate}`.
 - `proximo_hito` (2→R2, 3→V1, 4→R3, 5→R4, 6→R5); post-commit: notificación
   `hito` + `phase_changed`/`kanban_refresh`.
@@ -62,19 +63,22 @@ Reglas obligatorias (detalle en
 
 - Rutas: `POST /functions/v1/ef-08-documents/presign` (alias
   `/documents/presign`) y `…/register`.
-- **`presign`**: exige `diagnostic_id` y membresía (`coordinador|equipo|empresa`,
-  espejo de `documents_ins`) antes de firmar; tenant fail-closed; TTL 300 s;
-  `Content-Type` firmado; respuesta mínima `{upload_url, document_id,
-  expira_en_seg, metodo}` (sin `r2_key`, bucket ni credenciales);
-  `Idempotency-Key` opcional (document_id determinista).
+- **`presign`**: exige `diagnostic_id` y membresía
+  (`coordinador|equipo|empresa`, espejo de `documents_ins`) antes de firmar;
+  tenant fail-closed; TTL 300 s; `Content-Type` firmado; respuesta mínima
+  `{upload_url, document_id,
+  expira_en_seg, metodo}` (sin `r2_key`, bucket ni
+  credenciales); `Idempotency-Key` opcional (document_id determinista).
 - **`register`** (F1-05): roles `coordinador|equipo|empresa`; body
   `{diagnostic_id, document_id, filename, doc_type, mime, size_bytes,
-  exposure_level, sha256}` (sin `r2_key`); verifica el objeto con **HEAD a R2**
-  usando credenciales de la EF (existencia/tamaño/MIME; fallo ⇒ `422
-  VALIDATION_FILE`) y registra con la RPC atómica `fn_register_document`
-  (INSERT `documents` + `audit_log` + `api_idempotency`, `r2_key` server-side).
-  Respuesta `{document_id, sha256}`; `title = filename` sin extensión.
-  Errores: 401, 403 (`FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE`), 422
+  exposure_level, sha256}`
+  (sin `r2_key`); verifica el objeto con **HEAD a R2** usando credenciales de la
+  EF (existencia/tamaño/MIME; fallo ⇒ `422
+  VALIDATION_FILE`) y registra con la
+  RPC atómica `fn_register_document` (INSERT `documents` + `audit_log` +
+  `api_idempotency`, `r2_key` server-side). Respuesta `{document_id, sha256}`;
+  `title = filename` sin extensión. Errores: 401, 403
+  (`FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE`), 422
   `VALIDATION_FILE`/`VALIDATION_PARAMETRO_REQUERIDO`, 409 `CONFLICT_STATE`
   (replay distinto/duplicado), 500 saneado.
 - Lógica en `_shared/presign.ts` (+ `_shared/r2.ts` SigV4 presign/HEAD),
@@ -86,22 +90,23 @@ Reglas obligatorias (detalle en
 Se configuran con `supabase secrets set` (nunca en el repo). Comunes a
 EF-01/EF-08/EF-12:
 
-| Variable                                     | Uso                                                                        |
-| -------------------------------------------- | -------------------------------------------------------------------------- |
-| `SUPABASE_JWT_SECRET`                        | Verificación HS256 del JWT (EF-01/EF-12 además exigen `nbf` numérico)      |
+| Variable                                     | Uso                                                                          |
+| -------------------------------------------- | ---------------------------------------------------------------------------- |
+| `SUPABASE_JWT_SECRET`                        | Verificación HS256 del JWT (EF-01/EF-12 además exigen `nbf` numérico)        |
 | `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_URL` | PostgREST/RPC internos (`fn_diag_role`, `diagnostics`, RPC) — autoinyectadas |
-| `CORS_ALLOWED_ORIGINS`                       | Lista separada por comas (Pages del PWA + `http://localhost:5173`)         |
-| `R2_ACCOUNT_ID`                              | Endpoint `https://{account}.r2.cloudflarestorage.com` (solo EF-08)         |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`  | Firma SigV4 y HEAD (nunca al cliente; solo EF-08)                          |
-| `R2_BUCKET_DOCS`                             | Bucket de documentos (default `hidria-docs`; solo EF-08)                   |
+| `CORS_ALLOWED_ORIGINS`                       | Lista separada por comas (Pages del PWA + `http://localhost:5173`)           |
+| `R2_ACCOUNT_ID`                              | Endpoint `https://{account}.r2.cloudflarestorage.com` (solo EF-08)           |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`  | Firma SigV4 y HEAD (nunca al cliente; solo EF-08)                            |
+| `R2_BUCKET_DOCS`                             | Bucket de documentos (default `hidria-docs`; solo EF-08)                     |
 
 Otros secretos futuros: `R2_BUCKET_REPORTS`, `PSC_*`, `NOM151_ENABLED`.
 
 ## Pruebas
 
-El job `Edge Functions (Deno)` del CI (#38) ejecuta `deno fmt --check
-supabase/functions --ignore=supabase/functions/README.md`, `deno lint`,
-`deno check supabase/functions/_shared` + cada `supabase/functions/*/index.ts`,
-y `deno test supabase/functions/_shared` (**166 pruebas**: 101 base +
-50 F1-04 + 15 F1-05). Sin red ni permisos: DB/RPC, HEAD de R2 y broadcast se
-inyectan en las pruebas.
+El job `Edge Functions (Deno)` del CI (#38) ejecuta
+`deno fmt --check
+supabase/functions --ignore=supabase/functions/README.md`,
+`deno lint`, `deno check supabase/functions/_shared` + cada
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**166
+pruebas**: 101 base + 50 F1-04 + 15 F1-05). Sin red ni permisos: DB/RPC, HEAD de
+R2 y broadcast se inyectan en las pruebas.

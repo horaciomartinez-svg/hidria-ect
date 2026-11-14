@@ -1,6 +1,6 @@
-﻿-- F1-05 â€” pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
+-- F1-05 â€” pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
 begin;
-select plan(25);
+select plan(31);
 
 insert into public.organizations (id, name, org_type) values
   ('a6000000-0000-4000-8000-0000000000a1','Org Register A','srhds'),
@@ -73,6 +73,14 @@ select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000b','d6000000-0000-4000-8000-000000000001','otro','idem.pdf','application/pdf',10,repeat('2',64),'restringido_nda','reg-1','rh-1'))->>'replayed', 'true', 'replay idempotente');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000b','d6000000-0000-4000-8000-000000000001','otro','idem.pdf','application/pdf',10,repeat('2',64),'restringido_nda','reg-1','rh-2'))->>'code', 'CONFLICT_STATE', 'idem key con otro hash');
 select is((select count(*) from public.documents), 4::bigint, 'replay no duplica documents');
+
+-- B1: extensión canónica/firmada por la EF, no derivada de forma ambigua del título.
+select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000c','d6000000-0000-4000-8000-000000000001','otro','foto','image/jpeg',10,repeat('3',64),'restringido_nda',NULL,NULL,'jpeg'))->>'ok', 'true', 'p_extension jpeg aceptada');
+select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000c'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000c.jpeg', 'r2_key .jpeg coherente con HEAD');
+select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000d','d6000000-0000-4000-8000-000000000001','otro','scan','image/tiff',10,repeat('4',64),'restringido_nda',NULL,NULL,'tiff'))->>'ok', 'true', 'p_extension tiff aceptada');
+select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000d'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000d.tiff', 'r2_key .tiff coherente con HEAD');
+select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000e','d6000000-0000-4000-8000-000000000001','reporte','report.final','application/pdf',10,repeat('5',64),'restringido_nda',NULL,NULL,'pdf'))->>'ok', 'true', 'título con punto y extensión pdf');
+select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000e'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000e.pdf', 'r2_key .pdf con título punteado');
 
 reset role;
 reset request.jwt.claims;
