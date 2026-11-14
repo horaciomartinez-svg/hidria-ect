@@ -1,6 +1,6 @@
 # ADR-012 — EF-08 `presign`: membresía de diagnóstico obligatoria, TTL 300 s y contrato de respuesta
 
-- **Estado:** propuesta (requiere aprobación de `revisor-especificaciones` y visto bueno de `seguridad-privacidad`)
+- **Estado:** Aceptado (task-39 cerrada; `presign` en `main` #40 `4f66816`; `register` diferido a F1-05/task-86)
 - **Fecha:** 2026-11-12 · **act. 2026-11-12**: contrato `docs/04` §4 ya en `main` (PR #37) con corrección de TTL (PR #41); **este PR no modifica `docs/`**
 - **Autor:** `dev-edge-functions` (task-39)
 - **Aprobado por:** `supervisor-hidria` (diseño aprobado con condiciones) + `revisor-especificaciones` + `seguridad-privacidad`
@@ -90,6 +90,17 @@ miembro del diagnóstico. Además:
   PER-03 (presign < 500 ms), SEC-04 (401), SEC-01 (no miembro), RPT-04 no aplica. Suites nuevas:
   `_shared/tests/r2_test.ts`, `cors_test.ts`, `presign_test.ts`, `documents_runtime_test.ts` y
   catálogo en `auth_test.ts` (total 101 pruebas Deno).
+
+## Aprobaciones / sign-off
+
+| Rol | Agente | Fecha | Veredicto |
+|---|---|---|---|
+| Revisor de especificaciones | `revisor-especificaciones` | 2026-11-14 | APROBADO (PR #40; task-91) |
+| Seguridad y privacidad | `seguridad-privacidad` | 2026-11-14 | APROBADO CON OBSERVACIONES, SIN VETO; task-92 |
+| QA | `qa-tester` | 2026-11-14 | VERDE (PR #40; task-93) |
+| Supervisor | `supervisor-hidria` | 2026-11-14 | Squash #40 `4f66816`; task-39 cerrada |
+
+> `register` queda en **501** hasta task-86/F1-05; este ADR no declara EF-08 end-to-end.
 
 ## Seguimiento
 
