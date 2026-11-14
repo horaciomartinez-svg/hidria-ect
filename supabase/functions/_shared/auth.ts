@@ -543,6 +543,12 @@ export interface EndpointDefinition {
 }
 
 const COORDINADOR_EQUIPO: readonly DiagnosticRole[] = ["coordinador", "equipo"];
+/** Roles de `documents_write`/`documents_ins`: presign y register (Lead F1-05). */
+const COORDINADOR_EQUIPO_EMPRESA: readonly DiagnosticRole[] = [
+  "coordinador",
+  "equipo",
+  "empresa",
+];
 
 /**
  * Catálogo canónico de endpoints EF-01…EF-13 con la política de rol de `docs/04`.
@@ -671,8 +677,10 @@ export const ENDPOINTS: readonly EndpointDefinition[] = [
     ef: "EF-08",
     method: "POST",
     path: "/documents/register",
+    // F1-05: `register` alineado con `documents_write` (coord/equipo/empresa); observador e
+    // invitado reciben 403 (decisión Lead; docs/04 §3 se corrige por Lead/revisor).
     scope: { kind: "diagnostic", param: "diagnostic_id", inBody: true },
-    policy: { kind: "any_member" },
+    policy: { kind: "diagnostic", roles: COORDINADOR_EQUIPO_EMPRESA },
     tenantRequired: true,
     docRef: "docs/04 §4 EF-08 (register)",
   },

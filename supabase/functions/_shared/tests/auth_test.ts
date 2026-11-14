@@ -599,7 +599,10 @@ Deno.test("catálogo: 16 endpoints de EF-01…EF-13 con políticas del contrato"
     param: "diagnostic_id",
     inBody: true,
   });
-  assertEquals(endpointById("EF-08.register").policy, { kind: "any_member" });
+  assertEquals(endpointById("EF-08.register").policy, {
+    kind: "diagnostic",
+    roles: ["coordinador", "equipo", "empresa"],
+  });
   assertEquals(endpointById("EF-01").policy, {
     kind: "diagnostic",
     roles: ["coordinador", "equipo"],
@@ -847,7 +850,7 @@ Deno.test("guardEndpoint EF-08 presign: exige membresía y rol de carga (Q-08)",
   assertEquals(missing.details, { param: "diagnostic_id" });
 });
 
-Deno.test("guardEndpoint EF-08 register: cualquier miembro; no miembro ⇒ 403", async () => {
+Deno.test("guardEndpoint EF-08 register: coord/equipo/empresa; observador y no miembro ⇒ 403", async () => {
   const context = await authenticateWithToken(
     await signToken(buildClaims({ sub: USER_EMPRESA })),
   );
@@ -858,6 +861,17 @@ Deno.test("guardEndpoint EF-08 register: cualquier miembro; no miembro ⇒ 403",
     depsWithRole("empresa"),
   );
   assertEquals(authorization.diagnosticRole, "empresa");
+
+  await expectApiError(
+    guardEndpoint(
+      context,
+      "EF-08.register",
+      { diagnostic_id: DIAGNOSTIC_ID },
+      depsWithRole("observador"),
+    ),
+    "FORBIDDEN_ROLE",
+    403,
+  );
 
   await expectApiError(
     guardEndpoint(

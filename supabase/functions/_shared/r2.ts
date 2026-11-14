@@ -71,6 +71,23 @@ export const DOCUMENT_MIME_EXTENSIONS: Readonly<
   "application/ofx": ["ofx"],
 };
 
+/**
+ * Extensión **canónica por MIME** (primera de la allowlist): única fuente para la clave de
+ * objeto (`presign` y `register`), la RPC y el `Content-Type` firmado. Evita que `.jpeg`/`.jpg`
+ * o `.tiff`/`.tif` generen claves distintas entre pasos (B1 F1-05).
+ */
+export function canonicalExtensionForMime(mime: string): string {
+  const allowed = DOCUMENT_MIME_EXTENSIONS[mime.toLowerCase()];
+  if (allowed === undefined || allowed.length === 0) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "Tipo de archivo no permitido.",
+      { reason: "mime_no_permitido" },
+    );
+  }
+  return allowed[0];
+}
+
 /** Configuración de R2 inyectada por la EF (nunca se expone al cliente). */
 export interface R2Config {
   accountId: string;
@@ -522,5 +539,143 @@ export function validateUploadMetadata(
     sizeBytes: input.sizeBytes,
     docType,
     exposureLevel,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// AWS Signature V4 (cabeceras) — HEAD de objeto en R2 (F1-05 / task-106)
+// ---------------------------------------------------------------------------
+
+/** SHA-256 del cuerpo vacío (HEAD no envía payload). */
+const EMPTY_PAYLOAD_SHA256 =
+  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+export interface SigV4HeadersInput {
+  method: string;
+  host: string;
+  canonicalUri: string;
+  region: string;
+  service?: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  amzDate: string;
+  payloadHash?: string;
+}
+
+export interface SigV4HeadersSignature {
+  canonicalRequest: string;
+  stringToSign: string;
+  authorization: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Firma AWS SigV4 con cabeceras `Authorization` (peticiones reales, p. ej. `HEAD`).
+ * Cabeceras firmadas: `host;x-amz-content-sha256;x-amz-date`. Exportada para pruebas.
+ */
+export async function signAwsV4Headers(
+  input: SigV4HeadersInput,
+): Promise<SigV4HeadersSignature> {
+  const service = input.service ?? SERVICE;
+  const payloadHash = input.payloadHash ?? EMPTY_PAYLOAD_SHA256;
+  const dateStamp = input.amzDate.slice(0, 8);
+  const scope = `${dateStamp}/${input.region}/${service}/aws4_request`;
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const canonicalHeaders = `host:${input.host}\n` +
+    `x-amz-content-sha256:${payloadHash}\n` +
+    `x-amz-date:${input.amzDate}\n`;
+  const canonicalRequest = [
+    input.method.toUpperCase(),
+    input.canonicalUri,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+  const stringToSign = [
+    ALGORITHM,
+    input.amzDate,
+    scope,
+    await sha256Hex(canonicalRequest),
+  ].join("\n");
+
+  const kDate = await hmacSha256(`AWS4${input.secretAccessKey}`, dateStamp);
+  const kRegion = await hmacSha256(kDate, input.region);
+  const kService = await hmacSha256(kRegion, service);
+  const kSigning = await hmacSha256(kService, "aws4_request");
+  const signature = toHex(await hmacSha256(kSigning, stringToSign));
+  const authorization =
+    `${ALGORITHM} Credential=${input.accessKeyId}/${scope}, ` +
+    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  return {
+    canonicalRequest,
+    stringToSign,
+    authorization,
+    headers: {
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": input.amzDate,
+      authorization,
+    },
+  };
+}
+
+export interface HeadObjectResult {
+  readonly exists: boolean;
+  readonly sizeBytes: number | null;
+  readonly contentType: string | null;
+}
+
+/**
+ * `HEAD` del objeto en R2 con credenciales de la EF (nunca del cliente).
+ *
+ * Devuelve `exists:false` si R2 responde 404; cualquier otro fallo se degrada a
+ * `500 INTERNAL_ERROR` sin filtrar credenciales/bucket/rutas. No modifica el objeto.
+ */
+export async function headObject(
+  config: R2Config,
+  key: string,
+  fetchImpl: typeof fetch = fetch,
+  now: () => Date = () => new Date(),
+): Promise<HeadObjectResult> {
+  const { host, baseUrl } = resolveEndpoint(config);
+  const canonicalUri = canonicalUriFor(config, key);
+  const signed = await signAwsV4Headers({
+    method: "HEAD",
+    host,
+    canonicalUri,
+    region: config.region ?? "auto",
+    accessKeyId: config.accessKeyId,
+    secretAccessKey: config.secretAccessKey,
+    amzDate: toAmzDate(now()),
+  });
+
+  let response: Response;
+  try {
+    response = await fetchImpl(`${baseUrl}${canonicalUri}`, {
+      method: "HEAD",
+      headers: signed.headers,
+    });
+  } catch {
+    throw new ApiError(
+      "INTERNAL_ERROR",
+      "No se pudo verificar el objeto en el almacenamiento.",
+    );
+  }
+  if (response.status === 404) {
+    return { exists: false, sizeBytes: null, contentType: null };
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      "INTERNAL_ERROR",
+      "No se pudo verificar el objeto en el almacenamiento.",
+    );
+  }
+  const length = response.headers.get("content-length");
+  const parsedLength = length === null ? Number.NaN : Number(length);
+  const contentType = response.headers.get("content-type");
+  return {
+    exists: true,
+    sizeBytes: Number.isFinite(parsedLength) ? parsedLength : null,
+    contentType: contentType === null ? null : contentType.split(";")[0].trim(),
   };
 }

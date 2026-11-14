@@ -190,7 +190,7 @@ Deno.test("presign 200: respuesta mínima sin r2_key, TTL 300 y Content-Type fir
   assertNotIncludes(JSON.stringify(body), "r2_key");
 });
 
-Deno.test("presign 401 sin token; 404 en ruta desconocida; 501 en register", async () => {
+Deno.test("presign 401 sin token; 404 en ruta desconocida; register sin token 401", async () => {
   const handler = createDocumentsHandler(CONFIG, deps());
 
   await expectError(
@@ -205,15 +205,6 @@ Deno.test("presign 401 sin token; 404 en ruta desconocida; 501 en register", asy
     "NOT_FOUND",
   );
 
-  const registerBody = await expectError(
-    handler(await request(VALID_BODY, { path: "/register" })),
-    501,
-    "NOT_IMPLEMENTED_PHASE",
-  );
-  assertEquals(
-    (registerBody.error as { message: string }).message.includes("F1-05"),
-    true,
-  );
   await expectError(
     handler(await request(VALID_BODY, { path: "/register", token: null })),
     401,
@@ -442,4 +433,22 @@ Deno.test("presign: rol de diagnóstico observador ⇒ 403 aunque el body diga c
     403,
     "FORBIDDEN_ROLE",
   );
+});
+
+Deno.test("presign B1: extensión canónica por MIME (.jpeg ⇒ .jpg en la clave)", async () => {
+  const response = await createDocumentsHandler(CONFIG, deps())(
+    await request({
+      diagnostic_id: DIAG_ID,
+      filename: "foto_planta.jpeg",
+      doc_type: "layout",
+      mime: "image/jpeg",
+      size_bytes: 2048,
+      exposure_level: "restringido_nda",
+    }),
+  );
+  assertEquals(response.status, 200);
+  const body = await response.json() as { upload_url: string };
+  const path = new URL(body.upload_url).pathname;
+  assert(path.endsWith(".jpg"), `clave canónica .jpg, recibido ${path}`);
+  assert(!path.endsWith(".jpeg"));
 });

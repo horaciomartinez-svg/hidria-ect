@@ -12,7 +12,11 @@
  * Todo es inyectable (`env`, `fetchImpl`) para probarse sin red ni permisos.
  */
 
-import { type AuthenticateOptions, DIAGNOSTIC_ROLES } from "./auth.ts";
+import {
+  type AuthContext,
+  type AuthenticateOptions,
+  DIAGNOSTIC_ROLES,
+} from "./auth.ts";
 import type { DiagnosticRole } from "./auth.ts";
 import { type CorsConfig, parseAllowedOrigins } from "./cors.ts";
 import { ApiError } from "./errors.ts";
@@ -20,6 +24,8 @@ import type {
   DiagnosticScope,
   DocumentsDeps,
   DocumentsHandlerConfig,
+  RegisterDocumentArgs,
+  RegisterDocumentResult,
 } from "./presign.ts";
 import { buildR2Config, type R2Config } from "./r2.ts";
 
@@ -174,7 +180,37 @@ export function createSupabaseDocumentsDeps(
     };
   };
 
-  return { resolveRole, fetchDiagnostic };
+  // SEC-PR8-01: perfil existente y del mismo tenant que el claim (`401` si no).
+  const verifyProfile = async (context: AuthContext): Promise<boolean> => {
+    const query = `user_id=eq.${encodeURIComponent(context.userId)}` +
+      `&select=organization_id&limit=1`;
+    const payload = await requestJson(
+      `${supabaseUrl}/rest/v1/profiles?${query}`,
+      { method: "GET", headers },
+    );
+    if (!Array.isArray(payload) || payload.length === 0) return false;
+    const row = payload[0] as Record<string, unknown>;
+    return row.organization_id === context.organizationId;
+  };
+
+  // RPC atómica de task-86: INSERT documents + audit_log + idempotencia en una transacción.
+  const registerDocument = async (
+    args: RegisterDocumentArgs,
+  ): Promise<RegisterDocumentResult> => {
+    const payload = await requestJson(
+      `${supabaseUrl}/rest/v1/rpc/fn_register_document`,
+      { method: "POST", headers, body: JSON.stringify(args) },
+    );
+    if (typeof payload !== "object" || payload === null) {
+      throw new ApiError(
+        "INTERNAL_ERROR",
+        "Respuesta inválida de la base de datos.",
+      );
+    }
+    return payload as RegisterDocumentResult;
+  };
+
+  return { resolveRole, fetchDiagnostic, verifyProfile, registerDocument };
 }
 
 /**
