@@ -190,7 +190,7 @@ Deno.test("presign 200: respuesta mínima sin r2_key, TTL 300 y Content-Type fir
   assertNotIncludes(JSON.stringify(body), "r2_key");
 });
 
-Deno.test("presign 401 sin token; 404 en ruta desconocida; 501 en register", async () => {
+Deno.test("presign 401 sin token; 404 en ruta desconocida; register sin token 401", async () => {
   const handler = createDocumentsHandler(CONFIG, deps());
 
   await expectError(
@@ -205,15 +205,6 @@ Deno.test("presign 401 sin token; 404 en ruta desconocida; 501 en register", asy
     "NOT_FOUND",
   );
 
-  const registerBody = await expectError(
-    handler(await request(VALID_BODY, { path: "/register" })),
-    501,
-    "NOT_IMPLEMENTED_PHASE",
-  );
-  assertEquals(
-    (registerBody.error as { message: string }).message.includes("F1-05"),
-    true,
-  );
   await expectError(
     handler(await request(VALID_BODY, { path: "/register", token: null })),
     401,

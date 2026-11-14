@@ -16,6 +16,7 @@
  */
 
 import {
+  type AuthContext,
   authenticate,
   type AuthenticateOptions,
   guardEndpoint,
@@ -27,9 +28,11 @@ import { ApiError, errorResponse } from "./errors.ts";
 import {
   buildDocumentObjectKey,
   deterministicUuid,
+  headObject,
   PRESIGN_TTL_SECONDS,
   presignPutObject,
   type R2Config,
+  sha256Hex,
   validateUploadMetadata,
 } from "./r2.ts";
 
@@ -57,6 +60,40 @@ export interface DocumentsDeps {
   ) => Promise<DiagnosticScope | null>;
   /** Reloj inyectable para pruebas deterministas de la URL. */
   readonly now?: () => Date;
+  /** `verifyProfile` (SEC-PR8-01): perfil inexistente o tenant distinto ⇒ 401. */
+  readonly verifyProfile?: (context: AuthContext) => Promise<boolean>;
+  /** HEAD de R2 inyectable en pruebas (por defecto, el real con SigV4). */
+  readonly head?: typeof headObject;
+  /** RPC atómica `fn_register_document` (task-86); la inyecta el runtime real. */
+  readonly registerDocument?: (
+    args: RegisterDocumentArgs,
+  ) => Promise<RegisterDocumentResult>;
+}
+
+/** Argumentos de la RPC de registro (r2_key se deriva server-side; no viaja del cliente). */
+export interface RegisterDocumentArgs {
+  readonly p_user_id: string;
+  readonly p_document_id: string;
+  readonly p_diagnostic_id: string;
+  readonly p_doc_type: string;
+  readonly p_title: string;
+  readonly p_mime: string;
+  readonly p_size_bytes: number;
+  readonly p_sha256: string;
+  readonly p_exposure_level: string;
+  readonly p_idempotency_key: string | null;
+  readonly p_request_hash: string;
+}
+
+/** Resultado JSONB de la RPC (mismo contrato que las RPC de EF-01/EF-12). */
+export interface RegisterDocumentResult {
+  readonly ok: boolean;
+  readonly replayed?: boolean;
+  readonly code?: string;
+  readonly message?: string;
+  readonly details?: Record<string, unknown>;
+  readonly data?: Record<string, unknown>;
+  readonly audit_ref?: string;
 }
 
 export interface DocumentsHandlerConfig {
@@ -262,8 +299,195 @@ async function handlePresign(
 }
 
 /**
- * Handler de EF-08. `register` queda diferido a F1-05 (task-86) y responde 501 **sin efectos**
- * (se autentica primero para no revelar nada a peticiones anónimas).
+ * Título del documento: `filename` saneado **sin extensión** (fallback `doc_type`).
+ * `documents.title` es NOT NULL y el contrato no envía `title` (decisión Lead F1-05).
+ */
+function buildDocumentTitle(
+  filename: string,
+  extension: string,
+  docType: string,
+): string {
+  const suffix = `.${extension.toLowerCase()}`;
+  const base = filename.toLowerCase().endsWith(suffix)
+    ? filename.slice(0, filename.length - suffix.length)
+    : filename;
+  const title = base.trim();
+  return title.length > 0 ? title : docType;
+}
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/**
+ * `POST /documents/register` (F1-05/task-106).
+ *
+ * 1. Auth + `verifyProfile` + rol de contrato (coord/equipo/empresa) + tenant fail-closed.
+ * 2. Valida metadatos + `document_id`/`sha256`; deriva la clave server-side (nunca del cliente).
+ * 3. `HEAD` al objeto en R2 con credenciales de la EF (existencia/tamaño/MIME; sin exponer rutas).
+ * 4. Llama a la RPC atómica `fn_register_document` (idempotencia `api_idempotency` incluida).
+ * 5. Responde `{ document_id, sha256 }` (sin `r2_key`, bucket ni credenciales).
+ */
+async function handleRegister(
+  request: Request,
+  config: DocumentsHandlerConfig,
+  deps: DocumentsDeps,
+): Promise<Response> {
+  const context = await authenticate(request, {
+    ...config.auth,
+    ...(deps.verifyProfile === undefined
+      ? {}
+      : { verifyProfile: deps.verifyProfile }),
+  });
+  if (deps.registerDocument === undefined) {
+    throw new ApiError(
+      "INTERNAL_ERROR",
+      "El registro de documentos no está configurado.",
+    );
+  }
+  const body = await readJsonObject(request);
+
+  const diagnosticIdParam = typeof body.diagnostic_id === "string"
+    ? body.diagnostic_id
+    : undefined;
+  const authorization = await guardEndpoint(
+    context,
+    REGISTER_ENDPOINT,
+    { diagnostic_id: diagnosticIdParam },
+    { resolveRole: deps.resolveRole },
+  );
+  const diagnosticId = authorization.diagnosticId as string;
+
+  // Anti-enumeración: diagnóstico inexistente/otro tenant ⇒ mismo 403 que no-miembro.
+  const diagnostic = await deps.fetchDiagnostic(diagnosticId);
+  if (
+    diagnostic === null || diagnostic.organizationId !== context.organizationId
+  ) {
+    throw new ApiError("FORBIDDEN_NOT_MEMBER", undefined, {
+      diagnostic_id: diagnosticId,
+    });
+  }
+
+  const rawDocumentId = body.document_id;
+  if (typeof rawDocumentId !== "string" || !isUuid(rawDocumentId)) {
+    throw new ApiError(
+      "VALIDATION_PARAMETRO_REQUERIDO",
+      "El campo document_id debe ser un UUID.",
+      { field: "document_id" },
+    );
+  }
+  const rawSha256 = body.sha256;
+  if (typeof rawSha256 !== "string") {
+    throw new ApiError(
+      "VALIDATION_PARAMETRO_REQUERIDO",
+      "Falta el campo obligatorio sha256.",
+      { field: "sha256" },
+    );
+  }
+  const sha256 = rawSha256.toLowerCase();
+  if (!SHA256_HEX.test(sha256)) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "El hash sha256 debe ser hexadecimal de 64 caracteres.",
+      { field: "sha256", reason: "sha256_invalido" },
+    );
+  }
+
+  const metadata = validateUploadMetadata({
+    filename: body.filename,
+    mime: body.mime,
+    sizeBytes: body.size_bytes,
+    docType: body.doc_type,
+    exposureLevel: body.exposure_level,
+  });
+  const title = buildDocumentTitle(
+    metadata.filename,
+    metadata.extension,
+    metadata.docType,
+  );
+  const objectKey = buildDocumentObjectKey({
+    organizationId: diagnostic.organizationId,
+    diagnosticId,
+    documentId: rawDocumentId,
+    extension: metadata.extension,
+  });
+
+  // HEAD con credenciales de la EF: el cliente nunca recibe/usa credenciales de R2.
+  const headFn = deps.head ?? headObject;
+  const head = await headFn(config.r2, objectKey);
+  if (!head.exists) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "El objeto no existe en el almacenamiento para este documento.",
+      { reason: "objeto_no_encontrado" },
+    );
+  }
+  if (head.sizeBytes !== null && head.sizeBytes !== metadata.sizeBytes) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "El tamaño del objeto no coincide con los metadatos declarados.",
+      { reason: "tamano_no_coincide" },
+    );
+  }
+  if (
+    head.contentType !== null &&
+    head.contentType.toLowerCase() !== metadata.mime.toLowerCase()
+  ) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "El tipo MIME del objeto no coincide con los metadatos declarados.",
+      { reason: "mime_no_coincide" },
+    );
+  }
+
+  const idempotencyKey = request.headers.get("idempotency-key");
+  if (idempotencyKey !== null && !isUuid(idempotencyKey)) {
+    throw new ApiError(
+      "VALIDATION_IDEMPOTENCY_KEY",
+      "La cabecera Idempotency-Key debe ser un UUID.",
+      { header: "Idempotency-Key" },
+    );
+  }
+  const requestHash = await sha256Hex(JSON.stringify({
+    endpoint: REGISTER_ENDPOINT,
+    diagnostic_id: diagnosticId,
+    document_id: rawDocumentId,
+    doc_type: metadata.docType,
+    title,
+    mime: metadata.mime,
+    size_bytes: metadata.sizeBytes,
+    sha256,
+    exposure_level: metadata.exposureLevel,
+  }));
+
+  const result = await deps.registerDocument({
+    p_user_id: context.userId,
+    p_document_id: rawDocumentId,
+    p_diagnostic_id: diagnosticId,
+    p_doc_type: metadata.docType,
+    p_title: title,
+    p_mime: metadata.mime,
+    p_size_bytes: metadata.sizeBytes,
+    p_sha256: sha256,
+    p_exposure_level: metadata.exposureLevel,
+    p_idempotency_key: idempotencyKey,
+    p_request_hash: requestHash,
+  });
+  if (result.ok !== true) {
+    throw new ApiError(
+      typeof result.code === "string" ? result.code : "INTERNAL_ERROR",
+      typeof result.message === "string" ? result.message : undefined,
+      result.details ?? {},
+    );
+  }
+
+  // Respuesta del contrato: sin `r2_key`, bucket ni credenciales (la clave es server-side).
+  return jsonResponse(request, config, {
+    document_id: rawDocumentId,
+    sha256,
+  });
+}
+
+/**
+ * Handler de EF-08: `presign` (URL PUT prefirmada) y `register` (metadatos tras la subida).
  */
 export function createDocumentsHandler(
   config: DocumentsHandlerConfig,
@@ -284,11 +508,7 @@ export function createDocumentsHandler(
         }, 404);
       }
       if (route === "register") {
-        await authenticate(request, config.auth);
-        throw new ApiError(
-          "NOT_IMPLEMENTED_PHASE",
-          "El registro de documentos se habilita en F1-05 (task-86).",
-        );
+        return await handleRegister(request, config, deps);
       }
       return await handlePresign(request, config, deps);
     } catch (error) {
