@@ -137,6 +137,7 @@ select ok(not has_function_privilege('authenticated','public.fn_validate_cat_r2(
 select ok(has_function_privilege('service_role','public.fn_validate_cat_r2(uuid,uuid,uuid,text,text)','EXECUTE'), 'ACL service_role con EXECUTE validate');
 
 -- RPC submit incompleto.
+set local request.jwt.claims = '{}';
 set local role service_role;
 select is((public.fn_submit_cat('c8000000-0000-4000-8000-000000000001','d8000000-0000-4000-8000-000000000001'))->>'code', 'VALIDATION_CAT_INCOMPLETO', 'submit incompleto lista faltantes');
 
@@ -153,6 +154,7 @@ select 'd8000000-0000-4000-8000-000000000001', ci.id,
 from public.cat_items ci
 where ci.version='A1-v1'
 on conflict (diagnostic_id,item_id) do nothing;
+set local request.jwt.claims = '{}';
 set local role service_role;
 select is((public.fn_submit_cat('c8000000-0000-4000-8000-000000000001','d8000000-0000-4000-8000-000000000001','cat-1','cat-h1'))->>'ok', 'true', 'submit completo');
 select is((select cat_estado from public.diagnostics where id='d8000000-0000-4000-8000-000000000001'), 'en_revision', 'submit mueve a en_revision');
@@ -164,6 +166,7 @@ reset role;
 insert into public.logbook_entries (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by)
 values ('f8000000-0000-4000-8000-000000000001','a8000000-0000-4000-8000-0000000000a1','d8000000-0000-4000-8000-000000000001','R2','BIT-R2-CAT','Coord','2026-01-12','09:00','cerrada','c8000000-0000-4000-8000-000000000001');
 insert into public.logbook_findings (entry_id,tema,texto,links) values ('f8000000-0000-4000-8000-000000000001','no_se','Plan de resolución de no sé','[]'::jsonb);
+set local request.jwt.claims = '{}';
 set local role service_role;
 select is((public.fn_validate_cat_r2('c8000000-0000-4000-8000-000000000001','d8000000-0000-4000-8000-000000000001','f8000000-0000-4000-8000-000000000001','cat-v1','cat-vh1'))->>'ok', 'true', 'validate R2 completo');
 select is((select cat_estado from public.diagnostics where id='d8000000-0000-4000-8000-000000000001'), 'validado_r2', 'validate mueve a validado_r2');
