@@ -169,11 +169,11 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 |---|---|
 | Propósito | Mover un ítem de la lista de cotejo (`document_checklist_items.estado`) |
 | Cuerpo | `{ "to": "recibido" \| "revisado" \| "validado_r1", "document_id"?: uuid, "solicitud_nota"?: text }` |
-| Pre | Transición permitida según TD-2 (rol × origen × destino). `validado_r1` exige `document_id` adjunto y rol `coordinador|equipo` |
-| Tx | `UPDATE document_checklist_items SET estado, document_id, solicitud_nota`; `audit_log(action='approve' si validado_r1, 'update' si no)` |
+| Pre | Transición permitida según **TD-2**: `empresa` `no_recibido→recibido` con `document_id`; `coordinador/equipo` solicitan con `solicitud_nota` y marcan `revisado`; **`validado_r1` solo `coordinador`**, exige `document_id` y **ficha R1** (`logbook_entries` R1 abierta/cerrada de la semana). `diagnostic_id` es **inmutable**; observador/invitado 403. |
+| Tx | RPC `fn_transition_checklist_item` (`service_role`, atómica): `UPDATE document_checklist_items SET estado, document_id, solicitud_nota` + `audit_log` (`approve` si `validado_r1`, `update` si no) + `api_idempotency`; el trigger `trg_checklist_transition` es la autoridad final TD-2. `validado_r1` es terminal. |
 | Post | Si `to='recibido'|'revisado'` con nota → notificación `kind='validacion'` a rol `empresa` |
 | Respuesta | `{ item_id, item_code, estado, document_id }` |
-| Errores | `FORBIDDEN_ROLE` · `CONFLICT_STATE` (409, transición no permitida) |
+| Errores | `FORBIDDEN_ROLE` (403) · `FORBIDDEN_NOT_MEMBER` (403; ítem/tenant inexistente anti-enumeración) · `CONFLICT_STATE` (409; transición no permitida, terminal, idempotencia con hash distinto) · `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_*` (422) · `INTERNAL_ERROR` (500 saneado) |
 
 ## EF-04 — Envío y validación del CAT
 
