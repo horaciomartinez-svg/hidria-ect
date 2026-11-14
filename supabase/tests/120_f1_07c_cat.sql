@@ -1,4 +1,4 @@
-﻿-- F1-07c â€” pgTAP: seed CAT A1-v1, RLS y validaciÃ³n de cat_responses.
+-- F1-07c â€” pgTAP: seed CAT A1-v1, RLS y validaciÃ³n de cat_responses.
 begin;
 select plan(34);
 
@@ -172,9 +172,3 @@ reset role;
 reset request.jwt.claims;
 select * from finish();
 rollback;
-reset request.jwt.claims;
-select * from finish();
-rollback;
-
-
-
