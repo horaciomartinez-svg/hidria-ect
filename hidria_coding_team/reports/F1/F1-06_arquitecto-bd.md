@@ -1,0 +1,75 @@
+# F1-06c — DB/RLS M3 checklist (`document_checklist_items`)
+
+- **Agente:** `arquitecto-bd` (02)
+- **Tarea:** `task-115` (F1-06c), coordinación F1-06a UI / F1-06b EF-03
+- **Rama:** `feat/F1-06c-checklist`, base `main@e495c8f`
+- **Head de cierre:** `fix(f1-06c): cerrar VETO cross-tenant y RPC EF-03 (task-115)`
+- **Migraciones:** `20261108090000_f1_06c_checklist.sql` (base) + `20261108091000_f1_06c_checklist_fix.sql` (forward-only)
+- **BD:** `schema_migrations = 33`; repo = 33 migraciones; forward-only; `docs/02` intacto.
+- **Reporte:** este documento.
+
+## Auditoría inicial
+
+| Elemento | Estado real | Gap |
+|---|---|---|
+| Columnas `diagnostic_id`, `item_code`, `estado`, `document_id`, `solicitud_nota` | presentes | — |
+| `estado` CHECK `no_recibido/recibido/revisado/validado_r1` | presente | — |
+| `item_code` CHECK (10 códigos) | presente | — |
+| FK `document_id → documents`, `diagnostic_id → diagnostics`, UNIQUE `(diagnostic_id,item_code)` | presentes | no validaba que el documento fuera del **mismo diagnóstico/tenant** ni su `upload_status` |
+| RLS SELECT/INSERT/UPDATE | `is_diagnostic_member(diagnostic_id)` | cualquier miembro (observador/invitado) podía escribir; `checklist_write FOR ALL` además abría DELETE |
+| Transiciones TD-2 | no había trigger | no se validaba origen→destino, rol, documento, ficha R1 ni `validado_r1` terminal |
+| Auditoría | no había trigger | EF-03 debía auditarla; updates directos no dejaban rastro |
+| DELETE | `checklist_write` lo permitía por membresía | no está en el contrato |
+
+Conclusión: **sí había gaps** de autorización/transición/ligadura/auditoría; se justifica migración forward-only.
+
+## Migración base `090000`
+
+1. **Se retira `checklist_write` (FOR ALL)**; quedan SELECT/INSERT/UPDATE por membresía y **sin política DELETE**.
+2. **`trg_checklist_transition`** (BEFORE INSERT/UPDATE, SECURITY DEFINER): INSERT solo `coordinador|equipo` y estado inicial `no_recibido`; TD-2 en UPDATE; `service_role` conserva la validación de su contrato.
+3. **`trg_checklist_audit`** (AFTER INSERT/UPDATE): auditoría DB de cambios autenticados; EF-03 conserva su auditoría atómica.
+
+## Fix forward-only `091000` (revisión #54, 2026-11-14)
+
+Aplicado sobre `b493ad5` para cerrar el VETO cross-tenant y las observaciones B1-B4/M1-M2. `090000` no se editó.
+
+- **SEC-PR54-01 / VETO cross-tenant:** `trg_checklist_transition()` rechaza cualquier UPDATE que cambie `diagnostic_id` (`42501`), incluso con `auth.uid()` nulo / `service_role`. `document_checklist_items` **no tiene columna `organization_id`**: `diagnostic_id` es la clave de tenant y, al ser inmutable, no existe ruta de cambio de organización. Test A→B ejecutado como `service_role` (evita que el rechazo provenga solo de RLS).
+- **SEC-PR54-02:** `REVOKE ALL ON FUNCTION public.trg_checklist_transition()` y `public.trg_checklist_audit()` `FROM public, anon, authenticated`.
+- **B3:** `validado_r1` exige `document_id` no nulo **y ficha R1** (`logbook_entries` con `diagnostic_id`, `clave='R1'`, `estado IN ('abierta','cerrada')`, `fecha` de la semana calendario en curso) además de rol **solo coordinador**; validación en trigger y en RPC.
+- **B4:** `fn_transition_checklist_item(p_user_id, p_item_id, p_to, p_document_id, p_solicitud_nota, p_idempotency_key, p_request_hash)` SECURITY DEFINER, **service_role-only**: valida tenant/membresía/rol/TD-2/documento/ficha R1, actualiza, audita y registra `api_idempotency` en la misma transacción; replay con mismo hash y `CONFLICT_STATE` con hash distinto.
+- **M1:** `validado_r1` es terminal. RPC → `CONFLICT_STATE` (409); trigger → `P0001` con mensaje explícito `CONFLICT_STATE`.
+- **M2:** auditoría `action='approve'` al entrar a `validado_r1` (trigger y RPC); el resto `update`.
+- **B1:** se corrigió el caso de documento de otro diagnóstico del test 13 añadiendo `solicitud_nota` al UPDATE, de modo que el rechazo `42501` sea por documento ajeno y no por la nota faltante.
+
+## Tests
+
+`110_f1_06c_checklist.sql` **plan 35**:
+
+- 1-3: creación solo coord/equipo; observador rechazado; conteo.
+- 4-8: empresa recibe con/sin documento; coord revisa; empresa/equipo no validan R1.
+- 9-13: `validado_r1` sin documento/sin ficha R1 rechazado; ficha R1 de la semana insertada como `postgres`; coordinador valida; terminal explícito.
+- 14-16: coordinador recibe con/sin `solicitud_nota`; documento de otro diagnóstico rechazado (con nota).
+- 17-19: RLS lectura por membresía; admin sin membresía 0; DELETE denegado.
+- 20-21: auditoría DB presente y `approve` al validar R1.
+- 22-26: ACL (`authenticated` sin EXECUTE en RPC/triggers; `service_role` sí); invocación autenticada denegada.
+- 27-30: RPC `service_role`: transición válida, replay idempotente, conflicto de hash y tenant/membresía.
+- 31: `diagnostic_id` inmutable en UPDATE A→B con `service_role`.
+- 32: equipo → `validado_r1` por RPC ⇒ `FORBIDDEN_ROLE`.
+- 33: `validado_r1` terminal por RPC ⇒ `CONFLICT_STATE`.
+- 34: coordinador valida R1 por RPC (documento + ficha).
+- 35: la RPC deja `audit_log(action='approve')` al validar R1.
+
+Resultado: **35/35 aserciones verdes**. Total suite pgTAP: **354** (319 + 35). BD=repo=33 (`schema_migrations = 33`, 33 archivos de migración).
+
+## Contrato / patches propuestos (a Lead/revisor)
+
+- `docs/01` §4.5/§6 (checklist): documentar trigger TD-2, `document_id` del mismo diagnóstico, ficha R1 y auditoría DB.
+- `docs/04` EF-03: la EF sigue siendo autoridad de contrato; el trigger DB es defensa final. **Inconsistencia detectada:** la fila de Pre de EF-03 dice `coordinador|equipo` para `validado_r1`, mientras TD-2#3 y esta tarea exigen **solo coordinador**; se implementó coordinador-only. Patch sugerido a Lead: corregir esa fila de `docs/04`.
+- `docs/02` intacto (snapshot F1-18).
+
+## Coordinación
+
+- **F1-06a (UI):** sin cambios de columnas; estados/roles visibles son los de TD-2.
+- **F1-06b (EF-03):** debe llamar `fn_transition_checklist_item(...)` con `service_role`; la RPC devuelve `ok/code/message/data/audit_ref` y `replayed`. El trigger DB revalida la inmutabilidad de `diagnostic_id`.
+- **Revisor/seguridad:** SEC-PR54-01 y SEC-PR54-02 cerrados; `validado_r1` coordinador-only y terminal; ficha R1 validada en trigger y RPC.
+- **Bloqueos:** ninguno. `organization_id` no existe en `document_checklist_items`; no se inventó columna.
