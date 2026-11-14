@@ -85,6 +85,26 @@ Reglas obligatorias (detalle en
   `_shared/cors.ts`; `index.ts` solo conecta runtime
   (`_shared/documents_runtime.ts`).
 
+### EF-03 — `ef-03-checklist` (task-114 / F1-06b)
+
+- Ruta canónica: `POST /functions/v1/ef-03-checklist/{item_id}/transition`
+  (acepta también el contrato `/checklist/{item_id}/transition` y el alias
+  legacy `/ef-03-checklist/checklist/{item_id}/transition`).
+- Auth/claims (`verifyProfile`, `nbf`, `p_user_id` del JWT); ítem → diagnóstico
+  → tenant/membresía; roles `coordinador|equipo|empresa` (observador/invitado
+  403).
+- Transiciones **TD-2**: `no_recibido→recibido` (empresa con `document_id`;
+  coord/equipo con `solicitud_nota`), `recibido→revisado` (coord/equipo),
+  `revisado→validado_r1` (solo coordinador, `document_id` obligatorio);
+  `validado_r1` es terminal. Documento validado contra diagnóstico/tenant.
+- Persistencia: RPC `fn_transition_checklist_item` (`service_role`) con UPDATE +
+  `audit_log` (approve/update) + `api_idempotency`; respuesta
+  `{item_id, item_code, estado, document_id}`. Post-commit: notificación
+  `validacion` a empresa (si aplica) y `checklist_updated`/`kanban_refresh`.
+- Errores: 401, 403 `FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE` (ítem inexistente y
+  otro tenant comparten 403 anti-enumeración), 409 `CONFLICT_STATE` (TD-2/terminal),
+  422 `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY`, 500 saneado.
+
 ## Variables de entorno de las EF
 
 Se configuran con `supabase secrets set` (nunca en el repo). Comunes a
@@ -107,6 +127,6 @@ El job `Edge Functions (Deno)` del CI (#38) ejecuta
 `deno fmt --check
 supabase/functions --ignore=supabase/functions/README.md`,
 `deno lint`, `deno check supabase/functions/_shared` + cada
-`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**166
-pruebas**: 101 base + 50 F1-04 + 15 F1-05). Sin red ni permisos: DB/RPC, HEAD de
-R2 y broadcast se inyectan en las pruebas.
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**182
+pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b). Sin red ni permisos:
+DB/RPC, HEAD de R2 y broadcast se inyectan en las pruebas.

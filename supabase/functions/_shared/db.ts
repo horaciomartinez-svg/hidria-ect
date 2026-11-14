@@ -61,6 +61,21 @@ export interface RpcResult {
 }
 
 /** Última reprogramación del historial `milestone_reprogramming` para un hito. */
+export interface ChecklistItemRow {
+  id: string;
+  diagnosticId: string;
+  itemCode: string;
+  estado: string;
+  documentId: string | null;
+  solicitudNota: string | null;
+}
+
+export interface DocumentScopeRow {
+  id: string;
+  diagnosticId: string | null;
+  organizationId: string;
+}
+
 export interface ReprogrammingRow {
   fechaOriginal: string;
   fechaNueva: string;
@@ -91,6 +106,12 @@ export interface ServiceClient {
     hito: string,
   ): Promise<ReprogrammingRow | null>;
   listMemberUserIds(diagnosticId: string): Promise<string[]>;
+  /** F1-06b: ítem de checklist por id (EF-03). */
+  fetchChecklistItemById?(itemId: string): Promise<ChecklistItemRow | null>;
+  /** F1-06b: documento por id para validar la ligadura (EF-03). */
+  fetchDocumentById?(documentId: string): Promise<DocumentScopeRow | null>;
+  /** F1-06b: usuarios de un rol del diagnóstico (notificación a empresa). */
+  listRoleUserIds?(diagnosticId: string, role: string): Promise<string[]>;
   insertNotifications(
     rows: Array<
       { userId: string; kind: string; payload: Record<string, unknown> }
@@ -384,6 +405,71 @@ export function createServiceClient(
     };
   };
 
+  const fetchChecklistItemById = async (
+    itemId: string,
+  ): Promise<ChecklistItemRow | null> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/document_checklist_items?id=eq.${encodeURIComponent(itemId)}` +
+        "&select=id,diagnostic_id,item_code,estado,document_id,solicitud_nota" +
+        "&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.id !== "string" || typeof row.diagnostic_id !== "string" ||
+      typeof row.item_code !== "string" || typeof row.estado !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: row.id,
+      diagnosticId: row.diagnostic_id,
+      itemCode: row.item_code,
+      estado: row.estado,
+      documentId: typeof row.document_id === "string" ? row.document_id : null,
+      solicitudNota: typeof row.solicitud_nota === "string"
+        ? row.solicitud_nota
+        : null,
+    };
+  };
+
+  const fetchDocumentById = async (
+    documentId: string,
+  ): Promise<DocumentScopeRow | null> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/documents?id=eq.${encodeURIComponent(documentId)}` +
+        "&select=id,diagnostic_id,organization_id&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.id !== "string" || typeof row.organization_id !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: row.id,
+      diagnosticId: typeof row.diagnostic_id === "string"
+        ? row.diagnostic_id
+        : null,
+      organizationId: row.organization_id,
+    };
+  };
+
+  const listRoleUserIds = async (
+    diagnosticId: string,
+    role: string,
+  ): Promise<string[]> => {
+    const rows = await select<{ user_id: string }>(
+      `/rest/v1/project_members?diagnostic_id=eq.${
+        encodeURIComponent(diagnosticId)
+      }&role=eq.${encodeURIComponent(role)}&select=user_id`,
+    );
+    return rows
+      .map((row) => row.user_id)
+      .filter((value): value is string => typeof value === "string");
+  };
+
   const listMemberUserIds = async (
     diagnosticId: string,
   ): Promise<string[]> => {
@@ -446,6 +532,9 @@ export function createServiceClient(
     fetchLatestFicha,
     fetchLastReprogramming,
     listMemberUserIds,
+    fetchChecklistItemById,
+    fetchDocumentById,
+    listRoleUserIds,
     insertNotifications,
     callRpc,
   };
