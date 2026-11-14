@@ -182,12 +182,13 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Campo | Valor |
 |---|---|
 | Propósito | `submit`: la empresa declara el cuestionario completo (`cat_estado: en_captura → en_revision`). `validate-r2`: el equipo valida en reunión R2 (`en_revision → validado_r2`, gate F3) |
-| Pre (submit) | Rol `empresa|coordinador|equipo`; todas las preguntas obligatorias de `cat_items` con `condicion` aplicable tienen respuesta en `cat_responses` (valor no nulo o `no_sé` explícito); preguntas con `admite_evidencia` resueltas en campo llevan evidencia |
-| Pre (validate-r2) | Rol `coordinador|equipo`; existe ficha `BIT-R2-*` cerrada (referencia); todas las respuestas `no_sé` tienen plan de resolución anotado en hallazgos de la ficha R2 |
-| Tx | `UPDATE diagnostics SET cat_estado`; `audit_log(action='approve')` en validate-r2 |
+| Pre (submit) | Rol `empresa|coordinador|equipo`; **toda pregunta aplicable de `cat_items` A1-v1** (47) tiene respuesta en `cat_responses` (`valor` no nulo, o `no_se`/`na` explícitos); `cat_items` no tiene columna `obligatoria`: toda pregunta aplicable es obligatoria. Preguntas con `admite_evidencia` resueltas en campo llevan `document_id` del mismo diagnóstico/tenant y registrado. |
+| Pre (validate-r2) | Rol `coordinador|equipo`; existe ficha `BIT-R2-*` **cerrada** (referencia); todas las respuestas `no_se` tienen plan de resolución anotado en hallazgos de la ficha R2; `cat_estado='en_revision'`. |
+| Tx | RPC `fn_submit_cat` / `fn_validate_cat_r2` (`service_role`, atómica): `UPDATE diagnostics.cat_estado` + `audit_log` (`update` en submit, `approve` en validate-r2) + `api_idempotency` en la misma transacción; replay del mismo hash ⇒ 200 sin efectos; hash distinto ⇒ 409. |
+| Nota de completitud | `no_se`/`na` cuentan como respuesta para `submit`; para `validate-r2` los `no_se` exigen plan en la ficha R2 (o se rechaza con `VALIDATION_CAT_INCOMPLETO`). |
 | Post | Notificación a empresa; evento `cat_validated` en validate-r2 |
 | Respuesta | `{ diagnostic_id, cat_estado, pendientes: n }` |
-| Errores | `VALIDATION_CAT_INCOMPLETO` (422 con lista de códigos `cat_items.codigo` faltantes) · `GATE_R2_FICHA` · `FORBIDDEN_ROLE` |
+| Errores | `VALIDATION_CAT_INCOMPLETO` (422 con lista de códigos `cat_items.codigo` faltantes) · `GATE_R2_FICHA` (409) · `CONFLICT_STATE` (409; estado/idempotencia) · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` (403 anti-enumeración) · `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY` (422) · `INTERNAL_ERROR` (500 saneado) |
 
 ## EF-05 — Validación del Balance Hídrico Enriquecido en R3 (regla de la brecha)
 
