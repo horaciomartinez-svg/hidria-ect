@@ -64,9 +64,9 @@ sigue viendo «Empresa Sintética A» por membresía pero **sin** acción de edi
   es actualizable por quienes tengan `companies_upd` (admin/coord/equipo; `empresa` su ficha).
 - La UI mantiene la regla de producto: **sólo admin/coordinación** ven el selector habilitado; los
   demás lo ven deshabilitado con nota. Esto es **UX, no control de seguridad**.
-- **Residual aceptado y documentado**; coordinado con `arquitecto-bd` (opción A). Si se prefiere
-  opción B (pgTAP/trigger que restrinja la columna), corresponde a una tarea de DB aparte
-  (`supabase/tests/**`/migración) y no a este PR de frontend.
+- **Residual aceptado y documentado**; coordinado con `arquitecto-bd`, que **confirmó la opción A**
+  (task-99 M2): no se añade trigger/pgTAP; si M2-06 lo exige, se planifica como tarea DB aparte de
+  su scope. La regla UI-only **no** es control de seguridad y así debe reflejarse en spec/seguridad.
 - Sin cambios en `supabase/**` ni `docs/**`.
 
 ## 4. M3 — Revisión manual de a11y (estados reales vs mock)
@@ -127,7 +127,8 @@ localmente (sin Docker/CLI Supabase), igual que en F1-03c.
 1. **QA (M3):** actualizar `reports/qa/F1-03c_a11y.md` y `qa/trazabilidad.md` con esta revisión
    manual (mock+manual, no lector de pantalla) y programar la pasada NVDA/VoiceOver; re-ejecutar
    suite mock 27/6 y CI 7/7 sobre el head del PR.
-2. **`arquitecto-bd` (M2):** confirmar opción A (residual documentado) o abrir tarea DB para opción B.
+2. **`arquitecto-bd` (M2):** confirmado **opción A** (residual documentado); no se añade
+   pgTAP/trigger en task-99. Si M2-06 lo exige, tarea DB aparte.
 3. **Spec/seguridad/QA:** revisión del PR (sin cambios en `supabase/**`/`docs/**`; edición propia
    sólo si contraparte en UI, RLS autoridad; sin datos reales).
 4. **No reabre #43/F1-03c**; los cambios de `tests/e2e/empresas.local.spec.ts` mantienen el job real
