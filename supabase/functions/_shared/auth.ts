@@ -306,10 +306,14 @@ function assertClaimTimes(
   ) {
     throw authInvalid({ reason: "token_expirado" });
   }
-  if (
-    typeof claims.nbf === "number" && claims.nbf - clockSkewSeconds > nowSeconds
-  ) {
-    throw authInvalid({ reason: "token_no_vigente_aun" });
+  if (claims.nbf !== undefined) {
+    if (typeof claims.nbf !== "number") {
+      // SEC-PR8-05: nbf debe ser numérico; un valor no numérico invalida el token.
+      throw authInvalid({ reason: "nbf_invalido" });
+    }
+    if (claims.nbf - clockSkewSeconds > nowSeconds) {
+      throw authInvalid({ reason: "token_no_vigente_aun" });
+    }
   }
   if (claims.iat !== undefined && typeof claims.iat !== "number") {
     throw authInvalid({ reason: "iat_invalido" });
