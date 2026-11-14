@@ -434,3 +434,21 @@ Deno.test("presign: rol de diagnóstico observador ⇒ 403 aunque el body diga c
     "FORBIDDEN_ROLE",
   );
 });
+
+Deno.test("presign B1: extensión canónica por MIME (.jpeg ⇒ .jpg en la clave)", async () => {
+  const response = await createDocumentsHandler(CONFIG, deps())(
+    await request({
+      diagnostic_id: DIAG_ID,
+      filename: "foto_planta.jpeg",
+      doc_type: "layout",
+      mime: "image/jpeg",
+      size_bytes: 2048,
+      exposure_level: "restringido_nda",
+    }),
+  );
+  assertEquals(response.status, 200);
+  const body = await response.json() as { upload_url: string };
+  const path = new URL(body.upload_url).pathname;
+  assert(path.endsWith(".jpg"), `clave canónica .jpg, recibido ${path}`);
+  assert(!path.endsWith(".jpeg"));
+});

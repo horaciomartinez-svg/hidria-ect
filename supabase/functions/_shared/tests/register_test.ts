@@ -354,3 +354,61 @@ Deno.test("register: preflight CORS y ruta desconocida", async () => {
   );
   assertEquals(notFound.status, 404);
 });
+
+Deno.test("register B1: extensión canónica por MIME y title sin extensión", async () => {
+  const cases: Array<{
+    filename: string;
+    mime: string;
+    size: number;
+    extension: string;
+    title: string;
+  }> = [
+    {
+      filename: "foto_planta.jpeg",
+      mime: "image/jpeg",
+      size: 2048,
+      extension: "jpg",
+      title: "foto_planta",
+    },
+    {
+      filename: "scan.tiff",
+      mime: "image/tiff",
+      size: 4096,
+      extension: "tif",
+      title: "scan",
+    },
+    {
+      filename: "report.final.pdf",
+      mime: "application/pdf",
+      size: 1024,
+      extension: "pdf",
+      title: "report.final",
+    },
+  ];
+  for (const item of cases) {
+    const { response, recorded, payload } = await call(
+      {
+        ...VALID_BODY,
+        filename: item.filename,
+        mime: item.mime,
+        size_bytes: item.size,
+      },
+      {},
+      {
+        head: {
+          exists: true,
+          sizeBytes: item.size,
+          contentType: item.mime,
+        },
+      },
+    );
+    assertEquals(response.status, 200);
+    assertEquals(payload.document_id, DOCUMENT_ID);
+    assertEquals(
+      recorded.headKeys[0],
+      `org/${ORG_ID}/diag/${DIAG_ID}/${DOCUMENT_ID}.${item.extension}`,
+    );
+    assertEquals(recorded.rpcArgs[0].p_extension, item.extension);
+    assertEquals(recorded.rpcArgs[0].p_title, item.title);
+  }
+});

@@ -27,6 +27,7 @@ import { buildCorsHeaders, type CorsConfig, handlePreflight } from "./cors.ts";
 import { ApiError, errorResponse } from "./errors.ts";
 import {
   buildDocumentObjectKey,
+  canonicalExtensionForMime,
   deterministicUuid,
   headObject,
   PRESIGN_TTL_SECONDS,
@@ -281,7 +282,7 @@ async function handlePresign(
     organizationId: diagnostic.organizationId,
     diagnosticId,
     documentId,
-    extension: metadata.extension,
+    extension: canonicalExtensionForMime(metadata.mime),
   });
   const presigned = await presignPutObject({
     config: config.r2,
@@ -399,6 +400,7 @@ async function handleRegister(
     docType: body.doc_type,
     exposureLevel: body.exposure_level,
   });
+  const canonicalExtension = canonicalExtensionForMime(metadata.mime);
   const title = buildDocumentTitle(
     metadata.filename,
     metadata.extension,
@@ -408,7 +410,7 @@ async function handleRegister(
     organizationId: diagnostic.organizationId,
     diagnosticId,
     documentId: rawDocumentId,
-    extension: metadata.extension,
+    extension: canonicalExtension,
   });
 
   // HEAD con credenciales de la EF: el cliente nunca recibe/usa credenciales de R2.
@@ -471,7 +473,7 @@ async function handleRegister(
     p_exposure_level: metadata.exposureLevel,
     p_idempotency_key: idempotencyKey,
     p_request_hash: requestHash,
-    p_extension: metadata.extension,
+    p_extension: canonicalExtension,
   });
   if (result.ok !== true) {
     throw new ApiError(

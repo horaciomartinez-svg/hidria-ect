@@ -71,6 +71,23 @@ export const DOCUMENT_MIME_EXTENSIONS: Readonly<
   "application/ofx": ["ofx"],
 };
 
+/**
+ * Extensión **canónica por MIME** (primera de la allowlist): única fuente para la clave de
+ * objeto (`presign` y `register`), la RPC y el `Content-Type` firmado. Evita que `.jpeg`/`.jpg`
+ * o `.tiff`/`.tif` generen claves distintas entre pasos (B1 F1-05).
+ */
+export function canonicalExtensionForMime(mime: string): string {
+  const allowed = DOCUMENT_MIME_EXTENSIONS[mime.toLowerCase()];
+  if (allowed === undefined || allowed.length === 0) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "Tipo de archivo no permitido.",
+      { reason: "mime_no_permitido" },
+    );
+  }
+  return allowed[0];
+}
+
 /** Configuración de R2 inyectada por la EF (nunca se expone al cliente). */
 export interface R2Config {
   accountId: string;
