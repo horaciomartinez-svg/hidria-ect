@@ -498,14 +498,17 @@ El cliente suscribe el Kanban a `org:{organization_id}` y cada expediente abiert
 | `AUTH_INVALID` | 401 | JWT ausente/expirado |
 | `FORBIDDEN_ROLE` | 403 | Rol de diagnóstico insuficiente para la operación |
 | `FORBIDDEN_NOT_MEMBER` | 403 | Usuario no es miembro del diagnóstico/tenant |
+| `NOT_FOUND` | 404 | Recurso inexistente cuando el 404 no revela existencia (diagnóstico/tenant → `FORBIDDEN_NOT_MEMBER` 403) |
 | `CONFLICT_PHASE` | 409 | Salto de fase inválido o fase ya superada |
 | `CONFLICT_STATE` | 409 | Transición de estado no permitida (ver TD) |
 | `CONFLICT_IVOH_VERSION` | 409 | Intento de modificar pesos/rúbricas de versión vigente |
-| `GATE_CHECKLIST_R1` · `GATE_CAT_R2` · `GATE_IIH_V1` · `GATE_BHE_R3` · `GATE_IVOH_R4` | 409 | Gate de fase incumplido (mensajes canónicos del trigger) |
+| `GATE_CHECKLIST_R1` · `GATE_CAT_R2` · `GATE_IIH_V1` · `GATE_BHE_R3` · `GATE_IVOH_R4` | 409 | Gate de fase incumplido (mensajes canónicos del trigger; pueden llevar `details.reason='ficha'`) |
+| `GATE_FICHA` | 409 | Ficha del hito faltante o no cerrada (`details.reason='ficha'`, `details.ficha_clave`) |
 | `GATE_BHE_BRECHA` | 409 | Brecha mensual > 10 % (TD-3) |
 | `GATE_CUSTODIA` | 409 | Menos de 3 custodias firmadas |
 | `GATE_REPORTE_INCOMPLETO` | 409 | Matriz 10/10 incompleta (TD-4) |
 | `VALIDATION_*` | 422 | Payload incompleto/inconsistente (firma, agenda, evidencia, CAT, razón, archivo, XLSX, parámetro, laboratorio, reprogramación, respuestas) |
+| `VALIDATION_PHASE_TRANSICION` | 422 | Transición de fase inválida no cubierta por `CONFLICT_PHASE` (p. ej. origen no activo/estado inconsistente) |
 | `RATE_LIMIT` | 429 | Límite por usuario (100 req/min en MVP) |
 | `EXT_PSC` | 502 | Fallo del proveedor de firma NOM-151 |
 | `NOT_IMPLEMENTED_PHASE` | 501 | Función de fase posterior (EF-13 en fases 1–2) |
