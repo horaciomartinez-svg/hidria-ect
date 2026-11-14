@@ -1,6 +1,6 @@
 -- F1-07c â€” pgTAP: seed CAT A1-v1, RLS y validaciÃ³n de cat_responses.
 begin;
-select plan(32);
+select plan(34);
 
 select is((select count(*) from public.cat_items where version='A1-v1'), 47::bigint, 'seed CAT A1-v1=47');
 select is((select count(distinct seccion) from public.cat_items where version='A1-v1'), 8::bigint, '8 secciones A1-v1');
