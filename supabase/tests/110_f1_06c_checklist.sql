@@ -1,7 +1,7 @@
 -- F1-06c — pgTAP: TD-2, roles, documento↔ítem, ficha R1, RLS, inmutabilidad,
 -- RPC EF-03 (ACL/idempotencia/tenant) y auditoría del checklist.
 begin;
-select plan(31);
+select plan(35);
 
 insert into public.organizations (id, name, org_type) values
   ('a7000000-0000-4000-8000-0000000000a1','Org Checklist A','srhds'),
@@ -88,11 +88,13 @@ select throws_ok($sql$
   update public.document_checklist_items set estado='validado_r1' where id='f7000000-0000-4000-8000-000000000001'
 $sql$, 'P0001', NULL, 'validado_r1 sin ficha R1 rechazado');
 
--- Ficha R1 de la semana en curso (TD-2 #3).
+-- Ficha R1 de la semana en curso (TD-2 #3), fixture como postgres.
+reset role;
 insert into public.logbook_entries
   (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by)
 values
   ('aa700000-0000-4000-8000-000000000001','a7000000-0000-4000-8000-0000000000a1','d7000000-0000-4000-8000-000000000001','R1','BIT-R1-106','Coord 106',current_date,'09:00','cerrada','c7000000-0000-4000-8000-000000000001');
+set local role authenticated;
 
 -- 12-13. Valida R1 con ficha; terminal explícito.
 select lives_ok($sql$
@@ -136,19 +138,13 @@ select is((select count(*) from deleted), 0::bigint, 'DELETE no permitido por RL
 select ok((select count(*) from public.audit_log where entity='document_checklist_items') > 0, 'auditoría DB de checklist presente');
 select ok((select count(*) from public.audit_log where entity='document_checklist_items' and action='approve') > 0, 'audit approve en validado_r1');
 
--- 22. SEC-PR54-01: diagnostic_id inmutable en UPDATE (cross-tenant bloqueado).
-select throws_ok($sql$
-  update public.document_checklist_items set diagnostic_id='d7000000-0000-4000-8000-000000000002'
-   where id='f7000000-0000-4000-8000-000000000005'
-$sql$, '42501', NULL, 'diagnostic_id inmutable en UPDATE');
-
--- 23-26. SEC-PR54-02 / B4: ACL de funciones (solo service_role ejecuta la RPC).
+-- 22-25. SEC-PR54-02 / B4: ACL de funciones (solo service_role ejecuta la RPC).
 select is(has_function_privilege('authenticated','public.fn_transition_checklist_item(uuid,uuid,text,uuid,text,text,text)','EXECUTE'), false, 'authenticated sin EXECUTE en fn_transition_checklist_item');
 select is(has_function_privilege('service_role','public.fn_transition_checklist_item(uuid,uuid,text,uuid,text,text,text)','EXECUTE'), true, 'service_role con EXECUTE en fn_transition_checklist_item');
 select is(has_function_privilege('authenticated','public.trg_checklist_transition()','EXECUTE'), false, 'authenticated sin EXECUTE en trg_checklist_transition');
 select is(has_function_privilege('authenticated','public.trg_checklist_audit()','EXECUTE'), false, 'authenticated sin EXECUTE en trg_checklist_audit');
 
--- 27. Invocación autenticada directa a la RPC denegada (42501).
+-- 26. Invocación autenticada directa a la RPC denegada (42501).
 set local request.jwt.claims = '{"sub":"c7000000-0000-4000-8000-000000000001","organization_id":"a7000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
 select throws_ok($sql$
   select public.fn_transition_checklist_item(
@@ -157,7 +153,7 @@ select throws_ok($sql$
     'recibido'::text)
 $sql$, '42501', NULL, 'RPC no invocable por authenticated');
 
--- 28-31. RPC como service_role: happy, replay, conflicto y tenant.
+-- 27-30. RPC como service_role: happy, replay, conflicto y tenant.
 reset role;
 reset request.jwt.claims;
 set local role service_role;
@@ -182,7 +178,43 @@ select is((public.fn_transition_checklist_item(
   'revisado'::text)->>'code'),
   'FORBIDDEN_NOT_MEMBER', 'RPC tenant/membresía');
 
+-- 31. SEC-PR54-01: diagnostic_id inmutable en UPDATE incluso con service_role (A→B).
+select throws_ok($sql$
+  update public.document_checklist_items set diagnostic_id='d7000000-0000-4000-8000-000000000002'
+   where id='f7000000-0000-4000-8000-000000000005'
+$sql$, '42501', NULL, 'diagnostic_id inmutable en UPDATE (service_role)');
+
+-- 32. B4: equipo no puede validar R1 por RPC (403 FORBIDDEN_ROLE).
+select is((public.fn_transition_checklist_item(
+  'c7000000-0000-4000-8000-000000000002'::uuid,
+  'f7000000-0000-4000-8000-000000000002'::uuid,
+  'validado_r1'::text, 'e7000000-0000-4000-8000-000000000001'::uuid)->>'code'),
+  'FORBIDDEN_ROLE', 'RPC equipo no valida R1');
+
+-- 33. M1: validado_r1 terminal por RPC → CONFLICT_STATE.
+select is((public.fn_transition_checklist_item(
+  'c7000000-0000-4000-8000-000000000001'::uuid,
+  'f7000000-0000-4000-8000-000000000001'::uuid,
+  'recibido'::text)->>'code'),
+  'CONFLICT_STATE', 'RPC validado_r1 terminal');
+
+-- 34. B4: coordinador valida R1 por RPC (documento + ficha R1).
+select is((public.fn_transition_checklist_item(
+  'c7000000-0000-4000-8000-000000000001'::uuid,
+  'f7000000-0000-4000-8000-000000000002'::uuid,
+  'validado_r1'::text, 'e7000000-0000-4000-8000-000000000001'::uuid,
+  null, 'k-rpc-2', 'hash-rpc-2')->>'ok')::boolean,
+  true, 'RPC coordinador valida R1');
+
 reset role;
 reset request.jwt.claims;
+
+-- 35. M2/B4: la RPC deja audit_log(action='approve') al validar R1.
+select ok((select count(*) from public.audit_log
+            where entity='document_checklist_items'
+              and action='approve'
+              and meta->>'item_code'='planos') > 0,
+  'RPC audit approve en validado_r1');
+
 select * from finish();
 rollback;
