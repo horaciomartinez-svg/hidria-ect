@@ -3,6 +3,8 @@ import { AppShell } from './components/layout/AppShell';
 import { RequireAuth, RequireGlobalRole } from './lib/auth/guards';
 import { COMPANY_CREATE_ROLES, COMPANY_EDIT_ROLES } from './features/empresas/types';
 import { MODULES } from './routes/registry';
+import { CatFormPage } from './routes/cat/CatFormPage';
+import { CatListPage } from './routes/cat/CatListPage';
 import { ChecklistPage } from './routes/checklist/ChecklistPage';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
 import { EmpresaFormPage } from './routes/empresas/EmpresaFormPage';
@@ -22,7 +24,7 @@ import { AboutPage, NotFoundPage, PrivacyPage, RouteErrorPage } from './routes/S
  * - Rutas de servicio: `/sincronizacion`, `/acerca`, `/privacidad`, 404.
  */
 const placeholderRoutes: RouteObject[] = MODULES.filter(
-  (module) => module.id !== 'M1' && module.id !== 'M3',
+  (module) => module.id !== 'M1' && module.id !== 'M3' && module.id !== 'M4',
 ).map((module) => ({
   path: module.path.slice(1),
   element: (
@@ -84,6 +86,9 @@ export const router = createBrowserRouter([
       // M3 — checklist documental (F1-06a); `/documentos` queda como alias del path anterior.
       { path: 'checklist', element: <ChecklistPage /> },
       { path: 'documentos', element: <Navigate to="/checklist" replace /> },
+      // M4 — CAT (F1-07a): selector de diagnóstico y captura del banco A1-v1.
+      { path: 'cat', element: <CatListPage /> },
+      { path: 'cat/:diagnosticId', element: <CatFormPage /> },
       ...placeholderRoutes,
       { path: 'sincronizacion', element: <SincronizacionPage /> },
       { path: 'acerca', element: <AboutPage /> },
