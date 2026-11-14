@@ -107,8 +107,11 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
 
   const canWrite = claims ? COMPANY_WRITE_ROLES.includes(claims.globalRole) : false;
   const canCreate = claims ? COMPANY_CREATE_ROLES.includes(claims.globalRole) : false;
+  const isEmpresaRole = claims?.globalRole === 'empresa';
+  /** `empresa` sólo edita su propia ficha: la empresa donde es contraparte. */
+  const ownsCompany =
+    isEmpresaRole && !!claims && companyState.data?.contraparte_user_id === claims.sub;
   /** Alta para los 3 roles de escritura: F1-03a (#36) ya garantiza SELECT del creador. */
-  const allowed = isEdit ? canWrite : canCreate;
   /** Sólo coordinación/administración cambian la etapa del ciclo de vida (regla de negocio). */
   const canEditCiclo =
     claims?.globalRole === 'admin_institucional' || claims?.globalRole === 'coordinador_srhds';
@@ -150,6 +153,7 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
       return;
     }
     if (!online || !claims) return;
+    if (isEdit && !canWrite && !ownsCompany) return;
 
     setSubmitting(true);
     try {
@@ -169,18 +173,12 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
     }
   };
 
-  if (!allowed) {
+  if (!isEdit && !canCreate) {
     return (
       <EstadoNotice
         kind="forbidden"
-        title={
-          isEdit ? 'Tu rol no permite editar empresas' : 'Tu rol no permite dar de alta empresas'
-        }
-        detail={
-          isEdit
-            ? 'La escritura de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS.'
-            : 'El alta de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS.'
-        }
+        title="Tu rol no permite dar de alta empresas"
+        detail="El alta de empresas está limitada por política de seguridad a los roles institucionales autorizados. Si necesitas operar este módulo, solicítalo a la Coordinación SRHDS."
         action={
           <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">
             Volver al listado
@@ -231,6 +229,21 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
             ? 'La política de seguridad por organización (RLS) ha denegado el acceso.'
             : 'Puede haber sido eliminada o el enlace no es correcto.'
         }
+        action={
+          <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">
+            Volver al listado
+          </Link>
+        }
+      />
+    );
+  }
+
+  if (isEdit && !canWrite && !ownsCompany) {
+    return (
+      <EstadoNotice
+        kind="forbidden"
+        title="Tu rol no permite editar esta empresa"
+        detail="Sólo la empresa designada como contraparte puede editar su propia ficha, además de los roles institucionales autorizados. La política de seguridad por fila (RLS) del servidor es la autoridad final."
         action={
           <Link className="text-xs font-semibold text-hidria-700 underline" to="/empresas">
             Volver al listado
@@ -316,7 +329,17 @@ export function EmpresaFormPage({ mode }: { mode: Mode }) {
           <ul className="mt-1 list-inside list-disc text-xs">
             {errors.map((item) => (
               <li key={item.field}>
-                <a className="underline" href={`#empresa-${item.field}`}>
+                <a
+                  className="underline"
+                  href={`#empresa-${item.field}`}
+                  onClick={(event) => {
+                    // Mover el foco al campo, no sólo hacer scroll (a11y de errores).
+                    event.preventDefault();
+                    const field = document.getElementById(`empresa-${item.field}`);
+                    field?.scrollIntoView({ block: 'center' });
+                    field?.focus();
+                  }}
+                >
                   {item.message}
                 </a>
               </li>

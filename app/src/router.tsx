@@ -1,7 +1,7 @@
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth, RequireGlobalRole } from './lib/auth/guards';
-import { COMPANY_CREATE_ROLES, COMPANY_WRITE_ROLES } from './features/empresas/types';
+import { COMPANY_CREATE_ROLES, COMPANY_EDIT_ROLES } from './features/empresas/types';
 import { MODULES } from './routes/registry';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
 import { EmpresaFormPage } from './routes/empresas/EmpresaFormPage';
@@ -53,9 +53,10 @@ const empresaRoutes: RouteObject[] = [
     element: <EmpresaDetailPage />,
   },
   {
+    // Edición: institucionales con escritura y rol `empresa` (sólo su ficha; RLS decide).
     path: 'empresas/:companyId/editar',
     element: (
-      <RequireGlobalRole roles={COMPANY_WRITE_ROLES}>
+      <RequireGlobalRole roles={COMPANY_EDIT_ROLES}>
         <EmpresaFormPage mode="edit" />
       </RequireGlobalRole>
     ),
