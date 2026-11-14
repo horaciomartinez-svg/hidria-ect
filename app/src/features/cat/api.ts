@@ -270,6 +270,7 @@ async function accessToken(): Promise<string> {
 async function callEf04<T>(
   diagnosticId: string,
   action: 'submit' | 'validate-r2',
+  body: Record<string, unknown> = {},
   idempotencyKey?: string,
 ): Promise<T> {
   const token = await accessToken();
@@ -285,7 +286,7 @@ async function callEf04<T>(
           'content-type': 'application/json',
           ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
         },
-        body: '{}',
+        body: JSON.stringify(body),
       },
     );
   } catch {
@@ -312,9 +313,23 @@ export interface CatSubmitResult {
 }
 
 export async function submitCat(diagnosticId: string): Promise<CatSubmitResult> {
-  return callEf04<CatSubmitResult>(diagnosticId, 'submit', globalThis.crypto?.randomUUID?.());
+  return callEf04<CatSubmitResult>(
+    diagnosticId,
+    'submit',
+    {},
+    globalThis.crypto?.randomUUID?.(),
+  );
 }
 
-export async function validateCatR2(diagnosticId: string): Promise<CatSubmitResult> {
-  return callEf04<CatSubmitResult>(diagnosticId, 'validate-r2', globalThis.crypto?.randomUUID?.());
+/** `validate-r2` exige la ficha BIT-R2 cerrada del diagnóstico. */
+export async function validateCatR2(
+  diagnosticId: string,
+  r2LogbookId: string,
+): Promise<CatSubmitResult> {
+  return callEf04<CatSubmitResult>(
+    diagnosticId,
+    'validate-r2',
+    { r2_logbook_id: r2LogbookId },
+    globalThis.crypto?.randomUUID?.(),
+  );
 }

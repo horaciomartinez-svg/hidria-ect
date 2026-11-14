@@ -65,6 +65,7 @@ export function CatFormPage() {
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [r2LogbookId, setR2LogbookId] = useState('');
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -159,21 +160,41 @@ export function CatFormPage() {
       );
       setReloadKey((key) => key + 1);
     } catch (failure: unknown) {
+      const missingFromServer =
+        failure instanceof CatApiError &&
+        typeof failure.details === 'object' &&
+        failure.details !== null &&
+        Array.isArray((failure.details as { faltantes?: unknown }).faltantes)
+          ? (failure.details as { faltantes: string[] }).faltantes
+          : null;
       setSubmitError(
-        describeError(failure, 'No fue posible enviar el CAT. Intenta de nuevo.'),
+        missingFromServer && missingFromServer.length > 0
+          ? `El servidor rechazó el envío: faltan respuestas (${validateLabelForMissing(
+              missingFromServer,
+            )}).`
+          : describeError(failure, 'No fue posible enviar el CAT. Intenta de nuevo.'),
       );
     } finally {
       setSubmitBusy(false);
     }
   };
 
+  const r2LogbookValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    r2LogbookId.trim(),
+  );
+
   const handleValidateR2 = async () => {
     if (!diagnosticId) return;
     setSubmitError(null);
     setNotice(null);
+    if (!r2LogbookValid) {
+      setSubmitError('Indica el UUID de la ficha BIT-R2 cerrada para validar el CAT en R2.');
+      document.getElementById('cat-r2-logbook')?.focus();
+      return;
+    }
     setSubmitBusy(true);
     try {
-      const result = await validateCatR2(diagnosticId);
+      const result = await validateCatR2(diagnosticId, r2LogbookId.trim());
       setNotice(
         `CAT validado en R2 (estado: ${CAT_ESTADO_LABEL[result.cat_estado]}). El gate F3 queda desbloqueado.`,
       );
@@ -303,7 +324,7 @@ export function CatFormPage() {
           <button
             type="button"
             onClick={() => void handleValidateR2()}
-            disabled={submitBusy}
+            disabled={submitBusy || !r2LogbookValid}
             className="rounded-md bg-hidria-700 px-4 py-2 text-sm font-semibold text-white hover:bg-hidria-800 disabled:cursor-not-allowed disabled:opacity-50"
             data-testid="cat-validate-r2"
           >
@@ -328,9 +349,30 @@ export function CatFormPage() {
               : 'El gate F3 permanece bloqueado hasta que el CAT esté completo y validado en R2 (TD-1 #2).'}
         </p>
         {canValidate && (
+          <div className="mt-3">
+            <label htmlFor="cat-r2-logbook" className="block text-xs font-medium text-slate-700">
+              Ficha BIT-R2 cerrada (UUID)
+            </label>
+            <input
+              id="cat-r2-logbook"
+              value={r2LogbookId}
+              onChange={(event) => setR2LogbookId(event.target.value)}
+              placeholder="00000000-0000-4000-8000-000000000000"
+              aria-describedby="cat-r2-logbook-help"
+              aria-invalid={r2LogbookId.trim().length > 0 && !r2LogbookValid ? true : undefined}
+              className="mt-1 w-full max-w-md rounded-md border border-line px-3 py-2 text-sm"
+              data-testid="cat-r2-logbook"
+            />
+            <p id="cat-r2-logbook-help" className="mt-1 text-[11px] text-slate-500">
+              La validación R2 exige la ficha BIT-R2 cerrada del diagnóstico; EF-04 la recibe como
+              `r2_logbook_id`.
+            </p>
+          </div>
+        )}
+        {canValidate && (
           <p className="mt-2 text-[11px] text-slate-500">
             La validación exige la ficha BIT-R2 cerrada y que las respuestas «No sé» tengan plan de
-            resolución en R2 (EF-04/TD-2).
+            resolución en R2 (EF-04).
           </p>
         )}
       </section>

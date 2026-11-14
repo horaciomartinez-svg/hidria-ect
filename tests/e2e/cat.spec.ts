@@ -310,9 +310,15 @@ test.describe('M4 — CAT', () => {
     await page.goto(`/cat/${DIAG}`);
 
     await expect(page.getByTestId('cat-validate-r2')).toBeVisible();
+    await expect(page.getByTestId('cat-validate-r2')).toBeDisabled();
+    await page.getByTestId('cat-r2-logbook').fill('d4000000-0000-4000-8000-000000000001');
+    await expect(page.getByTestId('cat-validate-r2')).toBeEnabled();
     await page.getByTestId('cat-validate-r2').click();
     await expect(page.getByTestId('cat-notice')).toBeVisible();
     expect(state.ef04Calls[0]?.action).toBe('validate-r2');
+    expect(state.ef04Calls[0]?.body).toMatchObject({
+      r2_logbook_id: 'd4000000-0000-4000-8000-000000000001',
+    });
     await expect(page.getByTestId('cat-estado')).toHaveText('Validado en R2');
     await expect(page.getByTestId('cat-gate')).toContainText('desbloqueado');
   });

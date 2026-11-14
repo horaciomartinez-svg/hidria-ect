@@ -52,11 +52,15 @@
   `created_by=auth.uid()` inmutable y `updated_at`; **no** hay transición automática de `cat_estado` al
   guardar; seed 47 ya existente y **sin `condicion`** (la UI no inventa condicionales); evidencia por
   pregunta no bloquea si `resuelta_en_campo=false` (no se expone en F1-07a).
-- **`dev-edge-functions` (F1-07b):** EF-04 aún en rama; se asumió el contrato de `docs/04`
-  (`POST /functions/v1/ef-04-cat/cat/{diagnostic_id}/submit` y `…/validate-r2`, respuesta
-  `{diagnostic_id, cat_estado, pendientes}`, envelope `{error:{code,message,details?,ref?}}`,
-  `Idempotency-Key` opcional). Si el nombre de función/ruta final difiere, se ajusta en un único
-  punto (`features/cat/api.ts::callEf04`) sin cambiar la UI; el E2E mockea el contrato.
+- **`dev-edge-functions` (F1-07b) confirmó** (head `117e7a7`, PR #59 draft hasta RPC):
+  `POST /functions/v1/ef-04-cat/cat/{diagnostic_id}/submit` y `…/validate-r2`; `submit` con body
+  `{}` (la EF valida contra DB), `Idempotency-Key` opcional (la UI envía UUID);
+  **`validate-r2` exige `{r2_logbook_id: uuid}`** (ficha BIT-R2 cerrada) → la UI añade un campo
+  UUID obligatorio y deshabilita «Validar CAT en R2» hasta que sea válido; respuesta
+  `{diagnostic_id, cat_estado, pendientes}`; envelope `{error:{code,message,details?,ref?}}` con
+  `VALIDATION_CAT_INCOMPLETO` y **`details.faltantes: string[]`** (la UI los muestra si el servidor
+  rechaza); `GATE_R2_FICHA` 409. Submit `empresa|coordinador|equipo`, validate
+  `coordinador|equipo` (la UI oculta validate a `empresa`).
 - **Sin `supabase/**`/`docs/**`** en este PR; RLS/trigger reales se cubren con F1-07c (pgTAP) y la EF
   con F1-07b (Deno).
 
@@ -85,7 +89,7 @@ mockeados (con preflight CORS):
 | 2 | guardado de borrador por PostgREST (1/47) sin cambiar `cat_estado` | OK |
 | 3 | submit bloqueado por faltantes (lista 47 códigos) **sin** llamar EF-04 | OK |
 | 4 | submit completo → EF-04 y estado `en_revision`; gate R2 pendiente; empresa no ve validate | OK |
-| 5 | coordinador: validate-r2 → `validado_r2`, gate desbloqueado | OK |
+| 5 | coordinador: validate-r2 (con `r2_logbook_id`) → `validado_r2`, gate desbloqueado | OK |
 | 6 | EF-04 403 → alerta y estado sin cambio | OK |
 | 7 | vacío y offline (sin prometer persistencia) | OK |
 
@@ -106,9 +110,9 @@ npm run test:e2e   → 41 passed + 6 skipped (11 shell + 14 M1 + 2 guard + 7 M3 
 
 ## 6. Pendientes / coordinación
 
-1. **EF-04 (F1-07b):** confirmar nombre/ruta final; la UI falla de forma controlada mientras no esté
-   desplegada y el E2E la mockea. Cuando esté en `main`, validar el flujo real (si el job local se
-   amplía a M4) y ajustar el contrato si cambia.
+1. **EF-04 (F1-07b):** contrato confirmado (head `117e7a7`, PR #59); la EF/RPC aún no está desplegada
+   en `main`. Mientras tanto la UI falla de forma controlada y el E2E la mockea; cuando esté en
+   `main`, validar el flujo real (si el job local se amplía a M4) y ajustar si cambia el contrato.
 2. **F1-07c:** trigger/RLS de `cat_responses` y roles; si añade `condicion`/metadatos de rango, la UI
    ya soporta `condicion` y mostrará la validación fina desde EF-04/trigger.
 3. **Spec/seguridad/QA** sobre el PR (CI 7/7): sin `supabase/**`/`docs/**`, sin datos reales; banco
