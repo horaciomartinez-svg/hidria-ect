@@ -169,6 +169,7 @@ Deno.test("register 200: HEAD con clave server-side, RPC atómica y respuesta si
   assertEquals(args.p_idempotency_key, null);
   assertEquals(typeof args.p_request_hash, "string");
   assertEquals(args.p_request_hash.length, 64);
+  assertEquals(args.p_extension, "pdf");
 });
 
 Deno.test("register replay idempotente: 200 con el mismo cuerpo", async () => {

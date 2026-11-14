@@ -83,6 +83,7 @@ export interface RegisterDocumentArgs {
   readonly p_exposure_level: string;
   readonly p_idempotency_key: string | null;
   readonly p_request_hash: string;
+  readonly p_extension: string;
 }
 
 /** Resultado JSONB de la RPC (mismo contrato que las RPC de EF-01/EF-12). */
@@ -470,6 +471,7 @@ async function handleRegister(
     p_exposure_level: metadata.exposureLevel,
     p_idempotency_key: idempotencyKey,
     p_request_hash: requestHash,
+    p_extension: metadata.extension,
   });
   if (result.ok !== true) {
     throw new ApiError(
