@@ -1,6 +1,6 @@
 -- F1-05 — pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
 begin;
-select plan(24);
+select plan(25);
 
 insert into public.organizations (id, name, org_type) values
   ('a6000000-0000-4000-8000-0000000000a1','Org Register A','srhds'),
@@ -42,6 +42,7 @@ select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f
 select is((select count(*) from public.documents where id='f6000000-0000-4000-8000-000000000001'), 1::bigint, 'documents insertado');
 select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-000000000001.pdf', 'r2_key server-side');
 select is((select uploaded_by from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'c6000000-0000-4000-8000-000000000001'::uuid, 'uploaded_by del usuario');
+select is((select upload_status from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'registered', 'upload_status registrado');
 select is((select company_id from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'b6000000-0000-4000-8000-000000000001'::uuid, 'company_id del diagnóstico');
 select ok((select count(*) from public.audit_log where entity='documents' and action='create' and entity_id='f6000000-0000-4000-8000-000000000001') > 0, 'audit create en tx');
 

@@ -6,6 +6,10 @@
 -- Forward-only. docs/02 intacto; sin upload_status/expires_at (follow-up Lead).
 -- ============================================================================
 
+alter table public.documents
+  add column if not exists upload_status text not null default 'registered'
+  check (upload_status in ('pendiente','registered','cancelado'));
+
 create or replace function public.fn_register_document(
   p_user_id uuid,
   p_document_id uuid,
