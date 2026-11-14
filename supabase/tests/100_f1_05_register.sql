@@ -1,4 +1,4 @@
--- F1-05 — pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
+﻿-- F1-05 â€” pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
 begin;
 select plan(25);
 
@@ -32,8 +32,8 @@ insert into public.project_members (diagnostic_id,user_id,organization_id,role) 
   ('d6000000-0000-4000-8000-000000000001','c6000000-0000-4000-8000-000000000004','a6000000-0000-4000-8000-0000000000a1','observador'),
   ('d6000000-0000-4000-8000-000000000001','c6000000-0000-4000-8000-000000000005','a6000000-0000-4000-8000-0000000000a1','observador');
 
-select ok(not has_function_privilege('authenticated','public.fn_register_document(uuid,uuid,uuid,text,text,text,bigint,text,text,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE register');
-select ok(has_function_privilege('service_role','public.fn_register_document(uuid,uuid,uuid,text,text,text,bigint,text,text,text,text)','EXECUTE'), 'ACL service_role con EXECUTE register');
+select ok(not has_function_privilege('authenticated','public.fn_register_document(uuid,uuid,uuid,text,text,text,bigint,text,text,text,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE register');
+select ok(has_function_privilege('service_role','public.fn_register_document(uuid,uuid,uuid,text,text,text,bigint,text,text,text,text,text)','EXECUTE'), 'ACL service_role con EXECUTE register');
 
 set local role service_role;
 
@@ -43,7 +43,7 @@ select is((select count(*) from public.documents where id='f6000000-0000-4000-80
 select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-000000000001.pdf', 'r2_key server-side');
 select is((select uploaded_by from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'c6000000-0000-4000-8000-000000000001'::uuid, 'uploaded_by del usuario');
 select is((select upload_status from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'registered', 'upload_status registrado');
-select is((select company_id from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'b6000000-0000-4000-8000-000000000001'::uuid, 'company_id del diagnóstico');
+select is((select company_id from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'b6000000-0000-4000-8000-000000000001'::uuid, 'company_id del diagnÃ³stico');
 select ok((select count(*) from public.audit_log where entity='documents' and action='create' and entity_id='f6000000-0000-4000-8000-000000000001') > 0, 'audit create en tx');
 
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000002','f6000000-0000-4000-8000-000000000002','d6000000-0000-4000-8000-000000000001','otro','equipo.png','image/png',2048,repeat('b',64)))->>'ok', 'true', 'equipo registra documento');
@@ -54,16 +54,16 @@ select is((public.fn_register_document('c6000000-0000-4000-8000-000000000004','f
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000005','f6000000-0000-4000-8000-000000000005','d6000000-0000-4000-8000-000000000001','otro','inv.pdf','application/pdf',512,repeat('e',64)))->>'code',
   'FORBIDDEN_ROLE', 'invitado no registra');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000006','f6000000-0000-4000-8000-000000000006','d6000000-0000-4000-8000-000000000001','otro','admin.pdf','application/pdf',512,repeat('f',64)))->>'code',
-  'FORBIDDEN_ROLE', 'admin sin membresía no registra');
+  'FORBIDDEN_ROLE', 'admin sin membresÃ­a no registra');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000007','d6000000-0000-4000-8000-000000000002','otro','cross.pdf','application/pdf',512,repeat('1',64)))->>'code',
   'FORBIDDEN_ROLE', 'cross-tenant rechazado');
 
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000008','d6000000-0000-4000-8000-000000000001','otro','x.pdf','application/pdf',0,repeat('a',64)))->>'code',
-  'VALIDATION_FILE', 'size inválido');
+  'VALIDATION_FILE', 'size invÃ¡lido');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000009','d6000000-0000-4000-8000-000000000001','otro','x.exe','application/x-msdownload',10,repeat('a',64)))->>'code',
-  'VALIDATION_FILE', 'mime inválido');
+  'VALIDATION_FILE', 'mime invÃ¡lido');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000a','d6000000-0000-4000-8000-000000000001','otro','x.pdf','application/pdf',10,'xyz'))->>'code',
-  'VALIDATION_FILE', 'sha256 inválido');
+  'VALIDATION_FILE', 'sha256 invÃ¡lido');
 
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000001','d6000000-0000-4000-8000-000000000001','otro','dup.pdf','application/pdf',10,repeat('a',64)))->>'code',
   'CONFLICT_STATE', 'documento duplicado conflicto');
@@ -78,3 +78,4 @@ reset role;
 reset request.jwt.claims;
 select * from finish();
 rollback;
+

@@ -21,7 +21,8 @@ create or replace function public.fn_register_document(
   p_sha256 text,
   p_exposure_level text default 'restringido_nda',
   p_idempotency_key text default null,
-  p_request_hash text default null
+  p_request_hash text default null,
+  p_extension text default null
 )
 returns jsonb
 language plpgsql
@@ -127,7 +128,11 @@ begin
     else array[]::text[]
   end;
   v_default_ext := v_allowed[1];
-  v_ext := lower(substring(v_title from '\.([A-Za-z0-9]+)$'));
+  -- La extensión viene de la EF (misma que firmó el PUT) o del título; nunca del cliente.
+  v_ext := lower(nullif(btrim(p_extension), ''));
+  if v_ext is null or v_ext = '' then
+    v_ext := lower(substring(v_title from '\.([A-Za-z0-9]+)$'));
+  end if;
   if v_ext is null or v_ext = '' then
     v_ext := v_default_ext;
   elsif not (v_ext = any(v_allowed)) then
@@ -170,8 +175,8 @@ begin
 end;
 $$;
 
-revoke all on function public.fn_register_document(uuid, uuid, uuid, text, text, text, bigint, text, text, text, text) from public, anon, authenticated;
-grant execute on function public.fn_register_document(uuid, uuid, uuid, text, text, text, bigint, text, text, text, text) to service_role;
+revoke all on function public.fn_register_document(uuid, uuid, uuid, text, text, text, bigint, text, text, text, text, text) from public, anon, authenticated;
+grant execute on function public.fn_register_document(uuid, uuid, uuid, text, text, text, bigint, text, text, text, text, text) to service_role;
 
-comment on function public.fn_register_document(uuid, uuid, uuid, text, text, text, bigint, text, text, text, text) is
+comment on function public.fn_register_document(uuid, uuid, uuid, text, text, text, bigint, text, text, text, text, text) is
   'F1-05/EF-08 register: INSERT documents+audit+idempotencia atómicos; service_role; r2_key server-side.';
