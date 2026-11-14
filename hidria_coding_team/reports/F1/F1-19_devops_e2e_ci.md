@@ -161,3 +161,25 @@ actualice la versión. **Run verde final (head `f30ba5a`):**
 `13630053837`) y post-merge **42514381567** (5/5; E2E job `128834097587`, artefacto
 `13630457311`). **PR #23 mergeado** (squash `cf7faa5`); **H-15/task-49 cerrado por QA**.
 Sin secretos; los 4 checks existentes se mantuvieron.
+
+---
+
+## 9. Actualización F1-03c — E2E real M1 (job `E2E real M1 (Supabase local)`, PR #43)
+
+Actualización 2026-11-14: el CI incorpora el **E2E real de M1** contra Supabase local
+(`supabase start` + `db reset` + fixture), además del modo mock existente. El job nuevo se
+añade **sin tocar** los 6 checks del ruleset y **no es required**.
+
+| Dato | Valor |
+|---|---|
+| PR | [#43](https://github.com/horaciomartinez-svg/hidria-ect/pull/43) · head `f2f55d6` · base `4c48a73` |
+| Run PR | [43357141249](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43357141249) — **7/7 success** |
+| Run push | [43357135169](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43357135169) — **7/7 success** |
+| Job M1 real (PR) | [131661760019](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43357141249/job/131661760019) — **6/6 passed** (RLS real, 8.8 s de suite) |
+| Job M1 real (push) | `131661739212` — success |
+| E2E normal | **24 passed + 6 skipped** (spec local omitido sin `E2E_LOCAL_SUPABASE=1`); `shell.spec.ts` sincronizado con `main` (M5 `/iih` = F2) |
+| 7.º check | **no required**; los 6 del ruleset siguen intactos |
+| Seguridad | Claves efímeras enmascaradas (`::add-mask::`), sin `eval`, sin artefactos locales (trace/video/screenshot off), guard local-only, JWT 10 min |
+
+Detalle de implementación y condiciones SEC-PR43-01..04:
+`reports/F1/F1-19_devops_ci_m1_e2e.md`; dictamen QA: `reports/qa/PR-F1-03c_qa.md`.

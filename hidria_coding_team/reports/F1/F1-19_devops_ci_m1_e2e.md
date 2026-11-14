@@ -58,24 +58,35 @@ El modo mock (`E2E Playwright`) sigue igual: **24 passed + 6 skipped** (local sp
 - `local-guard.spec.ts` en modo normal: **2 passed**.
 - `npm ci` OK tras merge de `main@4c48a73`.
 
-## 5. Evidencia CI (se completa con run id)
+## 5. Evidencia CI — run verde 7/7
 
 | Dato | Valor |
 |---|---|
-| PR | [#43](https://github.com/horaciomartinez-svg/hidria-ect/pull/43) |
-| Checks esperados | **7/7** (6 existentes + `E2E real M1 (Supabase local)`; el nuevo **no required**) |
-| Run CI | _pendiente_ |
-| Job M1 real | _pendiente_ — 6 casos reales, sin artefactos |
+| PR | [#43](https://github.com/horaciomartinez-svg/hidria-ect/pull/43) · head **`f2f55d6`** |
+| Run PR | [43357141249](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43357141249) — **success** |
+| Run push | [43357135169](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43357135169) — **success** |
+| Checks | **7/7**: Guardas · Cliente · Deno · pgTAP · **E2E Playwright** · **E2E real M1 (Supabase local)** · Seguridad |
+| E2E normal | **24 passed + 6 skipped** (el spec local se salta sin `E2E_LOCAL_SUPABASE=1`); `shell.spec.ts` sincronizado con `main` (M5 `/iih` = **F2**, M7 `/muestreo` = F1) |
+| Job M1 real | [131661760019](https://github.com/horaciomartinez-svg/hidria-ect/actions/runs/43357141249/job/131661760019) — **6 passed** (8.8 s de suite; job 3m10s), **sin artefactos** |
+| 7.º job | **no required** (los 6 del ruleset intactos; B3 documentado) |
+
+### Ajustes del último head (`f2f55d6`)
+- `shell.spec.ts` restaurado desde `main@4c48a73` (F2 en `/iih`, título híbrido).
+- `empresas.local.spec.ts`: aserción estricta de `Planta E2E Equipo Editada` con `{ exact: true }`
+  (el texto aparecía en encabezado y `<dd>`); el resto del handoff B1 queda igual.
+- B1: contraparte dedicada `…0008` (sin membresía seed) es dueña de A1; `…0003` (seed) ve 1
+  empresa (sólo «Empresa Sintética A»); A1 ve 1 empresa (sólo A1) y actualiza su ficha por RLS.
 
 ## 6. Pendientes / siguiente paso
 
-- [ ] Push e2e verde 7/7 (run id en §5); si `supabase status -o env` usa otros nombres, el step
-      imprime los disponibles y se ajusta el mapeo.
+- [x] **Push e2e verde 7/7**: run `43357141249` (PR) y `43357135169` (push); job real 6/6.
 - [ ] QA: dictamen con run id (`reports/qa/PR-F1-03c_qa.md`) e integración en trazabilidad.
 - [ ] B3: el 7.º job queda **no required** documentado (decisión del usuario/supervisor); los
       M1–M3 de F1-03c son follow-ups task-99, no parte de este PR CI.
 
 ## Veredicto
 
-**EN CURSO** — job implementado con handoff final (6 casos locales, B1 con contraparte dedicada
-`…0008`) y condiciones SEC-PR43-01..04; pendiente run real 7/7. Sin tocar los 6 checks existentes.
+**VERDE CI** — job `E2E real M1 (Supabase local)` verde con **6 casos reales** contra
+PostgREST+RLS (`6 passed`), condiciones SEC-PR43-01..04 aplicadas y 7/7 checks. B1 con
+contraparte dedicada `…0008`; sin artefactos locales ni secretos. Los otros 6 checks intactos;
+el job nuevo no es required. Pendiente dictamen QA y squash del supervisor.
