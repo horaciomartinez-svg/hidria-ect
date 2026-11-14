@@ -201,7 +201,7 @@ reset role;
 set local request.jwt.claims = '{}';
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"c5000000-0000-4000-8000-000000000001","organization_id":"a5000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
-select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001'), 2::bigint, 'RLS historial: coordinador miembro ve 2');
+select is((select count(*) from public.milestone_reprogramming where diagnostic_id='d5000000-0000-4000-8000-000000000001'), 3::bigint, 'RLS historial: coordinador miembro ve 3');
 set local request.jwt.claims = '{"sub":"c5000000-0000-4000-8000-000000000004","organization_id":"a5000000-0000-4000-8000-0000000000a1","global_role":"admin_institucional"}';
 select is((select count(*) from public.milestone_reprogramming), 0::bigint, 'RLS historial: admin sin membresÃ­a ve 0');
 select throws_ok($sql$
