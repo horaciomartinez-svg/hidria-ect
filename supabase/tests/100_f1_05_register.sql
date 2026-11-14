@@ -1,4 +1,4 @@
--- F1-05 â€” pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
+﻿-- F1-05 Ã¢â‚¬â€ pgTAP: fn_register_document (EF-08 register), tenant/rol/idempotencia.
 begin;
 select plan(31);
 
@@ -43,7 +43,7 @@ select is((select count(*) from public.documents where id='f6000000-0000-4000-80
 select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-000000000001.pdf', 'r2_key server-side');
 select is((select uploaded_by from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'c6000000-0000-4000-8000-000000000001'::uuid, 'uploaded_by del usuario');
 select is((select upload_status from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'registered', 'upload_status registrado');
-select is((select company_id from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'b6000000-0000-4000-8000-000000000001'::uuid, 'company_id del diagnÃ³stico');
+select is((select company_id from public.documents where id='f6000000-0000-4000-8000-000000000001'), 'b6000000-0000-4000-8000-000000000001'::uuid, 'company_id del diagnÃƒÂ³stico');
 select ok((select count(*) from public.audit_log where entity='documents' and action='create' and entity_id='f6000000-0000-4000-8000-000000000001') > 0, 'audit create en tx');
 
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000002','f6000000-0000-4000-8000-000000000002','d6000000-0000-4000-8000-000000000001','otro','equipo.png','image/png',2048,repeat('b',64)))->>'ok', 'true', 'equipo registra documento');
@@ -54,16 +54,16 @@ select is((public.fn_register_document('c6000000-0000-4000-8000-000000000004','f
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000005','f6000000-0000-4000-8000-000000000005','d6000000-0000-4000-8000-000000000001','otro','inv.pdf','application/pdf',512,repeat('e',64)))->>'code',
   'FORBIDDEN_ROLE', 'invitado no registra');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000006','f6000000-0000-4000-8000-000000000006','d6000000-0000-4000-8000-000000000001','otro','admin.pdf','application/pdf',512,repeat('f',64)))->>'code',
-  'FORBIDDEN_ROLE', 'admin sin membresÃ­a no registra');
+  'FORBIDDEN_ROLE', 'admin sin membresÃƒÂ­a no registra');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000007','d6000000-0000-4000-8000-000000000002','otro','cross.pdf','application/pdf',512,repeat('1',64)))->>'code',
   'FORBIDDEN_ROLE', 'cross-tenant rechazado');
 
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000008','d6000000-0000-4000-8000-000000000001','otro','x.pdf','application/pdf',0,repeat('a',64)))->>'code',
-  'VALIDATION_FILE', 'size invÃ¡lido');
+  'VALIDATION_FILE', 'size invÃƒÂ¡lido');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000009','d6000000-0000-4000-8000-000000000001','otro','x.exe','application/x-msdownload',10,repeat('a',64)))->>'code',
-  'VALIDATION_FILE', 'mime invÃ¡lido');
+  'VALIDATION_FILE', 'mime invÃƒÂ¡lido');
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000a','d6000000-0000-4000-8000-000000000001','otro','x.pdf','application/pdf',10,'xyz'))->>'code',
-  'VALIDATION_FILE', 'sha256 invÃ¡lido');
+  'VALIDATION_FILE', 'sha256 invÃƒÂ¡lido');
 
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-000000000001','d6000000-0000-4000-8000-000000000001','otro','dup.pdf','application/pdf',10,repeat('a',64)))->>'code',
   'CONFLICT_STATE', 'documento duplicado conflicto');
@@ -74,16 +74,17 @@ select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f
 select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000b','d6000000-0000-4000-8000-000000000001','otro','idem.pdf','application/pdf',10,repeat('2',64),'restringido_nda','reg-1','rh-2'))->>'code', 'CONFLICT_STATE', 'idem key con otro hash');
 select is((select count(*) from public.documents), 4::bigint, 'replay no duplica documents');
 
--- B1: extensión canónica/firmada por la EF, no derivada de forma ambigua del título.
-select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000c','d6000000-0000-4000-8000-000000000001','otro','foto','image/jpeg',10,repeat('3',64),'restringido_nda',NULL,NULL,'jpeg'))->>'ok', 'true', 'p_extension jpeg aceptada');
-select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000c'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000c.jpeg', 'r2_key .jpeg coherente con HEAD');
-select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000d','d6000000-0000-4000-8000-000000000001','otro','scan','image/tiff',10,repeat('4',64),'restringido_nda',NULL,NULL,'tiff'))->>'ok', 'true', 'p_extension tiff aceptada');
-select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000d'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000d.tiff', 'r2_key .tiff coherente con HEAD');
-select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000e','d6000000-0000-4000-8000-000000000001','reporte','report.final','application/pdf',10,repeat('5',64),'restringido_nda',NULL,NULL,'pdf'))->>'ok', 'true', 'título con punto y extensión pdf');
-select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000e'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000e.pdf', 'r2_key .pdf con título punteado');
+-- B1: extensiÃ³n canÃ³nica/firmada por la EF, no derivada de forma ambigua del tÃ­tulo.
+select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000c','d6000000-0000-4000-8000-000000000001','otro','foto','image/jpeg',10,repeat('3',64),'restringido_nda',NULL,NULL,'jpg'))->>'ok', 'true', 'p_extension jpg canónica aceptada');
+select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000c'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000c.jpg', 'r2_key .jpg coherente con HEAD');
+select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000d','d6000000-0000-4000-8000-000000000001','otro','scan','image/tiff',10,repeat('4',64),'restringido_nda',NULL,NULL,'tif'))->>'ok', 'true', 'p_extension tif canónica aceptada');
+select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000d'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000d.tif', 'r2_key .tif coherente con HEAD');
+select is((public.fn_register_document('c6000000-0000-4000-8000-000000000001','f6000000-0000-4000-8000-00000000000e','d6000000-0000-4000-8000-000000000001','reporte','report.final','application/pdf',10,repeat('5',64),'restringido_nda',NULL,NULL,'pdf'))->>'ok', 'true', 'tÃ­tulo con punto y extensiÃ³n pdf');
+select is((select r2_key from public.documents where id='f6000000-0000-4000-8000-00000000000e'), 'org/a6000000-0000-4000-8000-0000000000a1/diag/d6000000-0000-4000-8000-000000000001/f6000000-0000-4000-8000-00000000000e.pdf', 'r2_key .pdf con tÃ­tulo punteado');
 
 reset role;
 reset request.jwt.claims;
 select * from finish();
 rollback;
+
 
