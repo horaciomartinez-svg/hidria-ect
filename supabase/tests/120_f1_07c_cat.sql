@@ -1,4 +1,4 @@
--- F1-07c — pgTAP: seed CAT A1-v1, RLS y validación de cat_responses.
+﻿-- F1-07c â€” pgTAP: seed CAT A1-v1, RLS y validaciÃ³n de cat_responses.
 begin;
 select plan(15);
 
@@ -45,19 +45,19 @@ select lives_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,valor,created_by)
   select 'd8000000-0000-4000-8000-000000000001', id, '"manufacturera"'::jsonb, 'c8000000-0000-4000-8000-000000000003'
    from public.cat_items where version='A1-v1' and codigo='A3'
-$sql$, 'empresa responde opción válida');
+$sql$, 'empresa responde opciÃ³n vÃ¡lida');
 
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000004","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"observador"}';
 select throws_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,valor,created_by)
-  select 'd8000000-0000-4000-8000-000000000001', id, '"pozo"'::jsonb, 'c8000000-0000-4000-8000-000000000004'
+  select 'd8000000-0000-4000-8000-000000000001', id, '["pozo"]'::jsonb, 'c8000000-0000-4000-8000-000000000004'
    from public.cat_items where version='A1-v1' and codigo='B1'
 $sql$, '42501', NULL, 'observador no escribe CAT');
 
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000005","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"invitado"}';
 select throws_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,valor,created_by)
-  select 'd8000000-0000-4000-8000-000000000001', id, '"pozo"'::jsonb, 'c8000000-0000-4000-8000-000000000005'
+  select 'd8000000-0000-4000-8000-000000000001', id, '["pozo"]'::jsonb, 'c8000000-0000-4000-8000-000000000005'
    from public.cat_items where version='A1-v1' and codigo='B1'
 $sql$, '42501', NULL, 'invitado no escribe CAT');
 
@@ -66,33 +66,34 @@ select throws_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,valor,created_by)
   select 'd8000000-0000-4000-8000-000000000001', id, '"opcion_invalida"'::jsonb, 'c8000000-0000-4000-8000-000000000003'
    from public.cat_items where version='A1-v1' and codigo='B4'
-$sql$, '23514', NULL, 'opción inválida rechazada');
+$sql$, '23514', NULL, 'opciÃ³n invÃ¡lida rechazada');
 select throws_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,valor,created_by)
   select 'd8000000-0000-4000-8000-000000000001', id, '["pozo","no_existe"]'::jsonb, 'c8000000-0000-4000-8000-000000000003'
    from public.cat_items where version='A1-v1' and codigo='B1'
-$sql$, '23514', NULL, 'multiple inválido rechazado');
+$sql$, '23514', NULL, 'multiple invÃ¡lido rechazado');
 select lives_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,no_se,created_by)
   select 'd8000000-0000-4000-8000-000000000001', id, true, 'c8000000-0000-4000-8000-000000000003'
    from public.cat_items where version='A1-v1' and codigo='A1'
-$sql$, 'no_se explícito permitido');
+$sql$, 'no_se explÃ­cito permitido');
 select throws_ok($sql$
   insert into public.cat_responses (diagnostic_id,item_id,valor,document_id,created_by)
-  select 'd8000000-0000-4000-8000-000000000001', id, '"pozo"'::jsonb, 'e8000000-0000-4000-8000-000000000002', 'c8000000-0000-4000-8000-000000000003'
+  select 'd8000000-0000-4000-8000-000000000001', id, '["pozo"]'::jsonb, 'e8000000-0000-4000-8000-000000000002', 'c8000000-0000-4000-8000-000000000003'
    from public.cat_items where version='A1-v1' and codigo='B1'
-$sql$, '42501', NULL, 'documento de otro diagnóstico rechazado');
+$sql$, '42501', NULL, 'documento de otro diagnÃ³stico rechazado');
 
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000004","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"observador"}';
 select is((select count(*) from public.cat_responses where diagnostic_id='d8000000-0000-4000-8000-000000000001'), 2::bigint, 'observador miembro lee cat_responses');
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000006","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"admin_institucional"}';
-select is((select count(*) from public.cat_responses where diagnostic_id='d8000000-0000-4000-8000-000000000001'), 0::bigint, 'admin sin membresía no lee cat_responses');
+select is((select count(*) from public.cat_responses where diagnostic_id='d8000000-0000-4000-8000-000000000001'), 0::bigint, 'admin sin membresÃ­a no lee cat_responses');
 set local request.jwt.claims = '{"sub":"c8000000-0000-4000-8000-000000000001","organization_id":"a8000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
 with deleted as (delete from public.cat_responses where diagnostic_id='d8000000-0000-4000-8000-000000000001' returning 1)
 select is((select count(*) from deleted), 0::bigint, 'DELETE de cat_responses no permitido');
-select ok((select count(*) from public.audit_log where entity='cat_responses') > 0, 'auditoría DB de CAT presente');
+select ok((select count(*) from public.audit_log where entity='cat_responses') > 0, 'auditorÃ­a DB de CAT presente');
 
 reset role;
 reset request.jwt.claims;
 select * from finish();
 rollback;
+
