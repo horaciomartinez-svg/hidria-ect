@@ -127,8 +127,13 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
     await expect(page.getByTestId('empresa-titulo')).toHaveText(
       'Empresa E2E A1 (contraparte)',
     );
-    // La UI mantiene la edición gateada para `empresa`; la edición de empresa propia va a task-99.
-    await expect(page.getByRole('link', { name: 'Editar empresa' })).toHaveCount(0);
+    // task-99: la empresa dueña (contraparte) sí puede editar su propia ficha; RLS lo permite.
+    await expect(page.getByTestId('empresa-editar')).toBeVisible();
+    await page.getByTestId('empresa-editar').click();
+    await page.getByLabel('Turnos').fill('3 turnos E2E');
+    await page.getByTestId('empresa-submit').click();
+    await expect(page).toHaveURL(new RegExp(`/empresas/${LOCAL_COMPANIES.a1}$`));
+    await expect(page.getByTestId('empresa-detail').getByText('3 turnos E2E')).toBeVisible();
 
     // RLS real por PostgREST: A2 y B1 no son visibles para la contraparte de A1.
     for (const id of [LOCAL_COMPANIES.a2, LOCAL_COMPANIES.b1]) {
@@ -148,6 +153,11 @@ test.describe('M1 Empresas — E2E real Supabase local', () => {
     await expect(page.getByText('Empresa Sintética A')).toBeVisible();
     await expect(page.getByText('Empresa E2E A1 (contraparte)')).toHaveCount(0);
     await expect(page.getByTestId('empresa-row')).toHaveCount(1);
+
+    // Ve la empresa del seed por membresía, pero NO es su contraparte: sin acción de edición.
+    await page.goto(`/empresas/${LOCAL_COMPANIES.seed}`);
+    await expect(page.getByTestId('empresa-titulo')).toHaveText('Empresa Sintética A');
+    await expect(page.getByTestId('empresa-editar')).toHaveCount(0);
   });
 
   test('invitado sin membresía: 0 empresas, sin alta y sin acceso al detalle', async ({

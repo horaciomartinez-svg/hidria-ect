@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOnline } from '../../lib/online';
 import { useCompany } from '../../features/empresas/hooks';
-import { COMPANY_WRITE_ROLES } from '../../features/empresas/types';
+import { canEditCompany } from '../../features/empresas/types';
 import { CicloBadge, EstadoNotice, GiroTexto } from './shared';
 
 function Dato({ label, value }: { label: string; value: ReactNode }) {
@@ -27,7 +27,6 @@ export function EmpresaDetailPage() {
   const { claims } = useAuth();
   const online = useOnline();
   const state = useCompany(companyId);
-  const canWrite = claims ? COMPANY_WRITE_ROLES.includes(claims.globalRole) : false;
 
   if (!online) {
     return (
@@ -98,6 +97,8 @@ export function EmpresaDetailPage() {
   }
 
   const company = state.data;
+  // Edición: institucionales con escritura o la empresa dueña (contraparte) de su ficha.
+  const canEdit = canEditCompany(claims?.globalRole, claims?.sub, company);
 
   return (
     <div className="mx-auto max-w-4xl" data-testid="empresa-detail">
@@ -123,9 +124,10 @@ export function EmpresaDetailPage() {
             <CicloBadge ciclo={company.ciclo_vida} />
           </p>
         </div>
-        {canWrite && (
+        {canEdit && (
           <Link
             to={`/empresas/${company.id}/editar`}
+            data-testid="empresa-editar"
             className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-slate-700"
           >
             Editar empresa

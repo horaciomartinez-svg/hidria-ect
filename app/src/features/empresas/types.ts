@@ -125,3 +125,25 @@ export const COMPANY_WRITE_ROLES: readonly GlobalRole[] = [
  * SELECT del creador, por lo que el alta vuelve a los 3 roles de escritura (B2 de #35 cerrado).
  */
 export const COMPANY_CREATE_ROLES: readonly GlobalRole[] = COMPANY_WRITE_ROLES;
+
+/**
+ * Roles con acceso a la pantalla de **edición**: los institucionales con escritura y el rol
+ * `empresa` (sólo su propia ficha; la RLS `companies_upd` es la autoridad final). El detalle
+ * decide si muestra la acción con `canEditCompany`.
+ */
+export const COMPANY_EDIT_ROLES: readonly GlobalRole[] = [...COMPANY_WRITE_ROLES, 'empresa'];
+
+/**
+ * ¿Puede el usuario editar esta empresa? Los roles institucionales con escritura pueden
+ * editar cualquiera permitida por RLS; el rol `empresa` sólo si es su contraparte
+ * (`contraparte_user_id = claims.sub`). Es una pista de UI: RLS decide en servidor.
+ */
+export function canEditCompany(
+  role: GlobalRole | undefined,
+  userId: string | undefined,
+  company: Pick<Company, 'contraparte_user_id'> | null,
+): boolean {
+  if (!role) return false;
+  if (COMPANY_WRITE_ROLES.includes(role)) return true;
+  return role === 'empresa' && !!userId && company?.contraparte_user_id === userId;
+}

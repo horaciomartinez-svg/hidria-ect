@@ -99,14 +99,14 @@ function SessionMenu() {
 
   return (
     <details className="group relative">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-xs text-slate-700 hover:border-hidria-200">
+      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-xs text-slate-700 hover:border-hidria-200">
         <span
           aria-hidden="true"
           className="flex h-6 w-6 items-center justify-center rounded-full bg-hidria-700 font-mono text-[10px] font-semibold text-white"
         >
           {initials || 'HI'}
         </span>
-        <span className="hidden max-w-[12rem] truncate sm:inline">{name}</span>
+        <span className="hidden max-w-[10rem] truncate sm:inline">{name}</span>
         <span className="sr-only">Abrir menú de sesión</span>
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-72 rounded-lg border border-line bg-panel p-4 shadow-card">
@@ -280,11 +280,22 @@ export function AppShell() {
     setNavOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    // SPA: al cambiar de ruta, llevar el foco al contenido principal y anunciarlo
+    // (el título de documento cambia, pero los lectores de pantalla no siempre lo leen).
+    const main = document.getElementById('contenido');
+    main?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen bg-surface">
       <a className="skip-link" href="#contenido">
         Saltar al contenido principal
       </a>
+
+      <div className="sr-only" role="status" aria-live="polite" data-route-announcer="true">
+        {location.pathname === '/' ? 'Inicio' : 'Contenido actualizado'}
+      </div>
 
       {/* Navegación lateral (escritorio fija; móvil en panel deslizante) */}
       <aside
@@ -311,7 +322,7 @@ export function AppShell() {
         <ConnectivityBanner online={online} />
 
         <header className="sticky top-0 z-20 border-b border-line bg-panel/95 backdrop-blur">
-          <div className="flex items-center gap-3 px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
             <button
               type="button"
               className="rounded-md border border-line px-2 py-1.5 text-xs font-semibold text-slate-700 md:hidden"
@@ -322,7 +333,7 @@ export function AppShell() {
               Menú
             </button>
             <Breadcrumbs module={module} />
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-3">
               <span
                 className="hidden items-center gap-1.5 text-[11px] text-slate-500 sm:flex"
                 data-connection={online ? 'online' : 'offline'}
