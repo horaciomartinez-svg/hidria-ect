@@ -273,10 +273,11 @@ export function createCatHandler(
       }
 
       if (matched.route === "submit") {
-        if (diagnostic.catEstado !== "en_captura") {
+        // RPC F1-07c: submit acepta no_enviado|en_captura → en_revision.
+        if (!["no_enviado", "en_captura"].includes(diagnostic.catEstado)) {
           throw new ApiError("CONFLICT_STATE", undefined, {
             cat_estado: diagnostic.catEstado,
-            motivo: "submit_solo_desde_en_captura",
+            motivo: "submit_solo_desde_no_enviado_o_en_captura",
           });
         }
       } else if (diagnostic.catEstado !== "en_revision") {

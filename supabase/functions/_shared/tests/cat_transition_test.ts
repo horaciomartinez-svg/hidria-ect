@@ -350,7 +350,11 @@ Deno.test("EF-04 completitud: no_se/na cuentan; evidencia en campo exige documen
   assertEquals(noSe.ok, true);
 });
 
-Deno.test("EF-04 submit 409: estado distinto de en_captura", async () => {
+Deno.test("EF-04 submit: no_enviado/en_captura permitidos; otro estado 409", async () => {
+  const noEnviado = await call("submit", {}, {}, { catEstado: "no_enviado" });
+  assertEquals(noEnviado.response.status, 200);
+  assertEquals(noEnviado.payload.cat_estado, "en_revision");
+
   const { response, payload } = await call("submit", {}, {}, {
     catEstado: "en_revision",
   });

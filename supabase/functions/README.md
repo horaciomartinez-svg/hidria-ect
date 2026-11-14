@@ -108,17 +108,19 @@ Reglas obligatorias (detalle en
 
 ### EF-04 — `ef-04-cat` (task-126 / F1-07b)
 
-- Rutas: `POST /functions/v1/ef-04-cat/cat/{diagnostic_id}/submit` y `…/validate-r2`
-  (contrato `/cat/{diagnostic_id}/submit|validate-r2`).
-- **submit** (empresa/coordinador/equipo): valida el banco **A1-v1** (`cat_items`,
-  47): toda pregunta aplicable con `valor`/`no_se`/`na`; `admite_evidencia` resuelta
-  en campo exige `document_id`; `cat_estado='en_captura'` → `en_revision`;
-  incompleto ⇒ `422 VALIDATION_CAT_INCOMPLETO` con `{faltantes, pendientes}`.
+- Rutas: `POST /functions/v1/ef-04-cat/cat/{diagnostic_id}/submit` y
+  `…/validate-r2` (contrato `/cat/{diagnostic_id}/submit|validate-r2`).
+- **submit** (empresa/coordinador/equipo): valida el banco **A1-v1**
+  (`cat_items`, 47): toda pregunta aplicable con `valor`/`no_se`/`na`;
+  `admite_evidencia` resuelta en campo exige `document_id`;
+  `cat_estado='en_captura'` → `en_revision`; incompleto ⇒
+  `422 VALIDATION_CAT_INCOMPLETO` con `{faltantes, pendientes}`.
 - **validate-r2** (coordinador/equipo): `cat_estado='en_revision'` + ficha
   `BIT-R2-*` **cerrada** (`409 GATE_R2_FICHA`); → `validado_r2`; post-commit:
   notificación `validacion` a empresa + `cat_validated`/`kanban_refresh`.
-- Persistencia: RPC `fn_submit_cat`/`fn_validate_cat_r2` (F1-07c, `service_role`)
-  con `audit_log` + `api_idempotency`; `Idempotency-Key` opcional.
+- Persistencia: RPC `fn_submit_cat`/`fn_validate_cat_r2` (F1-07c,
+  `service_role`) con `audit_log` + `api_idempotency`; `Idempotency-Key`
+  opcional.
 - Errores: 401 · 403 `FORBIDDEN_NOT_MEMBER`/`FORBIDDEN_ROLE` · 409
   `CONFLICT_STATE`/`GATE_R2_FICHA` · 422 `VALIDATION_CAT_INCOMPLETO`/
   `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY` · 500 saneado.
