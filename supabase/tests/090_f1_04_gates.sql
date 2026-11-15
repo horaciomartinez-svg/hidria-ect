@@ -104,7 +104,17 @@ select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000001','d5000
 reset role;
 set local request.jwt.claims = '{}';
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado)
-values ('a5000000-0000-4000-8000-0000000000a9','a5000000-0000-4000-8000-0000000000a1','d5000000-0000-4000-8000-000000000001',2026,1,'validado_r3');
+values ('a5000000-0000-4000-8000-0000000000a9','a5000000-0000-4000-8000-0000000000a1','d5000000-0000-4000-8000-000000000001',2026,1,'en_captura');
+-- F1-09: gate F5 exige 12 meses completos y brecha <=10; BHE balanceado.
+insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
+select 'a5000000-0000-4000-8000-0000000000a9', fc.code, m.mes,
+  case fc.grupo when 'entrada' then 100 when 'consumo_proceso' then 40 when 'descarga' then 30
+       when 'perdida' then 20 when 'circular' then 10 else 0 end
+from generate_series(1,12) m(mes)
+join (select distinct on (grupo) code, grupo from public.balance_flow_catalog
+      where grupo in ('entrada','consumo_proceso','descarga','perdida','circular')
+      order by grupo, code) fc on true;
+update public.water_balances set estado='validado_r3' where id='a5000000-0000-4000-8000-0000000000a9';
 set local role service_role;
 select is((public.fn_advance_phase('c5000000-0000-4000-8000-000000000001','d5000000-0000-4000-8000-000000000001',5::smallint,'{"entregable":"BHE"}'::jsonb))->>'ok',
   'true', 'F5 con BHE avanza');

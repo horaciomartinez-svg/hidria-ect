@@ -30,7 +30,8 @@ values ('fa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-00000000
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version) values
   ('ea000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',1),
   ('ea000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',10),
-  ('ea000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'borrador',11);
+  ('ea000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'borrador',11),
+  ('ea000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',12);
 insert into public.documents (id,organization_id,diagnostic_id,doc_type,title,r2_key,sha256,mime,size_bytes,uploaded_by) values
   ('fa000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','otro','bhe.xlsx','org/a/diag/d/bhe.xlsx',repeat('a',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001');
 
@@ -62,7 +63,7 @@ select ok(has_function_privilege('service_role','public.fn_validate_bhe_r3(uuid,
 select ok(has_function_privilege('service_role','public.fn_import_bhe(uuid,uuid,uuid,smallint,jsonb,text,text,text)','EXECUTE'), 'ACL service_role import');
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000002','ea000000-0000-4000-8000-000000000002','fa000000-0000-4000-8000-000000000001'))->>'code', 'GATE_BHE_BRECHA', 'brecha >10 bloquea');
 select is((select estado from public.water_balances where id='ea000000-0000-4000-8000-000000000002'), 'en_captura', 'brecha no cambia estado');
-select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000003','fa000000-0000-4000-8000-000000000001'))->>'code', 'VALIDATION_BHE_INCOMPLETO', 'captura incompleta bloquea');
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001'))->>'code', 'VALIDATION_BHE_INCOMPLETO', 'captura incompleta bloquea');
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000001'))->>'ok', 'true', 'validaciÃ³n B1 OK');
 select is((select estado from public.water_balances where id='ea000000-0000-4000-8000-000000000001'), 'validado_r3', 'B1 validado_r3');
 select is((select version from public.water_balances where id='ea000000-0000-4000-8000-000000000001'), 2, 'version incrementada');
@@ -75,7 +76,10 @@ reset role;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"ca000000-0000-4000-8000-000000000003","organization_id":"aa000000-0000-4000-8000-0000000000a1","global_role":"observador"}';
-select throws_ok($sql$ update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'observador no escribe balance');
+with updated as (
+  update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000002' returning 1
+)
+select is((select count(*) from updated), 0::bigint, 'observador no escribe balance (0 filas RLS)');
 select throws_ok($sql$ insert into public.balance_flows(balance_id,catalog_code,mes,volumen_m3) select 'ea000000-0000-4000-8000-000000000002',code,1,1 from public.balance_flow_catalog limit 1 $sql$, '42501', NULL, 'observador no escribe flows');
 set local request.jwt.claims = '{"sub":"ca000000-0000-4000-8000-000000000001","organization_id":"aa000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
 select throws_ok($sql$ update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'update directo gate fields denegado');
