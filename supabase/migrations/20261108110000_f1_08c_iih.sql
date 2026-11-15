@@ -85,7 +85,8 @@ declare
   v_key text := nullif(p_idempotency_key, '');
   v_existing public.api_idempotency%rowtype;
   v_role text;
-  v_diag public.diagnostics%rowtype;\n  v_doc public.documents%rowtype;
+  v_diag public.diagnostics%rowtype;
+  v_doc public.documents%rowtype;
   v_row jsonb;
   v_ord integer := 0;
   v_ok integer := 0;
@@ -126,7 +127,22 @@ begin
     return jsonb_build_object('ok', false, 'code', 'FORBIDDEN_NOT_MEMBER', 'message', 'DiagnÃ³stico inexistente o fuera del tenant.');
   end if;
   if not exists (select 1 from public.profiles p where p.user_id = p_user_id and p.organization_id = v_diag.organization_id) then
-    return jsonb_build_object('ok', false, 'code', 'FORBIDDEN_NOT_MEMBER', 'message', 'El usuario no pertenece al tenant del diagnÃ³stico.');
+    return jsonb_build_object('ok', false, 'code', 'FORBIDDEN_NOT_MEMBER', 'message', 'El usuario no pertenece al tenant del diagnóstico.');
+  end if;
+  -- SEC-PR62-01: el import exige el XLSX fuente registrado y su sha256.
+  if p_document_id is null then
+    return jsonb_build_object('ok', false, 'code', 'VALIDATION_XLSX_ESTRUCTURA', 'message', 'document_id es obligatorio.');
+  end if;
+  select * into v_doc from public.documents where id = p_document_id;
+  if not found or v_doc.organization_id <> v_diag.organization_id
+     or v_doc.diagnostic_id <> p_diagnostic_id then
+    return jsonb_build_object('ok', false, 'code', 'FORBIDDEN_NOT_MEMBER', 'message', 'Documento inexistente o fuera del diagnóstico/tenant.');
+  end if;
+  if v_doc.upload_status <> 'registered' then
+    return jsonb_build_object('ok', false, 'code', 'CONFLICT_STATE', 'message', 'El documento del XLSX no está registrado.');
+  end if;
+  if p_checksum is null or p_checksum <> v_doc.sha256 then
+    return jsonb_build_object('ok', false, 'code', 'VALIDATION_XLSX_CONTENIDO', 'message', 'Checksum del XLSX no coincide con el documento registrado.');
   end if;
 
   for v_row in select value from jsonb_array_elements(p_rows) loop
@@ -170,8 +186,8 @@ begin
   end loop;
 
   v_audit := public.fn_audit_write(p_user_id, 'create', 'iih_assets', p_diagnostic_id::text,
-    jsonb_build_object('import', 'xlsx', 'filas_ok', v_ok, 'filas_rechazadas', v_rejected,
-                       'idempotency_key', v_key));
+    jsonb_build_object('import', 'xlsx', 'document_id', p_document_id, 'checksum', p_checksum,
+                       'filas_ok', v_ok, 'filas_rechazadas', v_rejected, 'idempotency_key', v_key));
   v_resp := jsonb_build_object(
     'ok', true, 'replayed', false,
     'data', jsonb_build_object('destino_id', p_diagnostic_id, 'diagnostic_id', p_diagnostic_id, 'filas_ok', v_ok,

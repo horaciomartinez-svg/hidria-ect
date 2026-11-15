@@ -1,6 +1,6 @@
 -- F1-08c — pgTAP: IIH M5, RLS/guard y RPC import EF-09.
 begin;
-select plan(16);
+select plan(18);
 
 select is((select count(*) from public.iih_stages), 6::bigint, '6 etapas IIH');
 select ok((select count(*) from public.iih_asset_types) >= 6, 'catálogo de tipos IIH');
@@ -72,6 +72,8 @@ select is((public.fn_import_iih_assets('c9000000-0000-4000-8000-000000000001','d
 select is((public.fn_import_iih_assets('c9000000-0000-4000-8000-000000000001','d9000000-0000-4000-8000-000000000001','e9000000-0000-4000-8000-000000000001',
   jsonb_build_array(jsonb_build_object('stage_code','CAP','asset_type_id',(select id from public.iih_asset_types where stage_code='CAP' order by id limit 1),'tag','IMP3','ubicacion','U','estado_fisico','bueno','opera','si','criticidad','alta','intervencion','ninguna','prioridad','media')), repeat('a',64),'iih-1','iih-h1'))->>'replayed', 'true', 'import replay');
 select is((public.fn_import_iih_assets('c9000000-0000-4000-8000-000000000004','d9000000-0000-4000-8000-000000000001','e9000000-0000-4000-8000-000000000001','[]'::jsonb))->>'code', 'FORBIDDEN_ROLE', 'observador no importa');
+select is((public.fn_import_iih_assets('c9000000-0000-4000-8000-000000000001','d9000000-0000-4000-8000-000000000001',null,'[]'::jsonb,repeat('a',64)))->>'code', 'VALIDATION_XLSX_ESTRUCTURA', 'import sin documento rechazado');
+select is((public.fn_import_iih_assets('c9000000-0000-4000-8000-000000000001','d9000000-0000-4000-8000-000000000001','e9000000-0000-4000-8000-000000000001','[]'::jsonb,repeat('b',64)))->>'code', 'VALIDATION_XLSX_CONTENIDO', 'checksum distinto rechazado');
 
 reset role;
 reset request.jwt.claims;
