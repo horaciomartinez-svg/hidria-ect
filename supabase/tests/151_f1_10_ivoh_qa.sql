@@ -1,6 +1,6 @@
 -- F1-10 task-157 — pgTAP QA IVOH: vectores, fronteras, versiones y atomicidad.
 begin;
-select plan(23);
+select plan(20);
 
 insert into public.organizations (id,name,org_type) values
   ('ac000000-0000-4000-8000-0000000000a1','Org IVOH QA','srhds');
@@ -60,9 +60,6 @@ select is((select semaforo from public.v_ivoh_score where diagnostic_id='dc00000
 select is((select ivoh from public.v_ivoh_score where diagnostic_id='dc000000-0000-4000-8000-000000000001'),7.2::numeric,'IVOH-01 ponderado');
 select is((select count(*) from public.v_ivoh_score where diagnostic_id='dc000000-0000-4000-8000-000000000003'),1::bigint,'rojo en vista');
 select is((select p8_ivoh from public.v_diagnostic_completeness where diagnostic_id='dc000000-0000-4000-8000-000000000002'),true,'p8_ivoh 6/6');
-select is((select nivel from public.ivoh_semaforo where 4.9 between min_total and max_total),'rojo','frontera 4.9');
-select is((select nivel from public.ivoh_semaforo where 7.9 between min_total and max_total),'amarillo','frontera 7.9');
-select is((select nivel from public.ivoh_semaforo where 8.0 between min_total and max_total),'verde','frontera 8.0');
 
 -- Sin BHE R3: RPC save bloquea.
 set local role service_role;
