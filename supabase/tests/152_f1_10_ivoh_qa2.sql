@@ -26,10 +26,10 @@ insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio
 insert into public.logbook_entries (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by) values
   ('fd000000-0000-4000-8000-000000000006','ad000000-0000-4000-8000-0000000000a1','dd000000-0000-4000-8000-000000000006','R4','BIT-R4-CIERRE','Coord','2026-01-27','09:00','cerrada','cd000000-0000-4000-8000-000000000001');
 
--- 4.9 rojo: 4.5/4.5/5/5/5/5.
+-- 4.9 rojo: 4.5/5/5/5/5/5 (4.925 → 4.9).
 insert into public.ivoh_evaluations (diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia,estado)
 select 'dd000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-0000000000a1',f,
-  case f when 'F1' then 4.5 when 'F2' then 4.5 else 5 end,'J','[{"tipo":"documento","ref":"d"}]'::jsonb,'validado_r4'
+  case f when 'F1' then 4.5 else 5 end,'J','[{"tipo":"documento","ref":"d"}]'::jsonb,'validado_r4'
 from unnest(array['F1','F2','F3','F4','F5','F6']) f;
 -- 7.9 amarillo: 7.5 + 8×5.
 insert into public.ivoh_evaluations (diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia,estado)
