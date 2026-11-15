@@ -167,7 +167,10 @@ export function weightLabel(value: string | number): string {
 }
 
 export function evidenceLabel(evidence: IvohEvidence): string {
-  return `${EVIDENCE_TYPE_LABEL[evidence.tipo] ?? evidence.tipo}: ${evidence.ref}`;
+  const description = evidence.descripcion?.trim();
+  return `${EVIDENCE_TYPE_LABEL[evidence.tipo] ?? evidence.tipo}: ${sanitizeText(evidence.ref, 500)}${
+    description ? ` — ${sanitizeText(description, 500)}` : ''
+  }`;
 }
 
 export function sanitizeText(value: unknown, maxLength = 500): string {

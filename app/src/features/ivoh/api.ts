@@ -1,5 +1,6 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from '../../lib/config';
 import { supabase } from '../../lib/supabase';
+import { sanitizeText } from './types';
 import type {
   FactorCode,
   FactorDraft,
@@ -84,11 +85,15 @@ function efError(status: number, body: unknown): IvohApiError {
         : code === 'GATE_R4_FICHA'
           ? 'La ficha BIT-R4 cerrada es obligatoria para validar.'
           : 'No fue posible completar la operación del IVOH.';
-  return new IvohApiError(kindForStatus(status, code), envelope.error?.message ?? fallback, {
-    code,
-    details: envelope.error?.details,
-    status,
-  });
+  return new IvohApiError(
+    kindForStatus(status, code),
+    sanitizeText(envelope.error?.message ?? fallback, 1000),
+    {
+      code,
+      details: envelope.error?.details,
+      status,
+    },
+  );
 }
 
 function postgresError(error: { code?: string; message?: string } | null): IvohApiError {
@@ -252,9 +257,12 @@ export async function getIvohContext(
   let score: IvohScore | null = null;
   if (versionId) {
     const source = validated ? 'v_ivoh_score' : 'v_ivoh_capture';
+    const columns = validated
+      ? 'diagnostic_id, version_id, ivoh, semaforo, semaforo_label, por_factor, serie_factores'
+      : 'diagnostic_id, version_id, factores_guardados, completo, total, semaforo, semaforo_label, por_factor, serie_factores';
     const { data: scoreData, error: scoreError } = await db
       .from(source)
-      .select('*')
+      .select(columns)
       .eq('diagnostic_id', diagnosticId)
       .eq('version_id', versionId)
       .maybeSingle();
@@ -354,11 +362,13 @@ export function factorPayload(factor: FactorCode, draft: FactorDraft): IvohScore
   return {
     factor_code: factor,
     puntaje: Number(draft.puntaje),
-    justificacion: draft.justificacion.trim(),
+    justificacion: sanitizeText(draft.justificacion.trim(), 4000),
     evidencia: draft.evidencia.map((evidence) => ({
       tipo: evidence.tipo,
-      ref: evidence.ref.trim(),
-      ...(evidence.descripcion?.trim() ? { descripcion: evidence.descripcion.trim() } : {}),
+      ref: sanitizeText(evidence.ref.trim(), 500),
+      ...(evidence.descripcion?.trim()
+        ? { descripcion: sanitizeText(evidence.descripcion.trim(), 500) }
+        : {}),
     })),
   };
 }

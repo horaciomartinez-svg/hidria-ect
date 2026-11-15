@@ -334,7 +334,7 @@ export function IvohDetailPage() {
           role="status"
           data-testid="ivoh-notice"
         >
-          {notice}
+          {sanitizeText(notice)}
         </p>
       )}
 
@@ -363,11 +363,13 @@ export function IvohDetailPage() {
                 }`}
                 data-testid="ivoh-semaforo"
               >
-                {semaforoLabel ?? 'Pendiente de R4'}
+                {semaforoLabel ? sanitizeText(semaforoLabel) : 'Pendiente de R4'}
               </span>
             </p>
             {semaforoDescription && (
-              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{semaforoDescription}</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                {sanitizeText(semaforoDescription)}
+              </p>
             )}
             <p className="mt-2 text-[11px] text-slate-500">
               {factorsStored}/6 factores {validated ? 'validados' : 'guardados'}
@@ -376,7 +378,10 @@ export function IvohDetailPage() {
           </div>
           <div className="flex flex-col items-center justify-center rounded-lg border border-line bg-panel p-4">
             {validated && serialEntries.length === 6 ? (
-              <RadialChart values={serialEntries} label={`IVOH ${formatScore(score?.ivoh)} · ${semaforoLabel ?? ''}`} />
+              <RadialChart
+                values={serialEntries}
+                label={`IVOH ${formatScore(score?.ivoh)} · ${sanitizeText(semaforoLabel ?? '')}`}
+              />
             ) : (
               <p className="text-center text-xs text-slate-500" data-testid="ivoh-radial-pending">
                 El radial de 6 ejes se habilita al validar en R4 (el total/semáforo oficial se publica
@@ -442,7 +447,7 @@ export function IvohDetailPage() {
           </div>
           {validateError && (
             <div className="mt-3" role="alert" data-testid="ivoh-validate-error">
-              <p className="text-sm text-semaforo-crit">{validateError.message}</p>
+              <p className="text-sm text-semaforo-crit">{sanitizeText(validateError.message)}</p>
               {validateError.code && (
                 <p className="mt-1 text-[11px] text-slate-500">Código: {validateError.code}</p>
               )}
@@ -638,7 +643,7 @@ export function IvohDetailPage() {
                   </span>
                   {factorError && (
                     <span role="alert" className="text-xs text-semaforo-crit" data-testid={`ivoh-error-${factor}`}>
-                      {factorError}
+                      {factorError ? sanitizeText(factorError) : ''}
                     </span>
                   )}
                 </div>

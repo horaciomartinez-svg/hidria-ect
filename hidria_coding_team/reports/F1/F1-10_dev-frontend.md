@@ -42,6 +42,11 @@
 - **A11y:** `fieldset`/`legend` por factor, labels, `aria-label` en evidencia, `aria-invalid`,
   `aria-live` de guardado/validación, radial con `role="img"`/`title`/`desc`, foco y nomenclatura
   SDFI/SRHDS/UCI.
+- **OBS de seguridad #74 (aplicadas):** mensajes de error/`notice`/label y `razon` se muestran con
+  `sanitizeText` (sin control chars, longitud acotada, HTML escapado por React); justificación,
+  `ref` y `descripcion` de evidencia se sanean antes del payload EF-06; las vistas se consultan con
+  **columnas explícitas** (sin `select('*')`); `validated`/`complete`/`factorsStored` son pistas de
+  presentación y la autoridad sigue siendo EF-06/RLS/RPC.
 
 ## 2. Contrato y coordinación
 
