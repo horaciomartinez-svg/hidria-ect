@@ -55,7 +55,7 @@ select is((select count(*) from public.ivoh_evaluations where diagnostic_id='db0
 set local role service_role;
 set local request.jwt.claims='{}';
 select ok(has_function_privilege('service_role','public.fn_save_ivoh_score(uuid,uuid,jsonb,text,text)','EXECUTE'),'ACL service save');
-select ok(has_function_privilege('service_role','public.fn_validate_ivoh_r4(uuid,uuid,text,text,text)','EXECUTE'),'ACL service validate');
+select ok(has_function_privilege('service_role','public.fn_validate_ivoh_r4(uuid,uuid,uuid,text,text)','EXECUTE'),'ACL service validate');
 select is((public.fn_save_ivoh_score('cb000000-0000-4000-8000-000000000001','db000000-0000-4000-8000-000000000001',
   jsonb_build_array(jsonb_build_object('factor_code','F1','puntaje',7.5,'justificacion','J','evidencia',jsonb_build_array(jsonb_build_object('tipo','documento','ref','d1')))))->'data'->>'factores_guardados','1','save parcial 1 factor'));
 select is((public.fn_save_ivoh_score('cb000000-0000-4000-8000-000000000001','db000000-0000-4000-8000-000000000001',

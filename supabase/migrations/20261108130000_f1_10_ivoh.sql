@@ -19,6 +19,9 @@ insert into public.ivoh_semaforo(nivel,min_total,max_total,label,descripcion,ord
 on conflict (nivel) do update set min_total=excluded.min_total,max_total=excluded.max_total,
   label=excluded.label,descripcion=excluded.descripcion,orden=excluded.orden;
 grant select on public.ivoh_semaforo to authenticated;
+alter table public.ivoh_semaforo enable row level security;
+drop policy if exists ivoh_semaforo_sel on public.ivoh_semaforo;
+create policy ivoh_semaforo_sel on public.ivoh_semaforo for select to authenticated using (true);
 
 -- PK versionada
 alter table public.ivoh_evaluations drop constraint if exists ivoh_evaluations_pkey;
@@ -26,6 +29,7 @@ alter table public.ivoh_evaluations add primary key (diagnostic_id,version_id,fa
 create index if not exists idx_ivoh_evaluations_version on public.ivoh_evaluations(diagnostic_id,version_id);
 
 -- v_ivoh_score: solo R4, versión vigente, pesos desde ivoh_factors, catálogo semáforo.
+drop view if exists public.v_ivoh_score cascade;
 create or replace view public.v_ivoh_score
 with (security_invoker = true) as
 with agg as (
@@ -45,6 +49,7 @@ from agg a left join public.ivoh_semaforo s
 grant select on public.v_ivoh_score to authenticated;
 
 -- v_ivoh_capture: borrador por versión vigente, 0..6 factores; total solo 6/6.
+drop view if exists public.v_ivoh_capture cascade;
 create or replace view public.v_ivoh_capture
 with (security_invoker = true) as
 with base as (
@@ -69,6 +74,26 @@ select a.diagnostic_id,a.version_id,a.factores_guardados,a.completo,
 from agg a left join public.ivoh_semaforo s
   on a.total is not null and a.total >= s.min_total and a.total <= s.max_total;
 grant select on public.v_ivoh_capture to authenticated;
+
+-- p8_ivoh: 6/6 validado_r4 de la versión vigente (B15).
+create or replace view public.v_diagnostic_completeness as
+select
+  d.id as diagnostic_id,
+  (select bool_and(i.estado='validado_r1') from public.document_checklist_items i where i.diagnostic_id=d.id) as p1_documentos,
+  d.cat_estado='validado_r2' as p2_cat,
+  (select bool_and(a.verificado_v1) from public.iih_assets a where a.diagnostic_id=d.id) as p3_iih,
+  (exists (select 1 from public.samples s where s.diagnostic_id=d.id and
+    (select count(*) from public.custody_transfers ct where ct.sample_id=s.id and ct.firma is not null and length(btrim(ct.firma))>0)=3)) as p4_custodia,
+  (select bool_and(wb.estado='validado_r3') from public.water_balances wb where wb.diagnostic_id=d.id) as p5_bhe,
+  (exists (select 1 from public.lab_results lr join public.samples s on s.id=lr.sample_id where s.diagnostic_id=d.id and lr.dictamen is not null)) as p6_lab,
+  (select count(*)=8 and bool_and(le.estado='cerrada') from public.logbook_entries le where le.diagnostic_id=d.id) as p7_bitacoras,
+  (select count(distinct e.factor_code)=6 from public.ivoh_evaluations e
+     where e.diagnostic_id=d.id and e.version_id=d.index_version_id and e.estado='validado_r4') as p8_ivoh,
+  (exists (select 1 from public.alternatives a where a.diagnostic_id=d.id and a.validado_r4)) as p9_alternativas,
+  ((select count(*) from public.photo_log p join public.logbook_entries le on le.id=p.entry_id where le.diagnostic_id=d.id)>=8) as p10_fotos
+from public.diagnostics d;
+grant select on public.v_diagnostic_completeness to authenticated;
+
 
 -- RLS: authenticated solo SELECT; retirar escrituras directas.
 drop policy if exists ivoh_evaluations_ins on public.ivoh_evaluations;
