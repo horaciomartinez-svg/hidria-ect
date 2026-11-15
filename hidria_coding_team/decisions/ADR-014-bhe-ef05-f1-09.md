@@ -11,7 +11,7 @@ F1-09 debe cerrar el Módulo 6 (Balance Hídrico Enriquecido): captura mensual d
 
 ### D1 — Autoridad de la brecha > 10 %
 - **La evaluación y el bloqueo viven en la base de datos, dentro de una RPC `SECURITY DEFINER` `service_role`-only** invocada por EF-05: `fn_validate_bhe_r3(p_user_id, p_balance_id, p_r3_logbook_id, p_idempotency_key, p_request_hash)`.
-- La RPC consulta `v_bhe_monthly`/`v_bhe_summary`; si **algún mes** tiene `brecha_pct > 10`, retorna `GATE_BHE_BRECHA` (409) con `details.meses` y **no** modifica `water_balances.estado` (sigue `en_captura`, editable). Si pasa, actualiza `estado='validado_r3'`, `validado_r3_logbook_id`, `version`, `diagnostics.brecha_pct` y `audit_log(action='approve')` en la misma transacción.
+- La RPC consulta **`v_bhe_monthly_capture`/`v_bhe_capture_summary`**; si **algún mes** tiene `brecha_pct > 10`, retorna `GATE_BHE_BRECHA` (409) con `details.meses` y **no** modifica `water_balances.estado` (sigue `en_captura`, editable). Si pasa, actualiza `estado='validado_r3'`, `validado_r3_logbook_id`, `version`, `diagnostics.brecha_pct` y `audit_log(action='approve')` en la misma transacción.
 - **El trigger `check_phase_gate` es la autoridad final del gate F5** (BHE `validado_r3` + brecha ≤ 10 %). EF-01 no puede saltarlo.
 - **La UI no evalúa ni decide la brecha**: solo lee `v_bhe_monthly`/`v_bhe_summary` y muestra el resultado; los errores de EF-05 se presentan con el mensaje canónico.
 - **La EF no es autoridad**: EF-05 valida rol/tenant/ficha y llama a la RPC; su pre-chequeo solo construye respuesta/errores, nunca escribe el estado por su cuenta.
@@ -125,4 +125,12 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - `v_bhe_monthly_capture`, `v_bhe_capture_summary` con `security_invoker=true` + grants SELECT a authenticated; RLS subyacente.
 - `v_bhe_monthly`/`v_bhe_summary` recreadas `security_invoker=true` y filtro `validado_r3` para tablero/cierre.
 - UI lee vistas; no calcula brecha.
+
+### D16 — Vista de captura con 12 filas y semántica de vacío (B11)
+- `v_bhe_monthly_capture` y `v_bhe_capture_summary` usan `generate_series(1,12)` + LEFT JOIN de flujos: **siempre 12 filas**.
+- Columnas: `mes` 1..12, `entradas_m3`, `destinos_m3`, `descargas_m3`, `perdidas_m3`, `circular_m3`, `brecha_m3`, `brecha_pct` (NULL si `entradas=0`), `flujos_count`, `tiene_captura` boolean.
+- Mes sin flujos: `brecha_m3=0`, `brecha_pct=NULL`, `tiene_captura=false`, `flujos_count=0`; la UI pinta “sin captura”, no calcula.
+- La RPC exige 12 meses con captura (`tiene_captura=true` en todos) y `entradas>0`; si no ⇒ `VALIDATION_BHE_INCOMPLETO`/`GATE_BHE_BRECHA`.
+- `v_bhe_capture_summary`: `brecha_anual_pct` ponderada, `brecha_max_mes_pct`, `meses_sobre_umbral`, `meses_con_captura`.
+
 
