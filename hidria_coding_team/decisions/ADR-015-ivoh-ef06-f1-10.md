@@ -10,7 +10,7 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 ## Decisiones
 
 ### D1 — Fórmula y autoridad server-side
-- `IVOH = 0.15·F1 + 0.20·F2 + 0.20·F3 + 0.20·F4 + 0.15·F5 + 0.10·F6`, con pesos de `ivoh_factors` de la **versión de índice vigente** del diagnóstico (`diagnostics.index_version_id`).
+- `IVOH = Σ peso×puntaje` con los **pesos de `ivoh_factors` de la versión vigente** (v1: 0.15/0.20/0.20/0.20/0.15/0.10); los valores v1 son datos, **no** constantes en código; la suma de pesos debe ser 1.0.
 - El cálculo canónico vive en **`v_ivoh_score`** (y en la RPC de cierre), nunca en UI ni EF.
 - `v_ivoh_score` se recrea con **`security_invoker=true`**, expone `ivoh` (1 decimal), `semaforo` y `semaforo_label` leídos del catálogo `ivoh_semaforo`, `serie_factores` y `por_factor`.
 - La UI **solo lee**; no calcula total, semáforo ni niveles.
@@ -21,6 +21,7 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 - `semaforo` se calcula con `round(total,1)` y comparación de rangos; el límite superior de amarillo es `<8.0`.
 
 ### D3 — Versionado e inmutabilidad de `ivoh_evaluations`
+> **Superseded por D10 en el versionado de PK:** la PK final es `(diagnostic_id,version_id,factor_code)`; esta sección se conserva para semántica de inmutabilidad.
 - Cada fila referencia `version_id` = `ivoh_index_versions` vigente; `factor_code` F1..F6; PK actual `(diagnostic_id,factor_code)`.
 - **`ivoh_evaluations` versionado por `version_id`**: una evaluación pertenece a una versión del índice; si cambia la versión vigente, la captura debe rechazarse con `CONFLICT_IVOH_VERSION` (no se mezclan pesos).
 - `puntaje` 0–10 en pasos de 0.5; `justificacion` obligatoria; `evidencia` array con ≥1 elemento por factor.
@@ -28,6 +29,7 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 - `factor_code`/`diagnostic_id`/`version_id` inmutables en UPDATE; `r4_logbook_id` solo lo fija la RPC.
 
 ### D4 — RPC de captura y cierre (service_role-only)
+> **Superseded parcial por D15:** `fn_save_ivoh_score` acepta **borrador parcial 1–6**; `fn_validate_ivoh_r4` exige 6. El resto de esta sección se mantiene.
 - `fn_save_ivoh_score(p_user_id,p_diagnostic_id,p_scores jsonb,p_idempotency_key,p_request_hash)`:
   - valida rol coord/equipo, tenant/membresía, BHE `validado_r3`, versión vigente, exactamente 6 factores sin duplicados, `puntaje` 0–10 paso 0.5, justificación y evidencia ≥1.
   - upsert en `ivoh_evaluations` con `estado='borrador'`/`version_id` actual; audit `update`; idempotencia `EF-06.score`.
@@ -98,6 +100,13 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 - **Post-R4:** el guard permite únicamente la transición atómica de la RPC `borrador→validado_r4` (service_role); después **ningún** UPDATE/DELETE (incluido service_role). Histórico read-only.
 - **Errores EF-06:** `GATE_BHE_R3` 409 · `VALIDATION_IVOH_INCOMPLETO` 422 · `CONFLICT_IVOH_VERSION` 409 · `GATE_R4_FICHA` 409 · `CONFLICT_STATE` 409 · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` 403 · 401 · 500 saneado. Idempotencia `EF-06.score`/`EF-06.validate-r4`.
 - Ruta: `POST /functions/v1/ef-06-ivoh/ivoh/{diagnostic_id}/score|validate-r4` (alias `/ivoh/{id}/...`).
+
+### D16 — Vista de borrador y completitud (B11/B8)
+- Se crea **`v_ivoh_capture`** `security_invoker=true`: por diagnóstico/versión vigente, `factores_guardados`, `completo` (6/6), `total`/`semaforo`/`semaforo_label` calculados server-side desde `ivoh_factors` (NULL si faltan factores), `por_factor`, `serie_factores`.
+- La UI puede mostrar el total/semáforo de borrador **solo lectura** desde `v_ivoh_capture`; el valor oficial sigue siendo el de `v_ivoh_score` post-R4 y `diagnostics.ivoh_actual`.
+- `fn_save_ivoh_score` responde `{diagnostic_id,version_id,estado,factores_guardados,total,semaforo}` (total/semáforo de borrador server-side; no se escribe en `diagnostics`).
+- **`v_diagnostic_completeness.p8_ivoh`** exige 6/6 validado_r4 de la versión vigente (alineado con gate F6).
+- Evidencia: `[{tipo,ref,descripcion?}]`, allowlist `documento|activo|indicador|ficha`; `ref` no vacío; ≥1 por factor.
 
 ## Evidencia
 `docs/01` §4.8, `docs/04` EF-06/TD-6, `docs/05` IVOH-01…05/PG-09/10, `docs/02` triggers/vista existentes, `main@46f7ce7`.
