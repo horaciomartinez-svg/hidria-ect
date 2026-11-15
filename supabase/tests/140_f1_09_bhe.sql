@@ -36,7 +36,8 @@ insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio
   ('ea000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',1),
   ('ea000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',10),
   ('ea000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'borrador',11),
-  ('ea000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',12);
+  ('ea000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',12),
+  ('ea000000-0000-4000-8000-000000000005','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',13);
 insert into public.documents (id,organization_id,diagnostic_id,doc_type,title,r2_key,sha256,mime,size_bytes,uploaded_by) values
   ('fa000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','otro','bhe.xlsx','org/a/diag/d/bhe.xlsx',repeat('a',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001'),
   ('fa000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000b1','da000000-0000-4000-8000-000000000001','otro','ajeno.xlsx','org/b/diag/d/ajeno.xlsx',repeat('b',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001'),
@@ -66,6 +67,7 @@ select is((select captura_completa from public.v_bhe_capture_summary where balan
 select is((select brecha_max_mes_pct from public.v_bhe_capture_summary where balance_id='ea000000-0000-4000-8000-000000000002'), 50.00::numeric, 'brecha max B2 50%');
 
 set local role service_role;
+set local request.jwt.claims = '{}';
 select ok(has_function_privilege('service_role','public.fn_validate_bhe_r3(uuid,uuid,uuid,text,text)','EXECUTE'), 'ACL service_role validate');
 select ok(has_function_privilege('service_role','public.fn_import_bhe(uuid,uuid,uuid,smallint,jsonb,text,text,text)','EXECUTE'), 'ACL service_role import');
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000002','ea000000-0000-4000-8000-000000000002','fa000000-0000-4000-8000-000000000001'))->>'code', 'GATE_BHE_BRECHA', 'brecha >10 bloquea');
@@ -99,6 +101,7 @@ select 'ea000000-0000-4000-8000-000000000003', code, 1, 1 from public.balance_fl
 select is((select estado from public.water_balances where id='ea000000-0000-4000-8000-000000000003'), 'en_captura', 'primer flujo pasa a en_captura');
 
 set local role service_role;
+set local request.jwt.claims = '{}';
 select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
   jsonb_build_array(jsonb_build_object('fila',2,'catalog_code',(select code from public.balance_flow_catalog where grupo='entrada' limit 1),'mes',1,'volumen_m3',10)) ,repeat('a',64),'bhe-1','bhe-h1'))->'data'->>'filas_ok', '1', 'import BHE filas_ok');
 select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
@@ -130,6 +133,7 @@ join (select distinct on (grupo) code, grupo from public.balance_flow_catalog
       where grupo in ('entrada','consumo_proceso','descarga','perdida','circular')
       order by grupo, code) fc on true;
 set local role service_role;
+set local request.jwt.claims = '{}';
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001','v1','h1'))->>'ok', 'true', 'validate B4 con idempotencia');
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001','v1','h1'))->>'replayed', 'true', 'validate replay');
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001','v1','h2'))->>'code', 'CONFLICT_STATE', 'validate idempotencia hash distinto');
@@ -151,6 +155,7 @@ reset role;
 reset request.jwt.claims;
 
 set local role service_role;
+set local request.jwt.claims = '{}';
 select throws_ok($sql$ update public.diagnostics set fase_actual=5 where id='da000000-0000-4000-8000-000000000002' $sql$, 'P0001', NULL, 'F5 sin BHE bloquea');
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version)
 values ('ea000000-0000-4000-8000-000000000006','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000002',2026,1,'en_captura',1);
