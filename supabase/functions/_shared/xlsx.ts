@@ -34,6 +34,15 @@ export interface ParsedWorkbook {
   readonly sheets: readonly XlsxSheet[];
 }
 
+/** Opciones de parseo: BHE permite fórmulas solo en celdas de totales/resumen conocidas. */
+export interface XlsxParseOptions {
+  readonly allowFormula?: (
+    sheetName: string,
+    row: number,
+    column: number,
+  ) => boolean;
+}
+
 function structureError(
   reason: string,
   details: Record<string, unknown> = {},
@@ -226,6 +235,8 @@ function parseSheetRows(
   xml: string,
   shared: readonly string[],
   limits: XlsxLimits,
+  sheetName: string,
+  options: XlsxParseOptions,
 ): Map<number, Map<number, string>> {
   const rows = new Map<number, Map<number, string>>();
   const cellRegex = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
@@ -233,12 +244,21 @@ function parseSheetRows(
   while ((match = cellRegex.exec(xml)) !== null) {
     const attrs = match[1] ?? "";
     const inner = match[2] ?? "";
-    if (/<f(?:\s|\/?>)/.test(inner)) {
-      throw structureError("formula_no_permitida");
-    }
     const refMatch = /\br="([A-Z]+)(\d+)"/.exec(attrs);
     if (refMatch === null) continue;
     const rowNumber = Number(refMatch[2]);
+    const columnNumber = columnIndex(refMatch[1]);
+    if (/<f(?:\s|\/?>)/.test(inner)) {
+      // BHE: fórmulas permitidas solo en celdas de totales/resumen conocidas
+      // (se ignoran y se recalculan server-side); resto ⇒ rechazo.
+      if (
+        options.allowFormula !== undefined &&
+        options.allowFormula(sheetName, rowNumber, columnNumber)
+      ) {
+        continue;
+      }
+      throw structureError("formula_no_permitida");
+    }
     if (rowNumber > limits.maxRows) {
       throw structureError("demasiadas_filas", { max_rows: limits.maxRows });
     }
@@ -309,6 +329,7 @@ function parseRels(xml: string): Map<string, string> {
 export async function parseXlsx(
   bytes: Uint8Array,
   limits: XlsxLimits = DEFAULT_XLSX_LIMITS,
+  options: XlsxParseOptions = {},
 ): Promise<ParsedWorkbook> {
   const entries = await readZipEntries(bytes, limits);
   if (entries.has("xl/vbaProject.bin")) {
@@ -333,7 +354,7 @@ export async function parseXlsx(
     const xml = decode(entries.get(target), target);
     sheets.push({
       name: sheet.name,
-      rows: parseSheetRows(xml, shared, limits),
+      rows: parseSheetRows(xml, shared, limits, sheet.name, options),
     });
   }
   if (sheets.length === 0) throw structureError("sin_hojas");

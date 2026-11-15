@@ -22,7 +22,12 @@ import { ApiError, errorResponse } from "./errors.ts";
 import { readJsonObject } from "./http.ts";
 import type { R2Config } from "./r2.ts";
 import { downloadObject, sha256HexBytes } from "./r2.ts";
-import { type ParsedWorkbook, parseXlsx, type XlsxSheet } from "./xlsx.ts";
+import {
+  type ParsedWorkbook,
+  parseXlsx,
+  type XlsxParseOptions,
+  type XlsxSheet,
+} from "./xlsx.ts";
 
 export const IMPORT_ENDPOINT = "EF-09";
 export const IMPORT_KIND = "iih";
@@ -72,6 +77,7 @@ export interface IihImportDeps {
   readonly parse?: (
     bytes: Uint8Array,
     limits?: { maxRows: number },
+    options?: XlsxParseOptions,
   ) => Promise<ParsedWorkbook>;
 }
 
@@ -405,6 +411,217 @@ export function parseIihWorkbook(workbook: ParsedWorkbook): IihParseResult {
   return { rows, rejected };
 }
 
+// ---------------------------------------------------------------------------
+// F1-09 / ADR-014 — EF-09 `kind='bhe'` (plantilla BHE, 12 meses, hojas 1/2/3A)
+// ---------------------------------------------------------------------------
+
+export const BHE_KIND = "bhe";
+export const BHE_MONTHS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+] as const;
+
+const BHE_CAPTURE_SHEETS = [
+  "1. Entradas",
+  "2. Destinos del agua",
+  "3. Reúso y calidad",
+] as const;
+
+const BHE_HEADER_ROW: Record<string, number> = {
+  "1. Entradas": 6,
+  "2. Destinos del agua": 6,
+  "3. Reúso y calidad": 7,
+};
+
+/** Filas de la plantilla con su(s) código(s) de `balance_flow_catalog`. */
+const BHE_ROW_CODES: Record<string, Array<{ row: number; codes: string[] }>> = {
+  "1. Entradas": [
+    { row: 7, codes: ["ENT-01"] },
+    { row: 8, codes: ["ENT-02"] },
+    { row: 9, codes: ["ENT-02"] }, // Pozo 2: suma en ENT-02
+    { row: 10, codes: ["ENT-03"] },
+    { row: 11, codes: ["ENT-04"] },
+    { row: 12, codes: ["ENT-05"] },
+  ],
+  "2. Destinos del agua": [
+    { row: 8, codes: ["DST-01"] },
+    { row: 9, codes: ["DST-02"] },
+    { row: 10, codes: ["DST-04"] },
+    { row: 11, codes: ["DST-09"] },
+    { row: 13, codes: ["DST-11"] },
+    { row: 14, codes: ["DST-12"] },
+    { row: 15, codes: ["DST-11"] },
+    { row: 16, codes: ["DST-11"] },
+    { row: 17, codes: ["DST-13"] },
+    { row: 19, codes: ["DST-13"] },
+  ],
+  "3. Reúso y calidad": [
+    { row: 8, codes: ["CIR-01"] },
+    { row: 9, codes: ["CIR-02"] },
+    { row: 10, codes: ["CIR-04"] },
+    { row: 11, codes: ["CIR-03"] },
+  ],
+};
+
+export interface BheRow {
+  readonly fila: number;
+  readonly catalog_code: string;
+  readonly mes: number;
+  readonly volumen_m3: number;
+}
+
+export interface BheParseResult {
+  readonly rows: BheRow[];
+  readonly rejected: IihRejectedRow[];
+  readonly advertencias: string[];
+}
+
+function bheCell(
+  sheet: XlsxSheet,
+  row: number,
+  column: number,
+): string {
+  return sheet.rows.get(row)?.get(column) ?? "";
+}
+
+function parseVolume(value: string): number | null {
+  const text = value.trim().replace(/\s/g, "").replace(",", ".");
+  if (text.length === 0) return 0;
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+/** Valida hojas/encabezados de la plantilla BHE y mapea sus 12 meses. */
+export function parseBheWorkbook(workbook: ParsedWorkbook): BheParseResult {
+  const missingSheets: string[] = [];
+  const headerIssues: Array<Record<string, unknown>> = [];
+  const advertencias: string[] = [];
+  for (const name of BHE_CAPTURE_SHEETS) {
+    const sheet = sheetByName(workbook, name);
+    if (sheet === undefined) {
+      missingSheets.push(name);
+      continue;
+    }
+    const headerRow = BHE_HEADER_ROW[name];
+    if (normalizeCell(bheCell(sheet, headerRow, 2)).length === 0) {
+      headerIssues.push({ hoja: name, faltantes: ["columna B"] });
+    }
+    for (let index = 0; index < BHE_MONTHS.length; index += 1) {
+      const actual = normalizeCell(bheCell(sheet, headerRow, 3 + index));
+      if (actual !== BHE_MONTHS[index]) {
+        headerIssues.push({
+          hoja: name,
+          mes: index + 1,
+          esperado: BHE_MONTHS[index],
+          actual,
+        });
+      }
+    }
+  }
+  if (missingSheets.length > 0 || headerIssues.length > 0) {
+    throw new ApiError(
+      "VALIDATION_XLSX_ESTRUCTURA",
+      "El archivo no corresponde a la plantilla oficial del BHE.",
+      {
+        reason: "plantilla_bhe_no_coincide",
+        hojas_faltantes: missingSheets,
+        columnas: headerIssues,
+      },
+    );
+  }
+
+  const totals = new Map<string, { fila: number; volumen: number }>();
+  const rejected: IihRejectedRow[] = [];
+  for (const name of BHE_CAPTURE_SHEETS) {
+    const sheet = sheetByName(workbook, name);
+    if (sheet === undefined) continue;
+    for (const mapping of BHE_ROW_CODES[name]) {
+      const rowErrors: string[] = [];
+      const monthly: number[] = [];
+      for (let month = 1; month <= 12; month += 1) {
+        const raw = bheCell(sheet, mapping.row, 3 + month - 1);
+        const value = parseVolume(raw);
+        if (value === null) {
+          rowErrors.push(`mes ${month}: volumen inválido (${raw})`);
+        }
+        monthly.push(value ?? 0);
+      }
+      if (monthly.every((value) => value === 0)) continue;
+      if (rowErrors.length > 0) {
+        rejected.push({ fila: mapping.row, razon: rowErrors.join("; ") });
+        continue;
+      }
+      for (let month = 1; month <= 12; month += 1) {
+        if (monthly[month - 1] === 0) continue;
+        for (const code of mapping.codes) {
+          const key = `${code}:${month}`;
+          const existing = totals.get(key);
+          if (existing === undefined) {
+            totals.set(key, { fila: mapping.row, volumen: monthly[month - 1] });
+          } else {
+            existing.volumen += monthly[month - 1];
+          }
+        }
+      }
+    }
+  }
+  if (sheetByName(workbook, "2. Destinos del agua") !== undefined) {
+    advertencias.push(
+      "La fila «Otros destinos» de la hoja 2 no se importa en F1-09.",
+    );
+  }
+  const rows: BheRow[] = [];
+  for (const [key, value] of totals) {
+    const [catalogCode, monthText] = key.split(":");
+    const mes = Number(monthText);
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12) continue;
+    rows.push({
+      fila: value.fila,
+      catalog_code: catalogCode,
+      mes,
+      volumen_m3: Math.round(value.volumen * 1000) / 1000,
+    });
+  }
+  rows.sort((a, b) =>
+    a.catalog_code.localeCompare(b.catalog_code) || a.mes - b.mes
+  );
+  if (rows.length === 0 && rejected.length === 0) {
+    throw new ApiError(
+      "VALIDATION_XLSX_ESTRUCTURA",
+      "La plantilla BHE no contiene volúmenes capturados.",
+      { reason: "sin_filas" },
+    );
+  }
+  return { rows, rejected, advertencias };
+}
+
+/** Allowlist ADR-014 D18.5: fórmulas solo en O/P de hojas 1–3 y hoja 4 (se ignoran). */
+export function bheAllowFormula(
+  sheetName: string,
+  row: number,
+  column: number,
+): boolean {
+  if (sheetName === "4. Balance e indicadores") return true;
+  if (
+    sheetName === "1. Entradas" || sheetName === "2. Destinos del agua" ||
+    sheetName === "3. Reúso y calidad"
+  ) {
+    return (column === 15 || column === 16) && row >= 6;
+  }
+  return false;
+}
+
 interface ImportRoute {
   readonly matches: boolean;
 }
@@ -492,13 +709,15 @@ export function createIihImportHandler(
           { field: "document_id" },
         );
       }
-      if (body.kind !== IMPORT_KIND) {
+      const kind = typeof body.kind === "string" ? body.kind : null;
+      if (kind !== IMPORT_KIND && kind !== BHE_KIND) {
         throw new ApiError(
           "VALIDATION_PARAMETRO_REQUERIDO",
-          "Esta función solo importa kind='iih'.",
-          { field: "kind", allowed: [IMPORT_KIND] },
+          "kind debe ser 'iih' o 'bhe'.",
+          { field: "kind", allowed: [IMPORT_KIND, BHE_KIND] },
         );
       }
+      let periodoAnio: number | null = null;
       if (body.periodo_anio !== undefined) {
         const anio = body.periodo_anio;
         if (
@@ -511,6 +730,14 @@ export function createIihImportHandler(
             { field: "periodo_anio" },
           );
         }
+        periodoAnio = anio;
+      }
+      if (kind === BHE_KIND && periodoAnio === null) {
+        throw new ApiError(
+          "VALIDATION_PARAMETRO_REQUERIDO",
+          "kind='bhe' exige periodo_anio (2000–2100).",
+          { field: "periodo_anio" },
+        );
       }
 
       const authorization = await guardEndpoint(
@@ -589,18 +816,20 @@ export function createIihImportHandler(
       }
 
       const parser = deps.parse ??
-        ((bytes, limits) =>
+        ((bytes, limits, options) =>
           parseXlsx(bytes, {
             maxEntries: 256,
             maxTotalUncompressedBytes: 25 * 1024 * 1024,
             maxEntryUncompressedBytes: 10 * 1024 * 1024,
             maxEntryRatio: 200,
             maxRows: limits?.maxRows ?? MAX_IMPORT_ROWS + 10,
-          }));
+          }, options));
       const workbook = await parser(downloaded.bytes, {
         maxRows: MAX_IMPORT_ROWS + 10,
-      });
-      const parsed = parseIihWorkbook(workbook);
+      }, kind === BHE_KIND ? { allowFormula: bheAllowFormula } : {});
+      const parsed = kind === BHE_KIND
+        ? parseBheWorkbook(workbook)
+        : parseIihWorkbook(workbook);
       if (parsed.rows.length === 0) {
         throw new ApiError(
           "VALIDATION_XLSX_ESTRUCTURA",
@@ -623,45 +852,65 @@ export function createIihImportHandler(
       const requestHash = await sha256HexBytes(
         new TextEncoder().encode(JSON.stringify({
           endpoint: IMPORT_ENDPOINT,
-          kind: IMPORT_KIND,
+          kind,
           diagnostic_id: diagnosticId,
           document_id: documentId,
+          periodo_anio: periodoAnio,
           checksum,
         })),
       );
 
-      const result = await deps.client.callRpc<RpcResult>(
-        "fn_import_iih_assets",
-        {
-          p_user_id: context.userId,
-          p_diagnostic_id: diagnosticId,
-          p_document_id: documentId,
-          p_rows: parsed.rows.map((row) => ({
-            fila: row.fila,
-            stage_code: row.stage_code,
-            asset_code: row.asset_code,
-            tag: row.tag,
-            ubicacion: row.ubicacion,
-            capacidad: row.capacidad,
-            capacidad_unidad: row.capacidad_unidad,
-            potencia_kw: row.potencia_kw,
-            material: row.material,
-            anio_instalacion: row.anio_instalacion,
-            estado_fisico: row.estado_fisico,
-            opera: row.opera,
-            criticidad: row.criticidad,
-            respaldo: row.respaldo,
-            suficiencia: row.suficiencia,
-            mantenimiento_tipo: row.mantenimiento_tipo,
-            ultimo_servicio: row.ultimo_servicio,
-            intervencion: row.intervencion,
-            observaciones: row.observaciones,
-          })),
-          p_checksum: checksum,
-          p_idempotency_key: idempotencyKey,
-          p_request_hash: requestHash,
-        },
-      );
+      const result = kind === BHE_KIND
+        ? await deps.client.callRpc<RpcResult>(
+          "fn_import_bhe",
+          {
+            p_user_id: context.userId,
+            p_diagnostic_id: diagnosticId,
+            p_document_id: documentId,
+            p_periodo_anio: periodoAnio,
+            p_rows: (parsed.rows as BheRow[]).map((row) => ({
+              fila: row.fila,
+              catalog_code: row.catalog_code,
+              mes: row.mes,
+              volumen_m3: row.volumen_m3,
+            })),
+            p_checksum: checksum,
+            p_idempotency_key: idempotencyKey,
+            p_request_hash: requestHash,
+          },
+        )
+        : await deps.client.callRpc<RpcResult>(
+          "fn_import_iih_assets",
+          {
+            p_user_id: context.userId,
+            p_diagnostic_id: diagnosticId,
+            p_document_id: documentId,
+            p_rows: (parsed.rows as IihRow[]).map((row) => ({
+              fila: row.fila,
+              stage_code: row.stage_code,
+              asset_code: row.asset_code,
+              tag: row.tag,
+              ubicacion: row.ubicacion,
+              capacidad: row.capacidad,
+              capacidad_unidad: row.capacidad_unidad,
+              potencia_kw: row.potencia_kw,
+              material: row.material,
+              anio_instalacion: row.anio_instalacion,
+              estado_fisico: row.estado_fisico,
+              opera: row.opera,
+              criticidad: row.criticidad,
+              respaldo: row.respaldo,
+              suficiencia: row.suficiencia,
+              mantenimiento_tipo: row.mantenimiento_tipo,
+              ultimo_servicio: row.ultimo_servicio,
+              intervencion: row.intervencion,
+              observaciones: row.observaciones,
+            })),
+            p_checksum: checksum,
+            p_idempotency_key: idempotencyKey,
+            p_request_hash: requestHash,
+          },
+        );
       if (result.ok !== true) {
         throw new ApiError(
           typeof result.code === "string" ? result.code : "INTERNAL_ERROR",
@@ -680,7 +929,7 @@ export function createIihImportHandler(
                 kind: "hito",
                 payload: {
                   diagnostic_id: diagnosticId,
-                  import_kind: IMPORT_KIND,
+                  import_kind: kind,
                   document_id: documentId,
                 },
               })),
@@ -695,17 +944,35 @@ export function createIihImportHandler(
       const rawRejected = Array.isArray(data.filas_rechazadas)
         ? data.filas_rechazadas as Array<{ fila: number; razon: string }>
         : [];
-      // La RPC devuelve la posición (1-based) dentro de p_rows; se traduce a la fila de Excel
-      // para que el contrato de respuesta use filas 1-based del archivo.
-      const rejected = rawRejected.map((row) => {
-        const index = row.fila;
-        if (
-          Number.isInteger(index) && index >= 1 && index <= parsed.rows.length
-        ) {
-          return { fila: parsed.rows[index - 1].fila, razon: row.razon };
-        }
-        return row;
-      });
+      // IIH: la RPC devuelve la posición (1-based) dentro de p_rows; se traduce a la fila de
+      // Excel. BHE: la RPC recibe `fila` y la devuelve ya como fila Excel (no se remapea).
+      const rejected = kind === BHE_KIND
+        ? rawRejected
+        : rawRejected.map((row) => {
+          const index = row.fila;
+          if (
+            Number.isInteger(index) && index >= 1 && index <= parsed.rows.length
+          ) {
+            return { fila: parsed.rows[index - 1].fila, razon: row.razon };
+          }
+          return row;
+        });
+      if (kind === BHE_KIND) {
+        const bhe = parsed as BheParseResult;
+        const rpcAdvertencias = Array.isArray(data.advertencias)
+          ? data.advertencias as string[]
+          : [];
+        return json(request, config, {
+          kind: BHE_KIND,
+          destino_id: typeof data.destino_id === "string"
+            ? data.destino_id
+            : diagnosticId,
+          periodo_anio: periodoAnio,
+          filas_ok: typeof data.filas_ok === "number" ? data.filas_ok : 0,
+          filas_rechazadas: [...bhe.rejected, ...rejected],
+          advertencias: [...bhe.advertencias, ...rpcAdvertencias],
+        });
+      }
       return json(request, config, {
         kind: IMPORT_KIND,
         destino_id: typeof data.destino_id === "string"

@@ -144,6 +144,36 @@ Reglas obligatorias (detalle en
   server-side. Respuesta
   `{kind:'iih', destino_id, filas_ok, filas_rechazadas, advertencias}`.
 
+### EF-09 `kind='bhe'` (task-143 / F1-09)
+
+- Mismo endpoint `POST /functions/v1/ef-09-import/import/xlsx`, body
+  `{diagnostic_id, document_id, kind:'bhe', periodo_anio}` (año **obligatorio**
+  2000–2100; solo XLSX OOXML). Reutiliza descarga R2/checksum/cap de F1-08.
+- Plantilla BHE: hojas `1. Entradas` (fila 6), `2. Destinos del agua` (fila 6) y
+  `3. Reúso y calidad` Parte A (fila 7); meses C–N; mapeo a
+  `balance_flow_catalog` (`ENT-*` con Pozos 1/2 sumados en `ENT-02`, `DST-*`,
+  `CIR-*`); totales O/P y hoja 4 se ignoran/recalculan; fórmula en C–N ⇒ rechazo
+  (`VALIDATION_XLSX_ESTRUCTURA`/`VALIDATION_BHE_FORMULA`). Parte B calidad fuera
+  de F1-09; fila «Otros destinos» no se importa (advertencia).
+- RPC `fn_import_bhe` (`service_role`, F1-09c) con `p_periodo_anio`, upsert de
+  `water_balances`+`balance_flows` solo en captura (nunca valida R3); respuesta
+  `{kind:'bhe', destino_id, periodo_anio, filas_ok, filas_rechazadas, advertencias}`.
+
+### EF-05 — `ef-05-balances` (task-143 / F1-09)
+
+- Ruta: `POST /functions/v1/ef-05-balances/balances/{balance_id}/validate-r3`
+  (contrato `/balances/{balance_id}/validate-r3`); body `{r3_logbook_id}`.
+- Auth/claims (`verifyProfile`, `nbf`, `p_user_id` JWT), rol
+  **coordinador|equipo**, tenant/membresía (403 anti-enumeración), ficha
+  `BIT-R3` **cerrada** del mismo diagnóstico (`409 GATE_R3_FICHA`).
+- RPC `fn_validate_bhe_r3` (`service_role`, F1-09c): brecha mensual >10 % ⇒
+  `409 GATE_BHE_BRECHA` con mensaje canónico y `details.meses` 1-based; éxito ⇒
+  `validado_r3`, `validado_r3_logbook_id`, `version+1`,
+  `diagnostics.brecha_pct`, audit `approve`; respuesta
+  `{balance_id, estado, brecha_anual_pct, brecha_max_mes_pct, meses_sobre_umbral}`.
+- Post-commit: notificación a miembros y `bhe_validated` (best-effort);
+  `Idempotency-Key` opcional (replay 200 sin efectos).
+
 ## Variables de entorno de las EF
 
 Se configuran con `supabase secrets set` (nunca en el repo). Comunes a
@@ -166,6 +196,8 @@ El job `Edge Functions (Deno)` del CI (#38) ejecuta
 `deno fmt --check
 supabase/functions --ignore=supabase/functions/README.md`,
 `deno lint`, `deno check supabase/functions/_shared` + cada
-`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**206
-pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b + 12 F1-07b + 12 F1-08b).
-Sin red ni permisos: DB/RPC, R2 (HEAD/download) y broadcast se inyectan.
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**223
+pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b + 12 F1-07b + 17 F1-08b
+
+- 7 F1-09 EF-05 + 5 F1-09 BHE). Sin red ni permisos: DB/RPC, R2 (HEAD/download)
+  y broadcast se inyectan.

@@ -76,6 +76,16 @@ export interface DocumentScopeRow {
   organizationId: string;
 }
 
+/** Balance hídrico para EF-05 (validate-r3). */
+export interface WaterBalanceRow {
+  id: string;
+  diagnosticId: string;
+  organizationId: string;
+  estado: string;
+  version: number;
+  periodoAnio: number | null;
+}
+
 /** Documento para importación EF-09 (incluye la clave R2 interna, nunca expuesta). */
 export interface DocumentImportRow {
   id: string;
@@ -144,6 +154,8 @@ export interface ServiceClient {
   fetchDocumentForImport?(
     documentId: string,
   ): Promise<DocumentImportRow | null>;
+  /** F1-09: balance hídrico por id (EF-05 validate-r3). */
+  fetchWaterBalance?(balanceId: string): Promise<WaterBalanceRow | null>;
   /** F1-06b: usuarios de un rol del diagnóstico (notificación a empresa). */
   listRoleUserIds?(diagnosticId: string, role: string): Promise<string[]>;
   /** F1-07b: ítems del banco CAT A1-v1. */
@@ -596,6 +608,33 @@ export function createServiceClient(
     };
   };
 
+  const fetchWaterBalance = async (
+    balanceId: string,
+  ): Promise<WaterBalanceRow | null> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/water_balances?id=eq.${encodeURIComponent(balanceId)}` +
+        "&select=id,diagnostic_id,organization_id,estado,version,periodo_anio&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.id !== "string" || typeof row.diagnostic_id !== "string" ||
+      typeof row.organization_id !== "string" || typeof row.estado !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: row.id,
+      diagnosticId: row.diagnostic_id,
+      organizationId: row.organization_id,
+      estado: row.estado,
+      version: typeof row.version === "number" ? row.version : 1,
+      periodoAnio: typeof row.periodo_anio === "number"
+        ? row.periodo_anio
+        : null,
+    };
+  };
+
   const fetchDocumentForImport = async (
     documentId: string,
   ): Promise<DocumentImportRow | null> => {
@@ -694,6 +733,7 @@ export function createServiceClient(
     fetchChecklistItemById,
     fetchDocumentById,
     fetchDocumentForImport,
+    fetchWaterBalance,
     listRoleUserIds,
     fetchCatItems,
     fetchCatResponses,
