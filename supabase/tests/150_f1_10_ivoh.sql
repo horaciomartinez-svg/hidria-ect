@@ -48,7 +48,7 @@ select ok((select count(*) from pg_constraint where conrelid='public.ivoh_evalua
 select is((select count(*) from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001' and completo),1::bigint,'captura completa');
 select is((select total from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001'),7.0::numeric,'captura total 7.0');
 select is((select semaforo from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001'),'amarillo','captura semáforo amarillo');
-select is((select factores_guardados from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001'),6,'factores guardados 6');
+select is((select factores_guardados from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001'),6::bigint,'factores guardados 6');
 select is((select count(*) from public.v_ivoh_score where diagnostic_id='db000000-0000-4000-8000-000000000001'),0::bigint,'score vacío antes R4');
 select is((select count(*) from public.ivoh_evaluations where diagnostic_id='db000000-0000-4000-8000-000000000001' and estado='borrador'),6::bigint,'6 borradores');
 
