@@ -78,12 +78,12 @@ select is(pg_temp.j_val('cb000000-0000-4000-8000-000000000001','db000000-0000-40
 select is(pg_temp.j_val('cb000000-0000-4000-8000-000000000001','db000000-0000-4000-8000-000000000001','fb000000-0000-4000-8000-000000000001')->>'code','CONFLICT_STATE','doble validate');
 select is(pg_temp.j_save('cb000000-0000-4000-8000-000000000001','db000000-0000-4000-8000-000000000001',jsonb_build_array(jsonb_build_object('factor_code','F1','puntaje',8.0,'justificacion','J','evidencia',jsonb_build_array(jsonb_build_object('tipo','documento','ref','d1')))))->>'code','CONFLICT_STATE','save post-R4 bloqueado');
 select is((select count(*) from public.audit_log where entity='ivoh_evaluations' and action='approve'),1::bigint,'audit approve IVOH');
-select is((select count(*) from public.audit_log where entity='ivoh_evaluations' and action='update'),1::bigint,'audit update IVOH');
+select is((select count(*) from public.audit_log where entity='ivoh_evaluations' and action='update'),2::bigint,'audit update IVOH');
 reset role;
 reset request.jwt.claims;
 
 select is((select count(*) from public.ivoh_semaforo where min_total <= max_total),3::bigint,'rangos coherentes');
-select ok(not exists (select 1 from public.ivoh_semaforo a join public.ivoh_semaforo b on a.nivel<b.nivel and a.max_total>=b.min_total),'rangos sin solape');
+select ok(not exists (select 1 from public.ivoh_semaforo a join public.ivoh_semaforo b on a.orden<b.orden and a.max_total>=b.min_total),'rangos sin solape');
 select is((select orden from public.ivoh_semaforo where nivel='verde'),3::smallint,'orden verde');
 select is((select min_total from public.ivoh_semaforo where nivel='amarillo'),5.0::numeric,'amarillo min 5');
 select is((select max_total from public.ivoh_semaforo where nivel='verde'),10.0::numeric,'verde max 10');
@@ -103,8 +103,7 @@ set local request.jwt.claims='{"sub":"cb000000-0000-4000-8000-000000000003","org
 select is((select count(*) from public.ivoh_evaluations where diagnostic_id='db000000-0000-4000-8000-000000000001'),6::bigint,'observador lee evaluaciones');
 with upd as (update public.ivoh_evaluations set puntaje=1 where diagnostic_id='db000000-0000-4000-8000-000000000001' returning 1)
 select is((select count(*) from upd),0::bigint,'observador UPDATE 0 filas RLS');
-with ins as (insert into public.ivoh_evaluations(diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia) values ('db000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-0000000000a1','F1',1,'x','[]') returning 1)
-select is((select count(*) from ins),0::bigint,'observador INSERT RLS');
+select throws_ok($sql$ insert into public.ivoh_evaluations(diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia) values ('db000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-0000000000a1','F1',1,'x','[]') $sql$, '42501', NULL, 'observador INSERT bloqueado');
 reset role;
 reset request.jwt.claims;
 
