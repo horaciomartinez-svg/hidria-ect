@@ -77,16 +77,22 @@ test.describe('rutas protegidas y sesión', () => {
     await expect(page.locator('dd').filter({ hasText: ORG_ID })).toBeVisible();
   });
 
-  test('con sesión válida, M5 /iih muestra fase F2 y M7 /muestreo F1 mínimo (decisión híbrida)', async ({
+  test('con sesión válida, M5 /iih monta la UI real y M7 /muestreo F1 mínimo (decisión híbrida)', async ({
     page,
   }) => {
     await seedSession(page, CLAIMS_EQUIPO);
 
-    // M5 (IIH): el módulo completo pasa a F2 (decisión híbrida; F1-08 → F2-06).
+    // M5 (IIH): la ruta ya monta la UI real (F1-08a); ya no es placeholder de fase.
+    // Se responde vacío para que el estado real (sin diagnósticos) sea determinista.
+    await page.route('**/rest/v1/diagnostics**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    );
+    await page.route('**/rest/v1/project_members**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    );
     await page.goto('/iih');
-    await expect(page.getByRole('heading', { name: 'Inventario de infraestructura hidráulica' }))
-      .toBeVisible();
-    await expect(page.getByText('Fase prevista F2', { exact: false })).toBeVisible();
+    await expect(page.locator('[data-iih-state="empty"]')).toBeVisible();
+    await expect(page.getByText('Fase prevista F2', { exact: false })).toHaveCount(0);
 
     // M7 (Muestreo): F1 mínimo / F2 completo, con su phaseNote visible.
     await page.goto('/muestreo');

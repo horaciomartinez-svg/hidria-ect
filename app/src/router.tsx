@@ -6,6 +6,8 @@ import { MODULES } from './routes/registry';
 import { CatFormPage } from './routes/cat/CatFormPage';
 import { CatListPage } from './routes/cat/CatListPage';
 import { ChecklistPage } from './routes/checklist/ChecklistPage';
+import { IihInventoryPage } from './routes/iih/IihInventoryPage';
+import { IihListPage } from './routes/iih/IihListPage';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
 import { EmpresaFormPage } from './routes/empresas/EmpresaFormPage';
 import { EmpresasListPage } from './routes/empresas/EmpresasListPage';
@@ -24,7 +26,8 @@ import { AboutPage, NotFoundPage, PrivacyPage, RouteErrorPage } from './routes/S
  * - Rutas de servicio: `/sincronizacion`, `/acerca`, `/privacidad`, 404.
  */
 const placeholderRoutes: RouteObject[] = MODULES.filter(
-  (module) => module.id !== 'M1' && module.id !== 'M3' && module.id !== 'M4',
+  (module) =>
+    module.id !== 'M1' && module.id !== 'M3' && module.id !== 'M4' && module.id !== 'M5',
 ).map((module) => ({
   path: module.path.slice(1),
   element: (
@@ -89,6 +92,9 @@ export const router = createBrowserRouter([
       // M4 — CAT (F1-07a): selector de diagnóstico y captura del banco A1-v1.
       { path: 'cat', element: <CatListPage /> },
       { path: 'cat/:diagnosticId', element: <CatFormPage /> },
+      // M5 — IIH (F1-08a): inventario, alta/edición e importación XLSX.
+      { path: 'iih', element: <IihListPage /> },
+      { path: 'iih/:diagnosticId', element: <IihInventoryPage /> },
       ...placeholderRoutes,
       { path: 'sincronizacion', element: <SincronizacionPage /> },
       { path: 'acerca', element: <AboutPage /> },
