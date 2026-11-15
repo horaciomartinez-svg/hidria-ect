@@ -133,4 +133,25 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - La RPC exige 12 meses con captura (`tiene_captura=true` en todos) y `entradas>0`; si no ⇒ `VALIDATION_BHE_INCOMPLETO`/`GATE_BHE_BRECHA`.
 - `v_bhe_capture_summary`: `brecha_anual_pct` ponderada, `brecha_max_mes_pct`, `meses_sobre_umbral`, `meses_con_captura`.
 
+### D17 — Contrato UI/spec (B12/B13)
+- **Versión vigente:** la UI lee/edita `water_balances` con `ORDER BY version DESC LIMIT 1` (la más reciente). Histórico validado es solo lectura y **fuera de F1-09** (sin selector de versión); una reevaluación futura creará nueva `version`.
+- **Precedencia de errores EF-05:** primero `VALIDATION_BHE_INCOMPLETO` (422) si <12 meses con captura/`entradas=0`; después `GATE_BHE_BRECHA` (409) si hay brecha mensual >10. La UI puede deshabilitar “Validar R3” hasta 12 meses con captura, pero el servidor decide.
+- **Resumen sin datos:** `brecha_anual_pct=NULL`, `brecha_max_mes_pct=NULL`, `meses_sobre_umbral=0`, `tiene_datos=false`; UI “pendiente/—”, sin semáforo verde.
+- **Plantilla UI:** guía con hojas `1. Entradas`, `2. Destinos del agua`, `3. Reúso y calidad` (Parte A), `4. Balance e indicadores`; `periodo_anio` del formulario debe coincidir con la plantilla y `water_balances.periodo_anio`.
+- **Gate F5:** la UI lee `diagnostics.fase_actual` y el estado/brecha del balance; no inventa endpoint. El gate real lo evalúa `check_phase_gate`/EF-01.
+- **`bhe_validated`:** recarga tras EF-05; evento best-effort (si Realtime no está disponible, reload); no es fuente de verdad.
+
+### D18 — Cierres de contrato (B14)
+1. `fn_import_bhe(p_user_id,p_diagnostic_id,p_document_id,p_periodo_anio,p_rows,p_checksum,p_idempotency_key,p_request_hash)`; `p_periodo_anio` **obligatorio** 2000–2100 y debe coincidir con `water_balances.periodo_anio`.
+2. EF-09 BHE acepta **solo XLSX OOXML** (MIME allowlist XLSX); `.xls` binario ⇒ `422 formato_xls_no_soportado`. La RPC no admite XLS.
+3. Upsert: si no existe balance del diagnóstico, crea `borrador→en_captura`; si existe el balance de captura (`borrador|en_captura`) del mismo periodo, **reemplaza atómicamente sus flows** y metadatos; si existe `validado_r3` o periodo distinto ⇒ `CONFLICT_STATE`. No crea versión nueva hasta R3 (`version+1` en validación).
+4. Precedencia: `VALIDATION_BHE_INCOMPLETO` (422) por <12 meses/`entradas=0`; luego `GATE_BHE_BRECHA` (409).
+5. Allowlist de fórmulas: solo `O`/`P` en hojas 1–3 y celdas de hoja 4; se ignoran valores cacheados y se recalcula. Fórmula en C–N hojas 1–3 o fuera de allowlist ⇒ `VALIDATION_BHE_FORMULA`/`VALIDATION_XLSX_ESTRUCTURA`.
+6. Vistas/grants: `v_bhe_monthly_capture` y `v_bhe_capture_summary` `security_invoker=true`, `GRANT SELECT TO authenticated`, RLS base; 12 filas (`generate_series`), `tiene_captura`, `flujos_count`, NULLs según D16. `v_bhe_*` validadas también `security_invoker`.
+7. Trigger `trg_balance_flows_start_capture` AFTER INSERT en `balance_flows`, `SECURITY DEFINER`, `search_path=public,pg_temp`: si el parent está `borrador`, lo pasa a `en_captura` y audita; no permite saltos desde `validado_r3`.
+8. EF-09-BHE response incluye `periodo_anio`, `destino_id=balance_id`, `filas_ok`, `filas_rechazadas[{fila,razon}]` 1-based Excel. `p_rows` acepta `catalog_code`, `mes` 1..12, `volumen_m3`, `fila` (opcional). `Idempotency-Key` opcional.
+9. Ubicación canónica del ADR: `hidria_coding_team/decisions/ADR-014-bhe-ef05-f1-09.md`; se publica vía PR docs #66 y se copiará el contrato final a `docs/04`/`docs/05` en task-145 tras implementación.
+
+
+
 
