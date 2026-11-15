@@ -120,6 +120,7 @@ select ok(not has_function_privilege('authenticated','public.fn_validate_bhe_r3(
 select ok(not has_function_privilege('authenticated','public.fn_import_bhe(uuid,uuid,uuid,smallint,jsonb,text,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE import');
 -- B4 balanced para validación exitosa con idempotencia.
 reset role;
+reset request.jwt.claims;
 insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
 select 'ea000000-0000-4000-8000-000000000004', fc.code, m.mes,
   case fc.grupo when 'entrada' then 100 when 'consumo_proceso' then 40 when 'descarga' then 30
@@ -147,6 +148,7 @@ select ok((select proacl::text from pg_proc where proname='fn_validate_bhe_r3') 
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','fa000000-0000-4000-8000-000000000001'))->>'code', 'GATE_BHE_BRECHA', 'brecha no audita');
 select is((select count(*) from public.audit_log where entity='water_balances' and action='approve' and entity_id='ea000000-0000-4000-8000-000000000002'), 0::bigint, 'brecha sin audit approve');
 reset role;
+reset request.jwt.claims;
 
 set local role service_role;
 select throws_ok($sql$ update public.diagnostics set fase_actual=5 where id='da000000-0000-4000-8000-000000000002' $sql$, 'P0001', NULL, 'F5 sin BHE bloquea');
