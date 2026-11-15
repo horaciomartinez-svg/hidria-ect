@@ -205,18 +205,21 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 
 ## EF-06 — Calificación y validación del IVOH
 
-`POST /functions/v1/ivoh/{diagnostic_id}/score` — `POST /functions/v1/ivoh/{diagnostic_id}/validate-r4`
+`POST /functions/v1/ef-06-ivoh/ivoh/{diagnostic_id}/score` — `POST /functions/v1/ef-06-ivoh/ivoh/{diagnostic_id}/validate-r4` (alias `/ivoh/{diagnostic_id}/...`)
 
 | Campo | Valor |
 |---|---|
-| Propósito | `score`: guardar puntajes 0–10 por factor (borrador, recalculable). `validate-r4`: congelar la calificación en R4 (gate F6) |
-| Cuerpo (score) | `{ "scores": [{ "factor_code": "F1".."F6", "puntaje": 0..10 (paso 0.5), "justificacion": text, "evidencia": [{tipo, ref}] }] }` |
-| Pre (score) | Rol `coordinador|equipo`; BHE validado en R3 (el trigger `trg_ivoh_requires_bhe` lo refuerza); los 6 factores pertenecen a la `index_version` vigente del diagnóstico (`diagnostics.index_version_id`); puntajes con evidencia mínima 1 ítem por factor |
-| Pre (validate-r4) | Ficha `BIT-R4-*` cerrada (id en cuerpo); los 6 factores tienen puntaje y justificación |
-| Tx | `score`: upsert en `ivoh_evaluations` con `estado='borrador'`. `validate-r4`: `UPDATE ivoh_evaluations SET estado='validado_r4', r4_logbook_id`; total = Σ peso×puntaje según `v_ivoh_score`; `UPDATE diagnostics SET ivoh_actual`; semáforo por TD-6; `audit_log(action='approve')` |
-| Post | Evento `ivoh_validated`; notificación con el total y semáforo |
-| Respuesta | `{ diagnostic_id, total, semaforo, por_factor: [{factor_code, peso, puntaje, aportacion}] }` |
-| Errores | `GATE_BHE_R3` (409, replicado del trigger) · `VALIDATION_IVOH_INCOMPLETO` · `FORBIDDEN_ROLE` |
+| Propósito | `score`: guardar borrador **parcial 1–6** factores (recalculable). `validate-r4`: congelar 6/6 en R4 y calcular/persistir el IVOH oficial (gate F6) |
+| Cuerpo (score) | `{ "scores": [{ "factor_code": "F1".."F6", "puntaje": 0..10 (paso 0.5), "justificacion": text no vacío, "evidencia": [{tipo, ref, descripcion?}] }] }`. `tipo` allowlist `documento|activo|indicador|ficha`; `ref` no vacío; ≥1 por factor. |
+| Cuerpo (validate-r4) | `{ "r4_logbook_id": uuid }` |
+| Pre (score) | Rol `coordinador|equipo`; tenant/membresía (403 anti-enumeración); BHE `validado_r3`; versión **vigente** `diagnostics.index_version_id` y Σpesos=1; factor existente en `ivoh_factors`; sin evaluaciones de otra versión (`CONFLICT_IVOH_VERSION`); `ivoh_evaluations` PK `(diagnostic_id,version_id,factor_code)`. |
+| Pre (validate-r4) | Ficha `BIT-R4-*` **cerrada del mismo diagnóstico**; 6/6 factores borrador con puntaje/justificación/evidencia y versión vigente; ninguna fila validada previa. |
+| Tx | RPC `fn_save_ivoh_score(p_user_id,p_diagnostic_id,p_scores,p_idempotency_key,p_request_hash)` y `fn_validate_ivoh_r4(p_user_id,p_diagnostic_id,p_r4_logbook_id,p_idempotency_key,p_request_hash)` `SECURITY DEFINER`/`service_role`-only, `search_path=public,pg_temp`, REVOKE public/anon/authenticated. `score`: upsert `borrador`. `validate-r4`: total = Σ`peso×puntaje` (pesos de `ivoh_factors`, 1 decimal) **antes** de actualizar; si no hay total ⇒ rollback; luego `estado='validado_r4'`+`r4_logbook_id`, `diagnostics.ivoh_actual`, `audit_log('approve')` e idempotencia atómica (`EF-06.score`/`EF-06.validate-r4`). |
+| Semáforo | Catálogo `ivoh_semaforo` (3 labels): `rojo <5.0` = **Crítico**, `5.0–7.9` = **En desarrollo**, `≥8.0` = **Consolidado**; `v_ivoh_score` expone `ivoh`, `semaforo`, `semaforo_label`, `serie_factores`, `por_factor`, `version_id` (`security_invoker`). |
+| Post | Evento `ivoh_validated`/notificación best-effort; desbloquea gate F6/IVOH; **no** emite reporte (EF-07/F1-12). |
+| Respuesta (score) | `{ diagnostic_id, version_id, estado:'borrador', factores_guardados }` (sin total/semáforo) |
+| Respuesta (validate-r4) | `{ diagnostic_id, total, semaforo, semaforo_label, por_factor:[{factor_code,peso,puntaje,aportacion}] }` |
+| Errores | `GATE_BHE_R3` (409) · `VALIDATION_IVOH_INCOMPLETO` (422) · `CONFLICT_IVOH_VERSION` (409) · `GATE_R4_FICHA` (409) · `CONFLICT_STATE` (409 idempotencia/estado) · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` (403) · `INTERNAL_ERROR` (500 saneado) |
 
 ## EF-07 — Emisión del Reporte de Diagnóstico (gate matriz 10/10)
 
