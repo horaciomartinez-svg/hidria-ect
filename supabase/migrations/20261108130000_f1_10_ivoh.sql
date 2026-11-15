@@ -76,7 +76,7 @@ from agg a left join public.ivoh_semaforo s
 grant select on public.v_ivoh_capture to authenticated;
 
 -- p8_ivoh: 6/6 validado_r4 de la versión vigente (B15).
-create or replace view public.v_diagnostic_completeness as
+create or replace view public.v_diagnostic_completeness with (security_invoker = true) as
 select
   d.id as diagnostic_id,
   (select bool_and(i.estado='validado_r1') from public.document_checklist_items i where i.diagnostic_id=d.id) as p1_documentos,
@@ -139,7 +139,7 @@ begin
     if old.fase_actual < 6 and new.fase_actual >= 6 then
       if (select count(distinct e.factor_code) from public.ivoh_evaluations e
           where e.diagnostic_id=new.id and e.version_id=new.index_version_id and e.estado='validado_r4') < 6 then
-        raise exception 'Gate F6: el IVOH no está validado en R4 (6/6 de la versión vigente).';
+        raise exception 'Gate F6: el IVOH no está validado en R4 (se requieren 6/6 factores).';
       end if;
     end if;
   end if;

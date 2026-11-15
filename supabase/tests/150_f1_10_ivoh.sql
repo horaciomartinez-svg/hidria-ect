@@ -44,7 +44,7 @@ select is((select label from public.ivoh_semaforo where nivel='rojo'),'Crítico'
 select is((select label from public.ivoh_semaforo where nivel='amarillo'),'En desarrollo','label amarillo');
 select is((select label from public.ivoh_semaforo where nivel='verde'),'Consolidado','label verde');
 select is((select max_total from public.ivoh_semaforo where nivel='rojo'),4.9::numeric,'rojo max 4.9');
-select ok((select count(*) from pg_constraint where conrelid='public.ivoh_evaluations'::regclass and contype='p' and pg_get_constraintdef(oid) like '%version_id%'),'PK incluye version_id');
+select ok((select count(*) from pg_constraint where conrelid='public.ivoh_evaluations'::regclass and contype='p' and pg_get_constraintdef(oid) like '%version_id%') > 0,'PK incluye version_id');
 select is((select count(*) from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001' and completo),1::bigint,'captura completa');
 select is((select total from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001'),7.0::numeric,'captura total 7.0');
 select is((select semaforo from public.v_ivoh_capture where diagnostic_id='db000000-0000-4000-8000-000000000001'),'amarillo','captura semáforo amarillo');
