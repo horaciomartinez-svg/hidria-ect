@@ -322,3 +322,19 @@ Deno.test("EF-09-bhe 403/401: rol observador, otro tenant y sin token", async ()
   const noToken = await call(BODY, { token: null });
   assertEquals(noToken.response.status, 401);
 });
+
+Deno.test("EF-09-bhe: la RPC devuelve fila Excel y no se remapea", async () => {
+  const { response, payload } = await call(BODY, {}, {
+    rpc: {
+      ok: true,
+      data: {
+        destino_id: "be100000-0000-4000-8000-000000000001",
+        filas_ok: 4,
+        filas_rechazadas: [{ fila: 1, razon: "mes/volumen inválido" }],
+      },
+    },
+  });
+  assertEquals(response.status, 200);
+  const rejected = payload.filas_rechazadas as Array<{ fila: number }>;
+  assertEquals(rejected[0].fila, 1);
+});
