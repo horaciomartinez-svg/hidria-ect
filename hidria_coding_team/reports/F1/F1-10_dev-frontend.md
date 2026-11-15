@@ -7,7 +7,7 @@
 | **Rama** | `feature/F1-10a-ivoh-ui` |
 | **Base** | `main` = `079ed95` (ADR-015 integrado; squash de #71) |
 | **Alcance** | `/ivoh` + `/ivoh/:diagnosticId`: captura 6 factores, autosave parcial EF-06, total/semáforo/serie solo lectura, validar R4, gate F6, radial SVG, a11y/offline, E2E UI-level |
-| **Conclusión** | **VERDE local** — `lint` 0 · `typecheck` 0 · `build` 0 · E2E **67 passed + 6 skipped** (8 casos M8); CI 7/7 en el PR |
+| **Conclusión** | **VERDE local** — `lint` 0 · `typecheck` 0 · `build` 0 · E2E **69 passed + 6 skipped** (10 casos M8); CI 7/7 en el PR |
 
 ---
 
@@ -90,6 +90,8 @@ semáforo, evaluaciones, `v_ivoh_capture`/`v_ivoh_score`) y EF-06 `score`/`valid
 | 6 | `CONFLICT_IVOH_VERSION` al guardar factor (error visible) | OK |
 | 7 | observador: solo lectura (sin validar y factores deshabilitados) | OK |
 | 8 | vacío y offline (sin prometer persistencia) | OK |
+| 9 | OBS seguridad: `<script>`/`<img>` en error/justificación/evidencia/label se renderiza como texto (sin nodos) y el payload va saneado | OK |
+| 10 | OBS seguridad: requests a `v_ivoh_capture`/`v_ivoh_score` con `select=` explícito (no `*`) y columnas esperadas | OK |
 
 **No cubierto por este E2E:** RLS/RPC/vistas reales (pgTAP F1-10c), EF-06 real (Deno F1-10b), fronteras
 de semáforo y fórmula (pgTAP). El job local del CI sólo ejecuta `empresas.local.spec.ts`; M8 real se
@@ -102,7 +104,7 @@ npm run lint       → eslint src ..................................... EXIT 0
 npm run typecheck  → tsc --noEmit && tsc -p tsconfig.sw.json --noEmit  EXIT 0
 npm run build      → … vite build ................................... EXIT 0
                      PWA v2.0.0 · injectManifest · precache 11 entries (719.67 KiB)
-npm run test:e2e   → 67 passed + 6 skipped (11 shell + 14 M1 + 2 guard + 7 M3 + 8 M4 + 8 M5 + 9 M6 + 8 M8) EXIT 0
+npm run test:e2e   → 69 passed + 6 skipped (11 shell + 14 M1 + 2 guard + 7 M3 + 8 M4 + 8 M5 + 9 M6 + 10 M8) EXIT 0
 ```
 
 ## 6. Pendientes / coordinación

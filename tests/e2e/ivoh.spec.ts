@@ -145,10 +145,14 @@ interface MockState {
   score: Record<string, unknown> | null;
   scoreCalls: Array<Record<string, unknown>>;
   validateCalls: Array<Record<string, unknown>>;
+  viewUrls: string[];
   scoreStatus?: number;
   scoreBody?: unknown;
   validateStatus?: number;
+  validateStatusOnce?: boolean;
   validateBody?: unknown;
+  validateLabel?: string;
+  scoreLabel?: string;
 }
 
 function diagnosticBody(state: MockState) {
@@ -173,6 +177,7 @@ async function mockIvoh(page: Page, overrides: Partial<MockState> = {}): Promise
     score: null,
     scoreCalls: [],
     validateCalls: [],
+    viewUrls: [],
     ...overrides,
   };
 
@@ -196,16 +201,18 @@ async function mockIvoh(page: Page, overrides: Partial<MockState> = {}): Promise
   await page.route('**/rest/v1/ivoh_rubrics**', (route) => json(route, 200, RUBRICS));
   await page.route('**/rest/v1/ivoh_semaforo**', (route) => json(route, 200, SEMAFORO));
   await page.route('**/rest/v1/ivoh_evaluations**', (route) => json(route, 200, state.evaluations));
-  await page.route('**/rest/v1/v_ivoh_capture**', (route) =>
-    state.capture === null
+  await page.route('**/rest/v1/v_ivoh_capture**', (route) => {
+    state.viewUrls.push(route.request().url());
+    return state.capture === null
       ? route.fulfill({ status: 204, headers: CORS_HEADERS })
-      : json(route, 200, state.capture),
-  );
-  await page.route('**/rest/v1/v_ivoh_score**', (route) =>
-    state.score === null
+      : json(route, 200, state.capture);
+  });
+  await page.route('**/rest/v1/v_ivoh_score**', (route) => {
+    state.viewUrls.push(route.request().url());
+    return state.score === null
       ? route.fulfill({ status: 204, headers: CORS_HEADERS })
-      : json(route, 200, state.score),
-  );
+      : json(route, 200, state.score);
+  });
 
   await page.route('**/functions/v1/ef-06-ivoh/ivoh/**', async (route) => {
     const url = route.request().url();
@@ -249,17 +256,22 @@ async function mockIvoh(page: Page, overrides: Partial<MockState> = {}): Promise
       });
     }
     state.validateCalls.push(body);
-    if (state.validateStatus && state.validateStatus >= 400) {
-      return json(route, state.validateStatus, state.validateBody ?? {});
+    const shouldFail =
+      state.validateStatus &&
+      state.validateStatus >= 400 &&
+      (!state.validateStatusOnce || state.validateCalls.length === 1);
+    if (shouldFail) {
+      return json(route, state.validateStatus ?? 500, state.validateBody ?? {});
     }
+    const label = state.validateLabel ?? 'Básico';
     state.evaluations = allEvaluations(7, 'validado_r4');
-    state.score = scoreFixture();
+    state.score = { ...scoreFixture(), semaforo_label: label, semaforo: 'amarillo' };
     state.ivohActual = 7.2;
     return json(route, 200, {
       diagnostic_id: DIAG,
       total: 7.2,
       semaforo: 'amarillo',
-      semaforo_label: 'Básico',
+      semaforo_label: label,
       por_factor: scoreFixture().por_factor,
     });
   });
@@ -393,6 +405,74 @@ test.describe('M8 — IVOH', () => {
 
     await expect(page.getByTestId('ivoh-error-F1')).toContainText('La versión del índice cambió');
     expect(state.scoreCalls).toHaveLength(1);
+  });
+
+  test('OBS seguridad: contenido externo se muestra como texto y el payload va saneado', async ({ page }) => {
+    const control = String.fromCharCode(7);
+    const malicious = '<script>alert(1)</script><img src=x onerror="alert(2)">';
+    const state = await mockIvoh(page, {
+      evaluations: allEvaluations(7, 'borrador'),
+      capture: captureFixture(),
+      validateStatus: 409,
+      validateStatusOnce: true,
+      validateBody: {
+        error: { code: 'GATE_BHE_R3', message: `Error ${malicious}` },
+      },
+      validateLabel: `<b>Básico</b>${malicious}`,
+    });
+    await seedSession(page, CLAIMS_EQUIPO);
+    await page.goto(`/ivoh/${DIAG}`);
+
+    await page.getByTestId('ivoh-just-F1').fill(`Justificación ${malicious}${control}`);
+    await page.getByTestId('ivoh-evidence-ref-F1-0').fill(malicious);
+    await page.getByTestId('ivoh-save-F1').click();
+    await expect(page.getByTestId('ivoh-status-F1')).toHaveText('Guardado');
+
+    const payload = JSON.stringify(state.scoreCalls.at(-1));
+    expect(payload).toContain('<script>');
+    expect(payload).not.toContain('\\u0007');
+
+    await page.getByTestId('ivoh-r4-logbook').fill('d4000000-0000-4000-8000-000000000001');
+    await page.getByTestId('ivoh-validate-submit').click();
+    await expect(page.getByTestId('ivoh-validate-error')).toBeVisible();
+    await expect(page.getByTestId('ivoh-validate-error')).toContainText('<script>alert(1)</script>');
+    await expect(page.getByTestId('ivoh-validate-error').locator('script, img')).toHaveCount(0);
+
+    await page.getByTestId('ivoh-validate-submit').click();
+    await expect(page.getByTestId('ivoh-notice')).toBeVisible();
+    await expect(page.getByTestId('ivoh-semaforo')).toContainText('<script>alert(1)</script>');
+    await expect(page.getByTestId('ivoh-semaforo').locator('script, img')).toHaveCount(0);
+    await expect(page.getByTestId('ivoh-notice').locator('script, img')).toHaveCount(0);
+  });
+
+  test('OBS seguridad: vistas con columnas explícitas (select distinto de *)', async ({ page }) => {
+    const state = await mockIvoh(page, {
+      evaluations: allEvaluations(7, 'borrador'),
+      capture: captureFixture(),
+    });
+    await seedSession(page, CLAIMS_EQUIPO);
+    await page.goto(`/ivoh/${DIAG}`);
+    await expect(page.getByTestId('ivoh-detail-page')).toBeVisible();
+    await expect(page.getByTestId('ivoh-total')).toHaveText('7.2');
+
+    const captureUrl = state.viewUrls.find((url) => url.includes('v_ivoh_capture'));
+    expect(captureUrl).toBeTruthy();
+    const captureSelect = decodeURIComponent(captureUrl ?? '').split('select=')[1]?.split('&')[0] ?? '';
+    expect(captureSelect).not.toBe('*');
+    expect(captureSelect).toContain('factores_guardados');
+    expect(captureSelect).toContain('total');
+
+    await page.getByTestId('ivoh-r4-logbook').fill('d4000000-0000-4000-8000-000000000001');
+    await page.getByTestId('ivoh-validate-submit').click();
+    await expect(page.getByTestId('ivoh-notice')).toBeVisible();
+    await expect(page.getByTestId('ivoh-radial')).toBeVisible();
+
+    const scoreUrl = state.viewUrls.find((url) => url.includes('v_ivoh_score'));
+    expect(scoreUrl).toBeTruthy();
+    const scoreSelect = decodeURIComponent(scoreUrl ?? '').split('select=')[1]?.split('&')[0] ?? '';
+    expect(scoreSelect).not.toBe('*');
+    expect(scoreSelect).toContain('ivoh');
+    expect(scoreSelect).toContain('semaforo_label');
   });
 
   test('observador: solo lectura (sin validar y factores deshabilitados)', async ({ page }) => {
