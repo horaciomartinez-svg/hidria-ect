@@ -183,3 +183,30 @@ Deno.test("XLSX: rechaza celda con fórmula autocerrada <f/> (M2)", async () => 
     "formula_no_permitida",
   );
 });
+
+Deno.test("XLSX: allowFormula solo en O/P (BHE) y rechaza fórmula en C–N", async () => {
+  const allowed =
+    '<worksheet><sheetData><row r="6"><c r="B6" t="inlineStr"><is><t>x</t></is></c>' +
+    '<c r="O7"><f>SUM(C7:N7)</f><v>0</v></c><c r="C8"><v>5</v></c></row></sheetData></worksheet>';
+  const parsed = await parseXlsx(
+    zipStored(workbookFiles(allowed)),
+    undefined,
+    {
+      allowFormula: (_sheet, row, column) =>
+        row >= 6 && (column === 15 || column === 16),
+    },
+  );
+  assertEquals(parsed.sheets[0].rows.get(7)?.get(15), undefined);
+  assertEquals(parsed.sheets[0].rows.get(8)?.get(3), "5");
+
+  const monthly =
+    '<worksheet><sheetData><row r="8"><c r="C8"><f>SUM(C7)</f><v>1</v></c></row></sheetData></worksheet>';
+  await throwsApi(
+    () =>
+      parseXlsx(zipStored(workbookFiles(monthly)), undefined, {
+        allowFormula: (_sheet, row, column) =>
+          row >= 6 && (column === 15 || column === 16),
+      }),
+    "formula_no_permitida",
+  );
+});
