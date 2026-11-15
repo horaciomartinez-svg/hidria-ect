@@ -81,6 +81,7 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - La autoridad final sigue siendo el trigger; la RPC garantiza el mismo invariante al cerrar y la inmutabilidad post-R3 evita que se altere después.
 
 ### D10 — RPC y contrato (B4–B6)
+> **Superseded en firma/MIME por D18:** `fn_import_bhe` incluye `p_periodo_anio` y EF-09 BHE acepta solo XLSX; esta sección se conserva como contexto.
 - `fn_validate_bhe_r3(p_user_id,p_balance_id,p_r3_logbook_id,p_idempotency_key,p_request_hash)`:
   - rol coord/equipo, tenant/membresía, `estado='en_captura'`, ficha `BIT-R3-*` cerrada del mismo diagnóstico, 12 meses, brecha ≤10.
   - brecha >10 ⇒ `GATE_BHE_BRECHA` 409 con `details.meses[{mes,brecha_pct}]` y **sin** cambiar estado.
@@ -131,12 +132,12 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - Columnas: `mes` 1..12, `entradas_m3`, `destinos_m3`, `descargas_m3`, `perdidas_m3`, `circular_m3`, `brecha_m3`, `brecha_pct` (NULL si `entradas=0`), `flujos_count`, `tiene_captura` boolean.
 - Mes sin flujos: `brecha_m3=0`, `brecha_pct=NULL`, `tiene_captura=false`, `flujos_count=0`; la UI pinta “sin captura”, no calcula.
 - La RPC exige 12 meses con captura (`tiene_captura=true` en todos) y `entradas>0`; si no ⇒ `VALIDATION_BHE_INCOMPLETO`/`GATE_BHE_BRECHA`.
-- `v_bhe_capture_summary`: `brecha_anual_pct` ponderada, `brecha_max_mes_pct`, `meses_sobre_umbral`, `meses_con_captura`.
+- `v_bhe_capture_summary`: `brecha_anual_pct` ponderada, `brecha_max_mes_pct`, `meses_sobre_umbral`, **`meses_con_captura`**, **`captura_completa`** (booleano, 12/12), **`tiene_datos`** (booleano).
 
 ### D17 — Contrato UI/spec (B12/B13)
 - **Versión vigente:** la UI lee/edita `water_balances` con `ORDER BY version DESC LIMIT 1` (la más reciente). Histórico validado es solo lectura y **fuera de F1-09** (sin selector de versión); una reevaluación futura creará nueva `version`.
 - **Precedencia de errores EF-05:** primero `VALIDATION_BHE_INCOMPLETO` (422) si <12 meses con captura/`entradas=0`; después `GATE_BHE_BRECHA` (409) si hay brecha mensual >10. La UI puede deshabilitar “Validar R3” hasta 12 meses con captura, pero el servidor decide.
-- **Resumen sin datos:** `brecha_anual_pct=NULL`, `brecha_max_mes_pct=NULL`, `meses_sobre_umbral=0`, `tiene_datos=false`; UI “pendiente/—”, sin semáforo verde.
+- **Resumen sin datos:** `brecha_anual_pct=NULL`, `brecha_max_mes_pct=NULL`, `meses_sobre_umbral=0`, `meses_con_captura=0`, `captura_completa=false`, `tiene_datos=false`; UI “pendiente/—”, sin semáforo verde.
 - **Plantilla UI:** guía con hojas `1. Entradas`, `2. Destinos del agua`, `3. Reúso y calidad` (Parte A), `4. Balance e indicadores`; `periodo_anio` del formulario debe coincidir con la plantilla y `water_balances.periodo_anio`.
 - **Gate F5:** la UI lee `diagnostics.fase_actual` y el estado/brecha del balance; no inventa endpoint. El gate real lo evalúa `check_phase_gate`/EF-01.
 - **`bhe_validated`:** recarga tras EF-05; evento best-effort (si Realtime no está disponible, reload); no es fuente de verdad.
