@@ -113,6 +113,7 @@ interface MockState {
   assets: ReturnType<typeof asset>[];
   writeCalls: Array<{ method: string; body: unknown; url: string }>;
   ef09Calls: Array<Record<string, unknown>>;
+  ef09Urls: string[];
   ef08: { presign: unknown[]; register: unknown[] };
   ef09Status?: number;
   ef09Body?: unknown;
@@ -146,6 +147,7 @@ async function mockIih(page: Page, overrides: Partial<MockState> = {}): Promise<
     ],
     writeCalls: [],
     ef09Calls: [],
+    ef09Urls: [],
     ef08: { presign: [], register: [] },
     ...overrides,
   };
@@ -211,6 +213,7 @@ async function mockIih(page: Page, overrides: Partial<MockState> = {}): Promise<
   });
   await page.route('**/functions/v1/ef-09-import/**', async (route) => {
     state.ef09Calls.push(JSON.parse(route.request().postData() ?? '{}'));
+    state.ef09Urls.push(route.request().url());
     if (state.ef09Status && state.ef09Status >= 400) {
       return json(route, state.ef09Status, state.ef09Body ?? {});
     }
@@ -218,8 +221,10 @@ async function mockIih(page: Page, overrides: Partial<MockState> = {}): Promise<
       kind: 'iih',
       destino_id: DIAG,
       filas_ok: 2,
-      filas_rechazadas: [{ fila: 10, razon: 'Capacidad inválida' }],
-      advertencias: ['Una fila sin evidencia'],
+      filas_rechazadas: [
+        { fila: 10, razon: 'Capacidad inválida <img src=x onerror="alert(1)">' },
+      ],
+      advertencias: ['Una fila sin evidencia <script>alert(1)</script>'],
     });
   });
   await corsPreflight(page);
@@ -269,6 +274,8 @@ test.describe('M5 — IIH', () => {
     await page.getByTestId('iih-save').click();
 
     await expect(page.getByTestId('iih-notice')).toBeVisible();
+    // SEC-PR65-01/OBS: la organización no es un campo editable del formulario.
+    await expect(page.getByTestId('iih-form').getByLabel(/organización/i)).toHaveCount(0);
     const post = state.writeCalls.find((call) => call.method === 'POST');
     expect(post?.body).toMatchObject({
       diagnostic_id: DIAG,
@@ -277,6 +284,7 @@ test.describe('M5 — IIH', () => {
       stage_code: 'CAP',
     });
     expect(post?.body).not.toHaveProperty('folio');
+    expect(post?.body).not.toHaveProperty('created_by');
   });
 
   test('equipo: edición/verificación V1 sin enviar campos server-side', async ({ page }) => {
@@ -293,6 +301,9 @@ test.describe('M5 — IIH', () => {
     expect(patch?.body).toMatchObject({ verificado_v1: true });
     expect(patch?.body).not.toHaveProperty('folio');
     expect(patch?.body).not.toHaveProperty('organization_id');
+    // OBS seguridad: el UPDATE va scoped al id del activo, sin diagnostic_id manipulable.
+    expect(patch?.url).toContain('id=eq.a5000000-0000-4000-8000-000000000001');
+    expect(patch?.body).not.toHaveProperty('diagnostic_id');
   });
 
   test('observador: sólo lectura (sin alta, edición ni import)', async ({ page }) => {
@@ -318,6 +329,8 @@ test.describe('M5 — IIH', () => {
     await expect(page.getByTestId('iih-import-result')).toContainText('Filas válidas: 2');
     await expect(page.getByTestId('iih-import-result')).toContainText('Fila');
     await expect(page.getByTestId('iih-import-result')).toContainText('Capacidad inválida');
+    await expect(page.getByTestId('iih-import-result')).toContainText('<img src=x onerror="alert(1)">');
+    await expect(page.getByTestId('iih-import-result').locator('img, script')).toHaveCount(0);
 
     expect(state.ef08.presign).toHaveLength(1);
     expect(state.ef08.register).toHaveLength(1);
@@ -326,6 +339,7 @@ test.describe('M5 — IIH', () => {
       document_id: DOC_ID,
       kind: 'iih',
     });
+    expect(state.ef09Urls[0]).toMatch(/\/functions\/v1\/ef-09-import\/import\/xlsx$/);
   });
 
   test('estructura XLSX inválida (422) muestra el error de EF-09', async ({ page }) => {

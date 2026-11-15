@@ -184,6 +184,20 @@ export interface FieldError {
   message: string;
 }
 
+/**
+ * Texto de origen externo (EF-09: `razon`/advertencias) que se muestra como texto plano:
+ * elimina caracteres de control y acota longitud. React ya escapa HTML; esto evita además
+ * celdas absurdamente largas o ruido de control sin interpretar markup.
+ */
+export function sanitizeText(value: unknown, maxLength = 300): string {
+  const raw = typeof value === 'string' ? value : String(value ?? '');
+  return raw
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .slice(0, maxLength);
+}
+
+
 /** Validación de cliente (complementa CHECK/RLS; el servidor es la autoridad). */
 export function validateAssetInput(input: IihAssetInput): FieldError[] {
   const errors: FieldError[] = [];

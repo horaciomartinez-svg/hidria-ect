@@ -28,6 +28,7 @@ import {
   assetToInput,
   computeSummary,
   emptyAssetInput,
+  sanitizeText,
   validateAssetInput,
   validateXlsxFile,
   type FieldError,
@@ -391,7 +392,7 @@ export function IihInventoryPage() {
             {importResult.advertencias.length > 0 && (
               <ul className="mt-1 list-inside list-disc text-amber-800">
                 {importResult.advertencias.map((warning) => (
-                  <li key={warning}>{warning}</li>
+                  <li key={sanitizeText(warning)}>{sanitizeText(warning)}</li>
                 ))}
               </ul>
             )}
@@ -407,9 +408,9 @@ export function IihInventoryPage() {
                   </thead>
                   <tbody>
                     {importResult.filas_rechazadas.map((row) => (
-                      <tr key={`${row.fila}-${row.razon}`} className="border-t border-line">
+                      <tr key={`${row.fila}-${sanitizeText(row.razon)}`} className="border-t border-line">
                         <td className="py-1 pr-3 font-mono">{row.fila}</td>
-                        <td className="py-1">{row.razon}</td>
+                        <td className="py-1">{sanitizeText(row.razon)}</td>
                       </tr>
                     ))}
                   </tbody>
