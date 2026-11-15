@@ -28,10 +28,10 @@ from public.iih_asset_types where stage_code='CAP' order by id limit 1;
 insert into public.logbook_entries (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by)
 values ('fa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','R3','BIT-R3-109','Coord','2026-01-26','09:00','cerrada','ca000000-0000-4000-8000-000000000001');
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version) values
-  ('ea000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',1),
-  ('ea000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',10),
-  ('ea000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'borrador',11),
-  ('ea000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',12);
+  ('ea000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',1),
+  ('ea000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',10),
+  ('ea000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'borrador',11),
+  ('ea000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',12);
 insert into public.documents (id,organization_id,diagnostic_id,doc_type,title,r2_key,sha256,mime,size_bytes,uploaded_by) values
   ('fa000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','otro','bhe.xlsx','org/a/diag/d/bhe.xlsx',repeat('a',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001'),
   ('fa000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000b1','da000000-0000-4000-8000-000000000001','otro','ajeno.xlsx','org/b/diag/d/ajeno.xlsx',repeat('b',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001'),
@@ -92,14 +92,14 @@ select 'ea000000-0000-4000-8000-000000000003', code, 1, 1 from public.balance_fl
 select is((select estado from public.water_balances where id='ea000000-0000-4000-8000-000000000003'), 'en_captura', 'primer flujo pasa a en_captura');
 
 set local role service_role;
-select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
   jsonb_build_array(jsonb_build_object('fila',2,'catalog_code',(select code from public.balance_flow_catalog where grupo='entrada' limit 1),'mes',1,'volumen_m3',10)) ,repeat('a',64),'bhe-1','bhe-h1'))->'data'->>'filas_ok', '1', 'import BHE filas_ok');
-select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
   jsonb_build_array(jsonb_build_object('fila',2,'catalog_code',(select code from public.balance_flow_catalog where grupo='entrada' limit 1),'mes',1,'volumen_m3',10)) ,repeat('a',64),'bhe-1','bhe-h1'))->>'replayed', 'true', 'import BHE replay');
-select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000003',2026,'[]'::jsonb,repeat('b',64)))->>'code', 'FORBIDDEN_NOT_MEMBER', 'import documento ajeno rechazado');
-select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,'[]'::jsonb,repeat('b',64)))->>'code', 'VALIDATION_XLSX_CONTENIDO', 'import checksum distinto rechazado');
-select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000004',2026,'[]'::jsonb,repeat('c',64)))->>'code', 'VALIDATION_XLSX_ESTRUCTURA', 'import MIME no XLSX rechazado');
-select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000003',2026::smallint,'[]'::jsonb,repeat('b',64)))->>'code', 'FORBIDDEN_NOT_MEMBER', 'import documento ajeno rechazado');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,'[]'::jsonb,repeat('b',64)))->>'code', 'VALIDATION_XLSX_CONTENIDO', 'import checksum distinto rechazado');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000004',2026::smallint,'[]'::jsonb,repeat('c',64)))->>'code', 'VALIDATION_XLSX_ESTRUCTURA', 'import MIME no XLSX rechazado');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
   jsonb_build_array(jsonb_build_object('fila',3,'catalog_code','NOEXISTE','mes',1,'volumen_m3',1)) ,repeat('a',64)))->>'code', 'VALIDATION_BHE_INCOMPLETO', 'import 0 filas válidas no toca balance');
 select is((select count(*) from public.balance_flows where balance_id='ea000000-0000-4000-8000-000000000003'), 1::bigint, 'import 0 válidas conserva flows');
 

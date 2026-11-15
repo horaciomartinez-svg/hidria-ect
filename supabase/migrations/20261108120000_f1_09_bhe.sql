@@ -80,7 +80,10 @@ select
   max(brecha_pct) > 10 as balance_no_cierra,
   round(100.0 * sum(brecha_m3) / nullif(sum(entradas_m3),0),2) as brecha_anual_pct,
   max(brecha_pct) as brecha_max_mes_pct,
-  count(*) filter (where brecha_pct > 10) as meses_sobre_umbral
+  count(*) filter (where brecha_pct > 10) as meses_sobre_umbral,
+  count(*) as meses_con_captura,
+  count(*) = 12 as captura_completa,
+  count(*) > 0 as tiene_datos
 from public.v_bhe_monthly
 group by diagnostic_id,balance_id;
 
@@ -95,6 +98,9 @@ returns trigger language plpgsql security definer set search_path=public,pg_temp
 declare v_diag_org uuid;
 begin
   select d.organization_id into v_diag_org from public.diagnostics d where d.id=new.diagnostic_id;
+  if tg_op='INSERT' and v_diag_org is not null then
+    new.organization_id := v_diag_org;  -- server-side: el cliente no envía org (ADR D13)
+  end if;
   if v_diag_org is null or new.organization_id is distinct from v_diag_org then
     raise exception 'BHE: organization_id debe ser el tenant del diagnóstico.' using errcode='42501';
   end if;
