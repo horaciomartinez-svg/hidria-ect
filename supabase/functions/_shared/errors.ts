@@ -28,6 +28,7 @@ export const HTTP_STATUS_BY_ERROR_CODE = {
   GATE_BHE_R3: 409,
   GATE_R3_FICHA: 409,
   GATE_IVOH_R4: 409,
+  GATE_R4_FICHA: 409,
   GATE_FICHA: 409,
   GATE_BHE_BRECHA: 409,
   GATE_CUSTODIA: 409,
@@ -60,6 +61,8 @@ export const DEFAULT_ERROR_MESSAGES: Record<CanonicalErrorCode, string> = {
   GATE_R3_FICHA:
     "La ficha de bitácora R3 no está cerrada o no corresponde al balance.",
   GATE_IVOH_R4: "El IVOH no está validado en R4 (se requieren 6/6 factores).",
+  GATE_R4_FICHA:
+    "La ficha de bitácora R4 no está cerrada o no corresponde al diagnóstico.",
   GATE_FICHA: "La ficha de bitácora de respaldo del hito no está cerrada.",
   GATE_BHE_BRECHA:
     "Un balance que no cierra no es un dato, es una tarea pendiente.",
