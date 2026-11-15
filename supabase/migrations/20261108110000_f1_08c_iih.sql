@@ -92,6 +92,8 @@ declare
   v_ok integer := 0;
   v_rejected jsonb := '[]'::jsonb;
   v_asset_type public.iih_asset_types%rowtype;
+  v_asset_type_id bigint;
+  v_prioridad text;
   v_audit text;
   v_resp jsonb;
   v_reason text;
@@ -141,6 +143,9 @@ begin
   if v_doc.upload_status <> 'registered' then
     return jsonb_build_object('ok', false, 'code', 'CONFLICT_STATE', 'message', 'El documento del XLSX no está registrado.');
   end if;
+  if v_doc.mime not in ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel') then
+    return jsonb_build_object('ok', false, 'code', 'VALIDATION_XLSX_ESTRUCTURA', 'message', 'El documento no es un XLSX/XLS.');
+  end if;
   if p_checksum is null or p_checksum <> v_doc.sha256 then
     return jsonb_build_object('ok', false, 'code', 'VALIDATION_XLSX_CONTENIDO', 'message', 'Checksum del XLSX no coincide con el documento registrado.');
   end if;
@@ -156,27 +161,41 @@ begin
          or nullif(v_row->>'opera', '') is null
          or nullif(v_row->>'criticidad', '') is null
          or nullif(v_row->>'intervencion', '') is null
-         or nullif(v_row->>'prioridad', '') is null
-         or (v_row->>'asset_type_id') is null then
+         or coalesce(nullif(v_row->>'asset_code',''), nullif(v_row->>'asset_type_id','')) is null then
         raise exception 'campos obligatorios incompletos';
       end if;
-      select * into v_asset_type from public.iih_asset_types where id = (v_row->>'asset_type_id')::bigint;
-      if not found or v_asset_type.stage_code <> (v_row->>'stage_code') then
-        raise exception 'asset_type_id no corresponde a la etapa';
+      if nullif(v_row->>'asset_code','') is not null then
+        select * into v_asset_type from public.iih_asset_types
+         where code = (v_row->>'asset_code') and stage_code = (v_row->>'stage_code');
+        if not found then
+          raise exception 'asset_code no corresponde a la etapa';
+        end if;
+        v_asset_type_id := v_asset_type.id;
+      else
+        select * into v_asset_type from public.iih_asset_types where id = (v_row->>'asset_type_id')::bigint;
+        if not found or v_asset_type.stage_code <> (v_row->>'stage_code') then
+          raise exception 'asset_type_id no corresponde a la etapa';
+        end if;
+        v_asset_type_id := v_asset_type.id;
       end if;
+      v_prioridad := case v_row->>'criticidad'
+        when 'alta' then 'alta'
+        when 'media' then 'media'
+        else 'baja'
+      end;
       insert into public.iih_assets
         (organization_id, diagnostic_id, stage_code, asset_type_id, tag, ubicacion, capacidad,
          capacidad_unidad, potencia_kw, material, anio_instalacion, estado_fisico, opera, criticidad,
          respaldo, suficiencia, mantenimiento_tipo, ultimo_servicio, intervencion, prioridad, observaciones)
       values
         (v_diag.organization_id, p_diagnostic_id, v_row->>'stage_code',
-         (v_row->>'asset_type_id')::bigint, v_row->>'tag', v_row->>'ubicacion',
+         v_asset_type_id, v_row->>'tag', v_row->>'ubicacion',
          nullif(v_row->>'capacidad','')::numeric, nullif(v_row->>'capacidad_unidad',''),
          nullif(v_row->>'potencia_kw','')::numeric, nullif(v_row->>'material',''),
          nullif(v_row->>'anio_instalacion','')::smallint, v_row->>'estado_fisico', v_row->>'opera',
          v_row->>'criticidad', coalesce((v_row->>'respaldo')::boolean, false),
          nullif(v_row->>'suficiencia',''), nullif(v_row->>'mantenimiento_tipo',''),
-         nullif(v_row->>'ultimo_servicio','')::date, v_row->>'intervencion', v_row->>'prioridad',
+         nullif(v_row->>'ultimo_servicio','')::date, v_row->>'intervencion', v_prioridad,
          nullif(v_row->>'observaciones',''));
       v_ok := v_ok + 1;
     exception when others then
