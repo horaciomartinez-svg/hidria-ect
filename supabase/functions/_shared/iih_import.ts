@@ -584,6 +584,7 @@ export function createIihImportHandler(
           parseXlsx(bytes, {
             maxEntries: 256,
             maxTotalUncompressedBytes: 25 * 1024 * 1024,
+            maxEntryUncompressedBytes: 10 * 1024 * 1024,
             maxEntryRatio: 200,
             maxRows: limits?.maxRows ?? MAX_IMPORT_ROWS + 10,
           }));

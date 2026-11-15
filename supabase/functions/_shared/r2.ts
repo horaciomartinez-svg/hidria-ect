@@ -751,21 +751,54 @@ export async function downloadObject(
   }
   let bytes: Uint8Array;
   try {
-    bytes = new Uint8Array(await response.arrayBuffer());
-  } catch {
+    // SEC-PR64-02: lectura streaming con cap; no se materializa el objeto completo
+    // si supera `maxBytes` (aunque no haya Content-Length).
+    const body = response.body;
+    if (body === null) {
+      const buffer = new Uint8Array(await response.arrayBuffer());
+      if (buffer.byteLength > maxBytes) {
+        throw new ApiError(
+          "VALIDATION_FILE",
+          "El archivo excede el tamaño máximo permitido.",
+          { reason: "archivo_demasiado_grande", max_bytes: maxBytes },
+        );
+      }
+      bytes = buffer;
+    } else {
+      const reader = body.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value === undefined) continue;
+          total += value.byteLength;
+          if (total > maxBytes) {
+            await reader.cancel();
+            throw new ApiError(
+              "VALIDATION_FILE",
+              "El archivo excede el tamaño máximo permitido.",
+              { reason: "archivo_demasiado_grande", max_bytes: maxBytes },
+            );
+          }
+          chunks.push(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      bytes = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(
       "INTERNAL_ERROR",
       "No se pudo leer el archivo del almacenamiento.",
-    );
-  }
-  if (bytes.byteLength > maxBytes) {
-    throw new ApiError(
-      "VALIDATION_FILE",
-      "El archivo excede el tamaño máximo permitido.",
-      {
-        reason: "archivo_demasiado_grande",
-        max_bytes: maxBytes,
-      },
     );
   }
   const contentType = response.headers.get("content-type");

@@ -11,6 +11,7 @@ import { ApiError } from "./errors.ts";
 export interface XlsxLimits {
   readonly maxEntries: number;
   readonly maxTotalUncompressedBytes: number;
+  readonly maxEntryUncompressedBytes: number;
   readonly maxEntryRatio: number;
   readonly maxRows: number;
 }
@@ -18,6 +19,7 @@ export interface XlsxLimits {
 export const DEFAULT_XLSX_LIMITS: XlsxLimits = {
   maxEntries: 256,
   maxTotalUncompressedBytes: 25 * 1024 * 1024,
+  maxEntryUncompressedBytes: 10 * 1024 * 1024,
   maxEntryRatio: 200,
   maxRows: 2000,
 };
@@ -80,11 +82,45 @@ interface ZipEntry {
   readonly bytes: Uint8Array;
 }
 
-async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+/**
+ * Inflate **streaming** con tope duro: acumula por chunks y cancela el stream en
+ * cuanto el tamaño descomprimido excede `maxBytes` (SEC-PR64-01: nunca se
+ * materializa una entrada bomba completa en memoria).
+ */
+async function inflateRawCapped(
+  data: Uint8Array,
+  maxBytes: number,
+): Promise<Uint8Array> {
   const stream = new Blob([data as unknown as BlobPart]).stream().pipeThrough(
     new DecompressionStream("deflate-raw"),
   );
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw structureError("zip_bomba_detectada", {
+          max_bytes: maxBytes,
+        });
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
 }
 
 async function readZipEntries(
@@ -119,11 +155,28 @@ async function readZipEntries(
     if (flags & 0x0001) {
       throw structureError("zip_cifrado_no_permitido");
     }
+    const remainingTotal = limits.maxTotalUncompressedBytes - totalUncompressed;
+    const ratioCap = compressedSize > 0
+      ? Math.max(compressedSize * limits.maxEntryRatio, 1024)
+      : limits.maxEntryUncompressedBytes;
+    const cap = Math.min(
+      limits.maxEntryUncompressedBytes,
+      remainingTotal,
+      ratioCap,
+    );
+    if (cap <= 0) {
+      throw structureError("zip_demasiado_grande", {
+        max_bytes: limits.maxTotalUncompressedBytes,
+      });
+    }
     let content: Uint8Array;
     if (method === 0) {
       content = data;
+      if (content.byteLength > cap) {
+        throw structureError("zip_bomba_detectada", { max_bytes: cap });
+      }
     } else if (method === 8) {
-      content = await inflateRaw(data);
+      content = await inflateRawCapped(data, cap);
     } else {
       throw structureError("zip_metodo_no_soportado", { method });
     }
@@ -180,7 +233,7 @@ function parseSheetRows(
   while ((match = cellRegex.exec(xml)) !== null) {
     const attrs = match[1] ?? "";
     const inner = match[2] ?? "";
-    if (/<f(?:\s|>)/.test(inner)) {
+    if (/<f(?:\s|\/?>)/.test(inner)) {
       throw structureError("formula_no_permitida");
     }
     const refMatch = /\br="([A-Z]+)(\d+)"/.exec(attrs);
