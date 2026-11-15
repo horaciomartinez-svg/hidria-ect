@@ -101,7 +101,7 @@ begin
   if tg_op='INSERT' then
     if auth.uid() is not null then
       new.estado := 'borrador';
-      new.version := 1;
+      new.version := coalesce((select max(wb.version)+1 from public.water_balances wb where wb.diagnostic_id=new.diagnostic_id),1);
       new.validado_r3_logbook_id := null;
     end if;
   else
@@ -185,7 +185,7 @@ begin
     if new.fase_actual >= 4 and exists (select 1 from public.iih_assets a where a.diagnostic_id=new.id and not a.verificado_v1) then
       raise exception 'Gate F4: el IIH tiene activos sin verificar en V1.';
     end if;
-    if new.fase_actual >= 5 then
+    if old.fase_actual < 5 and new.fase_actual >= 5 then
       if not exists (select 1 from public.water_balances wb where wb.diagnostic_id=new.id and wb.estado='validado_r3') then
         raise exception 'Gate F5: el balance hídrico no está validado en R3.';
       end if;
@@ -224,8 +224,8 @@ begin
     return jsonb_build_object('ok',false,'code','VALIDATION_PARAMETRO_REQUERIDO','message','Parámetros incompletos.');
   end if;
   if v_key is not null then
-    perform pg_advisory_xact_lock(hashtext('EF-05.validate:'||p_user_id::text||':'||v_key));
-    select * into v_existing from public.api_idempotency where user_id=p_user_id and endpoint='EF-05.validate' and key=v_key;
+    perform pg_advisory_xact_lock(hashtext('EF-05.validate-r3:'||p_user_id::text||':'||v_key));
+    select * into v_existing from public.api_idempotency where user_id=p_user_id and endpoint='EF-05.validate-r3' and key=v_key;
     if found then
       if v_existing.request_hash is distinct from coalesce(p_request_hash,'') then return jsonb_build_object('ok',false,'code','CONFLICT_STATE','message','Idempotency-Key reutilizada con otro request.'); end if;
       if v_existing.response_body is not null then return v_existing.response_body || jsonb_build_object('replayed',true); end if;
@@ -261,7 +261,7 @@ begin
   v_audit := public.fn_audit_write(p_user_id,'approve','water_balances',p_balance_id::text,
     jsonb_build_object('estado_anterior',v_bal.estado,'estado_nuevo','validado_r3','ficha_r3_id',v_ficha,'brecha_anual_pct',v_annual,'idempotency_key',v_key));
   v_resp := jsonb_build_object('ok',true,'replayed',false,'data',jsonb_build_object('balance_id',p_balance_id,'estado','validado_r3','brecha_anual_pct',v_annual,'brecha_max_mes_pct',v_max,'meses_sobre_umbral',0),'audit_ref','audit:'||v_audit);
-  if v_key is not null then insert into public.api_idempotency(user_id,endpoint,key,request_hash,status_code,response_body,response_ref,completed_at) values (p_user_id,'EF-05.validate',v_key,coalesce(p_request_hash,''),200,v_resp,'audit:'||v_audit,now()); end if;
+  if v_key is not null then insert into public.api_idempotency(user_id,endpoint,key,request_hash,status_code,response_body,response_ref,completed_at) values (p_user_id,'EF-05.validate-r3',v_key,coalesce(p_request_hash,''),200,v_resp,'audit:'||v_audit,now()); end if;
   return v_resp;
 end; $$;
 revoke all on function public.fn_validate_bhe_r3(uuid,uuid,uuid,text,text) from public,anon,authenticated;
@@ -280,7 +280,8 @@ declare
   v_existing public.api_idempotency%rowtype;
   v_role text; v_diag public.diagnostics%rowtype; v_doc public.documents%rowtype;
   v_bal public.water_balances%rowtype; v_row jsonb; v_ord int:=0; v_ok int:=0;
-  v_rejected jsonb:='[]'::jsonb; v_balance_id uuid; v_audit text; v_resp jsonb;
+  v_rejected jsonb:='[]'::jsonb; v_valid jsonb:='[]'::jsonb;
+  v_balance_id uuid; v_audit text; v_resp jsonb;
 begin
   if p_user_id is null or p_diagnostic_id is null or p_document_id is null or p_periodo_anio is null or p_rows is null then
     return jsonb_build_object('ok',false,'code','VALIDATION_PARAMETRO_REQUERIDO','message','Parámetros incompletos.');
@@ -300,8 +301,9 @@ begin
   v_role := public.fn_diag_role(p_user_id,p_diagnostic_id);
   if v_role is null or v_role not in ('coordinador','equipo') then return jsonb_build_object('ok',false,'code','FORBIDDEN_ROLE','message','Solo coordinador/equipo importa BHE.'); end if;
   select * into v_diag from public.diagnostics where id=p_diagnostic_id;
-  if not found or not exists (select 1 from public.profiles p where p.user_id=p_user_id and p.organization_id=v_diag.organization_id) then
-    return jsonb_build_object('ok',false,'code','FORBIDDEN_NOT_MEMBER','message','Diagnóstico/tenant inválido.');
+  if not found or v_diag.estado <> 'activo'
+     or not exists (select 1 from public.profiles p where p.user_id=p_user_id and p.organization_id=v_diag.organization_id) then
+    return jsonb_build_object('ok',false,'code','FORBIDDEN_NOT_MEMBER','message','Diagnóstico/tenant inválido o no activo.');
   end if;
   select * into v_doc from public.documents where id=p_document_id;
   if not found or v_doc.diagnostic_id <> p_diagnostic_id or v_doc.organization_id <> v_diag.organization_id or v_doc.upload_status <> 'registered' then
@@ -312,6 +314,32 @@ begin
   end if;
   if p_checksum is null or p_checksum <> v_doc.sha256 then
     return jsonb_build_object('ok',false,'code','VALIDATION_XLSX_CONTENIDO','message','Checksum no coincide con el documento.');
+  end if;
+
+  -- Staging en memoria: no toca cabecera/flows hasta tener >=1 fila válida.
+  for v_row in select value from jsonb_array_elements(p_rows) loop
+    v_ord := v_ord + 1;
+    begin
+      if nullif(v_row->>'catalog_code','') is null or nullif(v_row->>'mes','') is null or nullif(v_row->>'volumen_m3','') is null then
+        raise exception 'fila incompleta';
+      end if;
+      if (v_row->>'mes')::int not between 1 and 12 or (v_row->>'volumen_m3')::numeric < 0 then
+        raise exception 'mes/volumen inválido';
+      end if;
+      if not exists (select 1 from public.balance_flow_catalog where code=v_row->>'catalog_code') then
+        raise exception 'catalog_code inválido';
+      end if;
+      v_valid := v_valid || jsonb_build_array(jsonb_build_object(
+        'catalog_code', v_row->>'catalog_code', 'mes', (v_row->>'mes')::smallint,
+        'volumen_m3', (v_row->>'volumen_m3')::numeric,
+        'fila', coalesce(nullif(v_row->>'fila','')::int, v_ord)));
+      v_ok := v_ok + 1;
+    exception when others then
+      v_rejected := v_rejected || jsonb_build_array(jsonb_build_object('fila',coalesce(nullif(v_row->>'fila','')::int,v_ord),'razon',sqlerrm));
+    end;
+  end loop;
+  if v_ok = 0 then
+    return jsonb_build_object('ok',false,'code','VALIDATION_BHE_INCOMPLETO','message','Ninguna fila válida; no se modifica el balance ni sus flujos.','details',jsonb_build_object('filas_ok',0,'filas_rechazadas',v_rejected));
   end if;
 
   select * into v_bal from public.water_balances where diagnostic_id=p_diagnostic_id order by version desc limit 1;
@@ -327,28 +355,13 @@ begin
     returning id into v_balance_id;
   end if;
 
-  for v_row in select value from jsonb_array_elements(p_rows) loop
-    v_ord := v_ord + 1;
-    begin
-      if nullif(v_row->>'catalog_code','') is null or nullif(v_row->>'mes','') is null or nullif(v_row->>'volumen_m3','') is null then
-        raise exception 'fila incompleta';
-      end if;
-      if (v_row->>'mes')::int not between 1 and 12 or (v_row->>'volumen_m3')::numeric < 0 then
-        raise exception 'mes/volumen inválido';
-      end if;
-      if not exists (select 1 from public.balance_flow_catalog where code=v_row->>'catalog_code') then
-        raise exception 'catalog_code inválido';
-      end if;
-      insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
-      values (v_balance_id,v_row->>'catalog_code',(v_row->>'mes')::smallint,(v_row->>'volumen_m3')::numeric);
-      v_ok := v_ok + 1;
-    exception when others then
-      v_rejected := v_rejected || jsonb_build_array(jsonb_build_object('fila',coalesce(nullif(v_row->>'fila','')::int,v_ord),'razon',sqlerrm));
-    end;
+  for v_row in select value from jsonb_array_elements(v_valid) loop
+    insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
+    values (v_balance_id,v_row->>'catalog_code',(v_row->>'mes')::smallint,(v_row->>'volumen_m3')::numeric);
   end loop;
 
   v_audit := public.fn_audit_write(p_user_id,'create','water_balances',v_balance_id::text,
-    jsonb_build_object('import','xlsx','document_id',p_document_id,'periodo_anio',p_periodo_anio,
+    jsonb_build_object('import','xlsx','document_id',p_document_id,'checksum',p_checksum,'periodo_anio',p_periodo_anio,
                        'filas_ok',v_ok,'filas_rechazadas',v_rejected,'idempotency_key',v_key));
   v_resp := jsonb_build_object('ok',true,'replayed',false,
     'data',jsonb_build_object('destino_id',v_balance_id,'balance_id',v_balance_id,'periodo_anio',p_periodo_anio,

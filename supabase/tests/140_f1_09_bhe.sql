@@ -1,6 +1,6 @@
 -- F1-09 task-142 â€” pgTAP: BHE views, guards, RPC EF-05/EF-09 y gate F5.
 begin;
-select plan(19);
+select plan(26);
 
 insert into public.organizations (id,name,org_type) values
   ('aa000000-0000-4000-8000-0000000000a1','Org BHE A','srhds'),
@@ -33,7 +33,9 @@ insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio
   ('ea000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'borrador',11),
   ('ea000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026,1,'en_captura',12);
 insert into public.documents (id,organization_id,diagnostic_id,doc_type,title,r2_key,sha256,mime,size_bytes,uploaded_by) values
-  ('fa000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','otro','bhe.xlsx','org/a/diag/d/bhe.xlsx',repeat('a',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001');
+  ('fa000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','otro','bhe.xlsx','org/a/diag/d/bhe.xlsx',repeat('a',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001'),
+  ('fa000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000b1','da000000-0000-4000-8000-000000000001','otro','ajeno.xlsx','org/b/diag/d/ajeno.xlsx',repeat('b',64),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',10,'ca000000-0000-4000-8000-000000000001'),
+  ('fa000000-0000-4000-8000-000000000004','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','otro','pdf.xlsx','org/a/diag/d/pdf.pdf',repeat('c',64),'application/pdf',10,'ca000000-0000-4000-8000-000000000001');
 
 -- B1 balanced: 100 entrada, 40 proceso, 30 descarga, 20 pÃ©rdida, 10 circular => 0%.
 insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
@@ -88,6 +90,19 @@ reset role;
 insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
 select 'ea000000-0000-4000-8000-000000000003', code, 1, 1 from public.balance_flow_catalog limit 1;
 select is((select estado from public.water_balances where id='ea000000-0000-4000-8000-000000000003'), 'en_captura', 'primer flujo pasa a en_captura');
+
+set local role service_role;
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,
+  jsonb_build_array(jsonb_build_object('fila',2,'catalog_code',(select code from public.balance_flow_catalog where grupo='entrada' limit 1),'mes',1,'volumen_m3',10)) ,repeat('a',64),'bhe-1','bhe-h1'))->'data'->>'filas_ok', '1', 'import BHE filas_ok');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,
+  jsonb_build_array(jsonb_build_object('fila',2,'catalog_code',(select code from public.balance_flow_catalog where grupo='entrada' limit 1),'mes',1,'volumen_m3',10)) ,repeat('a',64),'bhe-1','bhe-h1'))->>'replayed', 'true', 'import BHE replay');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000003',2026,'[]'::jsonb,repeat('b',64)))->>'code', 'FORBIDDEN_NOT_MEMBER', 'import documento ajeno rechazado');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,'[]'::jsonb,repeat('b',64)))->>'code', 'VALIDATION_XLSX_CONTENIDO', 'import checksum distinto rechazado');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000004',2026,'[]'::jsonb,repeat('c',64)))->>'code', 'VALIDATION_XLSX_ESTRUCTURA', 'import MIME no XLSX rechazado');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026,
+  jsonb_build_array(jsonb_build_object('fila',3,'catalog_code','NOEXISTE','mes',1,'volumen_m3',1)) ,repeat('a',64)))->>'code', 'VALIDATION_BHE_INCOMPLETO', 'import 0 filas válidas no toca balance');
+select is((select count(*) from public.balance_flows where balance_id='ea000000-0000-4000-8000-000000000003'), 1::bigint, 'import 0 válidas conserva flows');
+
 
 reset role;
 reset request.jwt.claims;
