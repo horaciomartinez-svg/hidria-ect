@@ -1,6 +1,6 @@
 -- F1-09 task-142 â€” pgTAP: BHE views, guards, RPC EF-05/EF-09 y gate F5.
 begin;
-select plan(26);
+select plan(28);
 
 insert into public.organizations (id,name,org_type) values
   ('aa000000-0000-4000-8000-0000000000a1','Org BHE A','srhds'),
@@ -85,6 +85,8 @@ select is((select count(*) from updated), 0::bigint, 'observador no escribe bala
 select throws_ok($sql$ insert into public.balance_flows(balance_id,catalog_code,mes,volumen_m3) select 'ea000000-0000-4000-8000-000000000002',code,1,1 from public.balance_flow_catalog limit 1 $sql$, '42501', NULL, 'observador no escribe flows');
 set local request.jwt.claims = '{"sub":"ca000000-0000-4000-8000-000000000001","organization_id":"aa000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
 select throws_ok($sql$ update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'update directo gate fields denegado');
+select lives_ok($sql$ insert into public.water_balances(diagnostic_id,periodo_anio,mes_inicio) values ('da000000-0000-4000-8000-000000000001',2026,2) $sql$, 'INSERT sin organization_id: trigger la fija server-side');
+select throws_ok($sql$ insert into public.water_balances(organization_id,diagnostic_id,periodo_anio,mes_inicio) values ('aa000000-0000-4000-8000-0000000000b1','da000000-0000-4000-8000-000000000001',2026,2) $sql$, '42501', NULL, 'organization_id ajena rechazada');
 reset role;
 
 insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)

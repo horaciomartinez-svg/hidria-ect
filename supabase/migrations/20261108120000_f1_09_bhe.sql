@@ -98,7 +98,10 @@ returns trigger language plpgsql security definer set search_path=public,pg_temp
 declare v_diag_org uuid;
 begin
   select d.organization_id into v_diag_org from public.diagnostics d where d.id=new.diagnostic_id;
-  if tg_op='INSERT' and v_diag_org is not null then
+  if tg_op='INSERT' then
+    if new.organization_id is not null and new.organization_id is distinct from v_diag_org then
+      raise exception 'BHE: organization_id ajena al diagnóstico.' using errcode='42501';
+    end if;
     new.organization_id := v_diag_org;  -- server-side: el cliente no envía org (ADR D13)
   end if;
   if v_diag_org is null or new.organization_id is distinct from v_diag_org then
