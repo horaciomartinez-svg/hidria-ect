@@ -158,6 +158,14 @@ const BALANCE_COLUMNS =
 const SUMMARY_LIST_COLUMNS =
   'balance_id, brecha_anual_pct, brecha_max_mes_pct, meses_sobre_umbral, meses_con_captura, captura_completa, tiene_datos';
 
+/**
+ * Columnas del resumen (captura y validado). D16/D17 fijan el mismo contrato para
+ * `v_bhe_capture_summary` y `v_bhe_summary`; se listan explícitamente para no pedir columnas
+ * inexistentes en la vista validada (B2).
+ */
+const SUMMARY_COLUMNS =
+  'balance_id, entradas_anual_m3, destinos_anual_m3, descargas_anual_m3, perdidas_anual_m3, circular_anual_m3, brecha_anual_m3, brecha_anual_pct, brecha_max_mes_pct, meses_sobre_umbral, meses_con_captura, captura_completa, tiene_datos';
+
 export async function listBheDiagnostics(userId: string): Promise<BheListRow[]> {
   const db = client();
   const { data, error } = await db
@@ -310,7 +318,7 @@ export async function getBheContext(
       )
       .eq('balance_id', balance.id)
       .order('mes', { ascending: true }),
-    db.from(summaryTable).select('*').eq('balance_id', balance.id).maybeSingle(),
+    db.from(summaryTable).select(SUMMARY_COLUMNS).eq('balance_id', balance.id).maybeSingle(),
   ]);
   if (flowsResult.error) throw postgresError(flowsResult.error);
   if (monthlyResult.error) throw postgresError(monthlyResult.error);

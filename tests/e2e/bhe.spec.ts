@@ -114,6 +114,7 @@ interface MockState {
   ef05Status?: number;
   ef05Body?: unknown;
   summaryOverride?: Record<string, unknown> | null;
+  summaryViews: Array<{ table: string; url: string }>;
   importStatus?: number;
   importBody?: unknown;
 }
@@ -160,6 +161,7 @@ async function mockBhe(page: Page, overrides: Partial<MockState> = {}): Promise<
     saveCalls: [],
     createCalls: [],
     ef05Calls: [],
+    summaryViews: [],
     ef09Calls: [],
     ...overrides,
   };
@@ -234,6 +236,7 @@ async function mockBhe(page: Page, overrides: Partial<MockState> = {}): Promise<
   const summary = state.summaryOverride === undefined ? SUMMARY : state.summaryOverride;
   for (const table of ['v_bhe_capture_summary', 'v_bhe_summary']) {
     await page.route(`**/rest/v1/${table}**`, (route) => {
+      state.summaryViews.push({ table, url: route.request().url() });
       if (route.request().url().includes('balance_id=eq.')) {
         return summary === null
           ? route.fulfill({ status: 204, headers: CORS_HEADERS })
@@ -321,7 +324,7 @@ test.describe('M6 — BHE', () => {
     await expect(page.getByTestId('bhe-flow-ENT-01-12')).toBeVisible();
   });
 
-  test('creación de balance: solo diagnostic_id/periodo_anio/mes_inicio', async ({ page }) => {
+  test('creación de balance (SEC-PR69-01/B1): sin organization_id; solo diagnostic_id/periodo_anio/mes_inicio', async ({ page }) => {
     const state = await mockBhe(page, { balance: null });
     await seedSession(page, CLAIMS_EQUIPO);
     await page.goto(`/bhe/${DIAG}`);
@@ -370,6 +373,12 @@ test.describe('M6 — BHE', () => {
       r3_logbook_id: 'd4000000-0000-4000-8000-000000000001',
     });
     await expect(page.getByTestId('bhe-detail-page')).toContainText('Validado en R3');
+    // B2/B3: post-R3 se consulta v_bhe_summary con columnas explícitas (no * ni campos de captura inexistentes).
+    const validatedSummaryCalls = state.summaryViews.filter((entry) => entry.table === 'v_bhe_summary');
+    expect(validatedSummaryCalls.length).toBeGreaterThan(0);
+    expect(validatedSummaryCalls.at(-1)?.url).toContain('select=');
+    expect(validatedSummaryCalls.at(-1)?.url).not.toContain('select=*');
+    expect(validatedSummaryCalls.at(-1)?.url).not.toContain('brecha_pct_promedio');
     await expect(page.getByTestId('bhe-gate')).toContainText('gate F5 está cumplido');
     await expect(page.getByTestId('bhe-flow-ENT-01-1')).toBeDisabled();
   });

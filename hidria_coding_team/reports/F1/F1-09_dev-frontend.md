@@ -47,6 +47,13 @@
   prometer captura offline; Dexie/F2) y configuración incompleta.
 - **Versionado:** la UI lee/edita la fila vigente `max(version)` (`order by version desc limit 1`);
   histórico fuera de F1; `validado_r3_logbook_id` se muestra como referencia de solo lectura.
+- **Correcciones de spec #69 (aplicadas):** **B1/SEC-PR69-01:** el alta envía **solo**
+  `diagnostic_id/periodo_anio/mes_inicio`; **no** incluye `organization_id` (el trigger `BEFORE INSERT`
+  de #67 lo fija desde el diagnóstico) — E2E lo verifica. **B2:** el resumen se consulta con columnas
+  explícitas (`SUMMARY_COLUMNS`), sin `*`, y post-R3 usa `v_bhe_summary` con el contrato D16/D17.
+  **B3:** el mock/E2E distingue `v_bhe_capture_summary` y `v_bhe_summary` y verifica que post-R3 se
+  consulta la vista validada con `select` explícito (sin columnas de captura ajenas ni
+  `brecha_pct_promedio`).
 - **A11y:** fieldsets/legends, labels y `aria-label` en celdas, `aria-invalid` donde aplica,
   `aria-live` para guardado/importación, tablas con `caption`/`scope`, foco en errores y nomenclatura
   SDFI/SRHDS/UCI.
@@ -113,9 +120,9 @@ npm run test:e2e   → 59 passed + 6 skipped (11 shell + 14 M1 + 2 guard + 7 M3 
 
 ## 6. Pendientes / coordinación
 
-1. **F1-09c (task-142):** crear `v_bhe_monthly_capture`/`v_bhe_capture_summary`, guards/RPC y ACL;
-   la UI ya consume el contrato y el E2E las mockea. Al mergear, validar el flujo real si el job local
-   se amplía a M6.
+1. **F1-09c (task-142):** crear `v_bhe_monthly_capture`/`v_bhe_capture_summary`, guards/trigger de
+   `organization_id` (B1: el alta no lo envía), RPC y ACL; la UI ya consume el contrato y el E2E las
+   mockea. Al mergear, validar el flujo real si el job local se amplía a M6.
 2. **F1-09b (PR #68 draft):** EF-05/EF-09-bhe; la ruta EF-05 ya es la final (`ef-05-balances/...`).
    Cualquier delta de contrato se ajusta en `features/bhe/api.ts`.
 3. **Spec/seguridad/QA** sobre el PR (CI 7/7): sin `supabase/**`/`docs/**`, sin datos reales; la UI no
