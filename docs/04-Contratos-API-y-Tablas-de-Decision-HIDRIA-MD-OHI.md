@@ -197,11 +197,11 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Campo | Valor |
 |---|---|
 | Propósito | Validar el BHE en reunión R3: verificar que el balance cierra en los 12 meses, registrar la referencia a la ficha R3 y recalcular el avance |
-| Pre | Rol `coordinador|equipo`; `water_balances.estado = 'en_captura'`; existe ficha `BIT-R3-*` cerrada cuyo id se recibe en el cuerpo `{ "r3_logbook_id": uuid }` |
-| Tx | **Consultar `v_bhe_monthly`**: si algún mes tiene `brecha_pct > 10` → abortar (409, TD-3). Si pasa: `UPDATE water_balances SET estado='validado_r3', validado_r3_logbook_id, version=version+1`; actualizar `diagnostics.brecha_pct` con la brecha anual de `v_bhe_summary`; `audit_log(action='approve')` |
-| Post | Notificación a miembros; evento `bhe_validated`; desbloquea la evaluación IVOH (EF-06) |
-| Respuesta | `{ balance_id, estado, brecha_anual_pct, brecha_max_mes_pct, meses_sobre_umbral: 0 }` |
-| Errores | `GATE_BHE_BRECHA` (409) — **mensaje canónico**: «Un balance que no cierra no es un dato, es una tarea pendiente.» · `GATE_R3_FICHA` · `FORBIDDEN_ROLE` |
+| Pre | Rol `coordinador|equipo`; `water_balances.estado='en_captura'`; existe ficha `BIT-R3-*` **cerrada del mismo diagnóstico**, id en el cuerpo `{ "r3_logbook_id": uuid }`; JWT/claims (`verifyProfile`, `nbf`, `p_user_id`). |
+| Tx | RPC `fn_validate_bhe_r3(p_user_id,p_balance_id,p_r3_logbook_id,p_idempotency_key,p_request_hash)` `SECURITY DEFINER service_role`-only y atómica: valida 12 meses con captura y `entradas>0` (`VALIDATION_BHE_INCOMPLETO` 422, **precedencia**), brecha mensual >10 % ⇒ `GATE_BHE_BRECHA` 409 con `details.meses=[{mes,brecha_pct}]` y **sin** cambiar estado; si pasa: `estado='validado_r3'`, `validado_r3_logbook_id`, `version+1`, `diagnostics.brecha_pct` (brecha anual **ponderada** con `circular` restado), `audit_log('approve')` y `api_idempotency` (`EF-05.validate-r3`). `check_phase_gate` F5 es la autoridad final del gate. |
+| Post | Notificación a miembros; evento `bhe_validated` best-effort; desbloquea IVOH (EF-06) |
+| Respuesta | `{ balance_id, estado:'validado_r3', brecha_anual_pct, brecha_max_mes_pct, meses_sobre_umbral }` |
+| Errores | `GATE_BHE_BRECHA` (409) — mensaje canónico «Un balance que no cierra no es un dato, es una tarea pendiente.» — · `GATE_R3_FICHA` (409) · `VALIDATION_BHE_INCOMPLETO` (422) · `CONFLICT_STATE` (409 estado/idempotencia) · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` (403 anti-enumeración) · `INTERNAL_ERROR` (500 saneado) |
 
 ## EF-06 — Calificación y validación del IVOH
 
@@ -298,6 +298,17 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 | Post | Notificación con resumen (filas leídas, rechazadas, advertencias) |
 | Respuesta | `{ kind, destino_id, filas_ok, filas_rechazadas: [{fila, razon}], advertencias: [text] }` (fila 1-based) |
 | Errores | `VALIDATION_XLSX_ESTRUCTURA`/`VALIDATION_XLSX_CONTENIDO` (422) · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` (403 anti-enumeración) · `CONFLICT_STATE` (409 estado/idempotencia) · `INTERNAL_ERROR` (500 saneado) |
+
+### EF-09 `kind='bhe'` (F1-09)
+
+`POST /functions/v1/ef-09-import/import/xlsx` con JSON `{diagnostic_id, document_id, kind:'bhe', periodo_anio}`; `periodo_anio` **obligatorio** (2000–2100) y coincidente con la plantilla/`water_balances`.
+
+| Campo | Valor |
+|---|---|
+| Pre | Rol coord/equipo; tenant/membresía/403 anti-enumeración; documento `registered` del mismo diagnóstico/tenant; **solo XLSX OOXML** (`.xls` ⇒ 422 `formato_xls_no_soportado`); MIME XLSX; checksum=`documents.sha256`; plantilla BHE `1. Entradas` (fila 6), `2. Destinos del agua` (fila 6), `3. Reúso y calidad` Parte A (fila 7), 12 meses Ene–Dic; fórmulas permitidas solo en `O`/`P` hojas 1–3 y hoja 4 (ignoradas/recalculadas), fórmulas en C–N ⇒ `VALIDATION_BHE_FORMULA`; Parte B calidad fuera de F1-09. |
+| Tx | RPC `fn_import_bhe(p_user_id,p_diagnostic_id,p_document_id,p_periodo_anio,p_rows jsonb,p_checksum,p_idempotency_key,p_request_hash)` `service_role`-only: creación/upsert solo en `borrador|en_captura`, `validado_r3` o periodo distinto ⇒ `CONFLICT_STATE`; reemplazo atómico de flows; staging exige ≥1 fila válida (0 válidas ⇒ 422 sin tocar balance); filas rechazadas 1-based; audit+idempotencia; **no valida R3**. |
+| Respuesta | `{ kind:'bhe', destino_id: balance_id, periodo_anio, filas_ok, filas_rechazadas:[{fila,razon}], advertencias }` |
+| Errores | `VALIDATION_BHE_INCOMPLETO`/`VALIDATION_XLSX_*` (422) · `CONFLICT_STATE` (409) · `FORBIDDEN_*` (403) · `INTERNAL_ERROR` (500 saneado) |
 
 ## EF-10 — Dictamen de laboratorio y cierre de cadena de custodia
 
