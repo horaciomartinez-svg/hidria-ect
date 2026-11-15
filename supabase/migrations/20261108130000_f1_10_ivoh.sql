@@ -114,15 +114,6 @@ begin
       raise exception 'IVOH: claves de evaluación inmutables.' using errcode='42501';
     end if;
   end if;
-  if new.puntaje < 0 or new.puntaje > 10 or mod(new.puntaje*2,1) <> 0 then
-    raise exception 'IVOH: puntaje 0–10 en pasos de 0.5.' using errcode='23514';
-  end if;
-  if new.justificacion is null or btrim(new.justificacion)='' then
-    raise exception 'IVOH: justificación obligatoria.' using errcode='23514';
-  end if;
-  if new.evidencia is null or jsonb_typeof(new.evidencia)<>'array' or jsonb_array_length(new.evidencia)<1 then
-    raise exception 'IVOH: evidencia debe ser un arreglo con ≥1 elemento.' using errcode='23514';
-  end if;
   return new;
 end; $$;
 drop trigger if exists ivoh_evaluations_guard on public.ivoh_evaluations;
