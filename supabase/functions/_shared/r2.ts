@@ -679,3 +679,98 @@ export async function headObject(
     contentType: contentType === null ? null : contentType.split(";")[0].trim(),
   };
 }
+// ---------------------------------------------------------------------------
+// Descarga autenticada de objeto (EF-09) — F1-08b
+// ---------------------------------------------------------------------------
+
+/** SHA-256 en hex de un buffer (para checksum de documentos/import). */
+export async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    bytes as unknown as BufferSource,
+  );
+  return toHex(new Uint8Array(digest));
+}
+
+export interface DownloadObjectResult {
+  readonly bytes: Uint8Array;
+  readonly contentType: string | null;
+}
+
+/**
+ * `GET` del objeto con credenciales de la EF y límite duro de bytes.
+ * 404 ⇒ `null`; tamaño excedido ⇒ `422 VALIDATION_FILE`; fallo ⇒ 500 saneado.
+ */
+export async function downloadObject(
+  config: R2Config,
+  key: string,
+  maxBytes: number,
+  fetchImpl: typeof fetch = fetch,
+  now: () => Date = () => new Date(),
+): Promise<DownloadObjectResult | null> {
+  const { host, baseUrl } = resolveEndpoint(config);
+  const canonicalUri = canonicalUriFor(config, key);
+  const signed = await signAwsV4Headers({
+    method: "GET",
+    host,
+    canonicalUri,
+    region: config.region ?? "auto",
+    accessKeyId: config.accessKeyId,
+    secretAccessKey: config.secretAccessKey,
+    amzDate: toAmzDate(now()),
+  });
+  let response: Response;
+  try {
+    response = await fetchImpl(`${baseUrl}${canonicalUri}`, {
+      method: "GET",
+      headers: signed.headers,
+    });
+  } catch {
+    throw new ApiError(
+      "INTERNAL_ERROR",
+      "No se pudo descargar el archivo del almacenamiento.",
+    );
+  }
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new ApiError(
+      "INTERNAL_ERROR",
+      "No se pudo descargar el archivo del almacenamiento.",
+    );
+  }
+  const declared = response.headers.get("content-length");
+  if (declared !== null && Number(declared) > maxBytes) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "El archivo excede el tamaño máximo permitido.",
+      {
+        reason: "archivo_demasiado_grande",
+        max_bytes: maxBytes,
+      },
+    );
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await response.arrayBuffer());
+  } catch {
+    throw new ApiError(
+      "INTERNAL_ERROR",
+      "No se pudo leer el archivo del almacenamiento.",
+    );
+  }
+  if (bytes.byteLength > maxBytes) {
+    throw new ApiError(
+      "VALIDATION_FILE",
+      "El archivo excede el tamaño máximo permitido.",
+      {
+        reason: "archivo_demasiado_grande",
+        max_bytes: maxBytes,
+      },
+    );
+  }
+  const contentType = response.headers.get("content-type");
+  return {
+    bytes,
+    contentType: contentType === null ? null : contentType.split(";")[0].trim(),
+  };
+}

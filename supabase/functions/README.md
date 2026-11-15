@@ -125,6 +125,23 @@ Reglas obligatorias (detalle en
   `CONFLICT_STATE`/`GATE_R2_FICHA` · 422 `VALIDATION_CAT_INCOMPLETO`/
   `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY` · 500 saneado.
 
+### EF-09 — `ef-09-import` (task-135 / F1-08b)
+
+- Ruta: `POST /functions/v1/ef-09-import/import/xlsx` (contrato `/import/xlsx`).
+- Body **JSON**: `{diagnostic_id, document_id, kind:'iih', periodo_anio?}`; el
+  `document_id` es el de EF-08 `register` y la EF **descarga el XLSX de R2** con
+  credenciales server-side (nunca expone bucket/rutas). Roles `coordinador|equipo`;
+  tenant/membresía (403 anti-enumeración).
+- **Parser XLSX propio** (ZIP+deflate nativo, sin dependencias): hojas
+  `1. Captación`…`6. Evacuación`, encabezados fila 7, datos desde fila 8, columna B
+  = código `iih_asset_types`; límites 10 MB / 500 filas, anti zip-bomb y **rechazo de
+  fórmulas/macros**. Estructura inválida ⇒ `422 VALIDATION_XLSX_ESTRUCTURA` con diff;
+  errores por fila `{fila, razon}` (1-based).
+- Tx: RPC `fn_import_iih_assets` (`service_role`, F1-08c) con INSERT `iih_assets`
+  (folio server-side; `verificado_v1=false`) + `audit_log(action='create')` +
+  `api_idempotency`; `prioridad` se recalcula server-side. Respuesta
+  `{kind:'iih', destino_id, filas_ok, filas_rechazadas, advertencias}`.
+
 ## Variables de entorno de las EF
 
 Se configuran con `supabase secrets set` (nunca en el repo). Comunes a
@@ -147,6 +164,6 @@ El job `Edge Functions (Deno)` del CI (#38) ejecuta
 `deno fmt --check
 supabase/functions --ignore=supabase/functions/README.md`,
 `deno lint`, `deno check supabase/functions/_shared` + cada
-`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**194
-pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b + 12 F1-07b). Sin red ni
-permisos: DB/RPC, HEAD de R2 y broadcast se inyectan en las pruebas.
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**206
+pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b + 12 F1-07b + 12 F1-08b).
+Sin red ni permisos: DB/RPC, R2 (HEAD/download) y broadcast se inyectan.
