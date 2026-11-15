@@ -149,6 +149,8 @@ select throws_ok($sql$ update public.balance_flows set catalog_code='OTRO' where
 select throws_ok($sql$ insert into public.balance_flows(balance_id,catalog_code,mes,volumen_m3) select 'ea000000-0000-4000-8000-000000000001',code,1,1 from public.balance_flow_catalog limit 1 $sql$, '42501', NULL, 'post-R3 flows inmutables');
 select ok(not has_function_privilege('anon','public.fn_validate_bhe_r3(uuid,uuid,uuid,text,text)','EXECUTE'), 'ACL anon sin validate');
 select ok((select proacl::text from pg_proc where proname='fn_validate_bhe_r3') like '%service_role=X%', 'proacl validate service_role');
+set local role service_role;
+set local request.jwt.claims = '{}';
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','fa000000-0000-4000-8000-000000000001'))->>'code', 'GATE_BHE_BRECHA', 'brecha no audita');
 select is((select count(*) from public.audit_log where entity='water_balances' and action='approve' and entity_id='ea000000-0000-4000-8000-000000000002'), 0::bigint, 'brecha sin audit approve');
 reset role;
