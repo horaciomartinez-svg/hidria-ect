@@ -944,17 +944,19 @@ export function createIihImportHandler(
       const rawRejected = Array.isArray(data.filas_rechazadas)
         ? data.filas_rechazadas as Array<{ fila: number; razon: string }>
         : [];
-      // La RPC devuelve la posición (1-based) dentro de p_rows; se traduce a la fila de Excel
-      // para que el contrato de respuesta use filas 1-based del archivo.
-      const rejected = rawRejected.map((row) => {
-        const index = row.fila;
-        if (
-          Number.isInteger(index) && index >= 1 && index <= parsed.rows.length
-        ) {
-          return { fila: parsed.rows[index - 1].fila, razon: row.razon };
-        }
-        return row;
-      });
+      // IIH: la RPC devuelve la posición (1-based) dentro de p_rows; se traduce a la fila de
+      // Excel. BHE: la RPC recibe `fila` y la devuelve ya como fila Excel (no se remapea).
+      const rejected = kind === BHE_KIND
+        ? rawRejected
+        : rawRejected.map((row) => {
+          const index = row.fila;
+          if (
+            Number.isInteger(index) && index >= 1 && index <= parsed.rows.length
+          ) {
+            return { fila: parsed.rows[index - 1].fila, razon: row.razon };
+          }
+          return row;
+        });
       if (kind === BHE_KIND) {
         const bhe = parsed as BheParseResult;
         const rpcAdvertencias = Array.isArray(data.advertencias)
