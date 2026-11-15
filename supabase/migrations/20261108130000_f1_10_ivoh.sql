@@ -57,9 +57,9 @@ with base as (
   from public.diagnostics d
 ), agg as (
   select b.diagnostic_id,b.version_id,
-    count(e.*) as factores_guardados,
-    (count(e.*)=6) as completo,
-    case when count(e.*)=6 then round(sum(f.peso*e.puntaje),1) else null end as total,
+    count(f.*) as factores_guardados,
+    (count(f.*)=6) as completo,
+    case when count(f.*)=6 then round(sum(f.peso*e.puntaje),1) else null end as total,
     jsonb_object_agg(e.factor_code,e.puntaje order by e.factor_code) filter (where e.factor_code is not null) as serie_factores,
     jsonb_agg(jsonb_build_object('factor_code',e.factor_code,'peso',f.peso,'puntaje',e.puntaje,
       'aportacion',round(f.peso*e.puntaje,2)) order by e.factor_code) filter (where e.factor_code is not null) as por_factor
@@ -88,6 +88,7 @@ select
   (exists (select 1 from public.lab_results lr join public.samples s on s.id=lr.sample_id where s.diagnostic_id=d.id and lr.dictamen is not null)) as p6_lab,
   (select count(*)=8 and bool_and(le.estado='cerrada') from public.logbook_entries le where le.diagnostic_id=d.id) as p7_bitacoras,
   (select count(distinct e.factor_code)=6 from public.ivoh_evaluations e
+     join public.ivoh_factors f on f.version_id=e.version_id and f.factor_code=e.factor_code
      where e.diagnostic_id=d.id and e.version_id=d.index_version_id and e.estado='validado_r4') as p8_ivoh,
   (exists (select 1 from public.alternatives a where a.diagnostic_id=d.id and a.validado_r4)) as p9_alternativas,
   ((select count(*) from public.photo_log p join public.logbook_entries le on le.id=p.entry_id where le.diagnostic_id=d.id)>=8) as p10_fotos
@@ -122,6 +123,21 @@ drop trigger if exists ivoh_evaluations_guard on public.ivoh_evaluations;
 create trigger ivoh_evaluations_guard before insert or update on public.ivoh_evaluations
 for each row execute function public.trg_ivoh_evaluations_guard();
 revoke all on function public.trg_ivoh_evaluations_guard() from public,anon,authenticated;
+
+-- Pesos de una versión vigente inmutables (IVOH-05).
+create or replace function public.trg_ivoh_factors_immutable()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+begin
+  if exists (select 1 from public.ivoh_index_versions v where v.id=old.version_id and v.vigente) then
+    raise exception 'La versión del IVOH está vigente: pesos inmutables.' using errcode='42501';
+  end if;
+  if tg_op='DELETE' then return old; end if;
+  return new;
+end; $$;
+drop trigger if exists ivoh_factors_immutable on public.ivoh_factors;
+create trigger ivoh_factors_immutable before update or delete on public.ivoh_factors
+for each row execute function public.trg_ivoh_factors_immutable();
+revoke all on function public.trg_ivoh_factors_immutable() from public,anon,authenticated;
 
 -- Gate F6: 6/6 validado_r4 de la versión vigente, solo al entrar a 6.
 create or replace function public.check_phase_gate()
@@ -175,8 +191,17 @@ begin
   if not found or v_diag.estado<>'activo' or not exists (select 1 from public.profiles p where p.user_id=p_user_id and p.organization_id=v_diag.organization_id) then
     return jsonb_build_object('ok',false,'code','FORBIDDEN_NOT_MEMBER','message','Diagnóstico/tenant inválido.');
   end if;
+  if v_diag.index_version_id is null or not exists (select 1 from public.ivoh_index_versions v where v.id=v_diag.index_version_id and v.vigente) then
+    return jsonb_build_object('ok',false,'code','CONFLICT_IVOH_VERSION','message','El diagnóstico no tiene una versión vigente del índice IVOH.');
+  end if;
+  if (select coalesce(sum(f.peso),0) from public.ivoh_factors f where f.version_id=v_diag.index_version_id) <> 1.0 then
+    return jsonb_build_object('ok',false,'code','CONFLICT_IVOH_VERSION','message','La versión del índice no tiene pesos válidos (Σ=1).');
+  end if;
   if not exists (select 1 from public.water_balances wb where wb.diagnostic_id=p_diagnostic_id and wb.estado='validado_r3') then
     return jsonb_build_object('ok',false,'code','GATE_BHE_R3','message','El BHE no está validado en R3.');
+  end if;
+  if exists (select 1 from public.ivoh_evaluations e where e.diagnostic_id=p_diagnostic_id and e.version_id <> v_diag.index_version_id) then
+    return jsonb_build_object('ok',false,'code','CONFLICT_IVOH_VERSION','message','La versión del índice cambió; recargue antes de guardar.');
   end if;
   if jsonb_array_length(p_scores) < 1 or jsonb_array_length(p_scores) > 6 then
     return jsonb_build_object('ok',false,'code','VALIDATION_IVOH_INCOMPLETO','message','Debe enviar entre 1 y 6 factores.');
@@ -187,6 +212,9 @@ begin
       return jsonb_build_object('ok',false,'code','VALIDATION_IVOH_INCOMPLETO','message','factor_code inválido.','details',jsonb_build_object('factor',v_factor));
     end if;
     if v_factor = any(v_seen) then return jsonb_build_object('ok',false,'code','VALIDATION_IVOH_INCOMPLETO','message','factor_code duplicado.'); end if;
+    if not exists (select 1 from public.ivoh_factors f where f.version_id=v_diag.index_version_id and f.factor_code=v_factor) then
+      return jsonb_build_object('ok',false,'code','VALIDATION_IVOH_INCOMPLETO','message','factor_code no pertenece a la versión vigente.','details',jsonb_build_object('factor',v_factor));
+    end if;
     v_seen := array_append(v_seen,v_factor);
     if nullif(v_row->>'puntaje','') is null or (v_row->>'puntaje')::numeric < 0 or (v_row->>'puntaje')::numeric > 10
        or mod((v_row->>'puntaje')::numeric*2,1) <> 0 then
@@ -256,8 +284,17 @@ begin
   if not found or v_diag.estado<>'activo' or not exists (select 1 from public.profiles p where p.user_id=p_user_id and p.organization_id=v_diag.organization_id) then
     return jsonb_build_object('ok',false,'code','FORBIDDEN_NOT_MEMBER','message','Diagnóstico/tenant inválido.');
   end if;
+  if v_diag.index_version_id is null or not exists (select 1 from public.ivoh_index_versions v where v.id=v_diag.index_version_id and v.vigente) then
+    return jsonb_build_object('ok',false,'code','CONFLICT_IVOH_VERSION','message','El diagnóstico no tiene una versión vigente del índice IVOH.');
+  end if;
+  if (select coalesce(sum(f.peso),0) from public.ivoh_factors f where f.version_id=v_diag.index_version_id) <> 1.0 then
+    return jsonb_build_object('ok',false,'code','CONFLICT_IVOH_VERSION','message','La versión del índice no tiene pesos válidos (Σ=1).');
+  end if;
   if not exists (select 1 from public.water_balances wb where wb.diagnostic_id=p_diagnostic_id and wb.estado='validado_r3') then
     return jsonb_build_object('ok',false,'code','GATE_BHE_R3','message','El BHE no está validado en R3.');
+  end if;
+  if exists (select 1 from public.ivoh_evaluations e where e.diagnostic_id=p_diagnostic_id and e.version_id <> v_diag.index_version_id) then
+    return jsonb_build_object('ok',false,'code','CONFLICT_IVOH_VERSION','message','La versión del índice cambió; recargue antes de validar.');
   end if;
   select le.id into v_ficha from public.logbook_entries le
    where le.id=p_r4_logbook_id and le.diagnostic_id=p_diagnostic_id and le.clave='R4' and le.estado='cerrada';
@@ -272,11 +309,18 @@ begin
       and e.version_id=v_diag.index_version_id and e.estado='validado_r4') then
     return jsonb_build_object('ok',false,'code','VALIDATION_IVOH_INCOMPLETO','message','Se requieren 6/6 factores en borrador y ninguno validado.');
   end if;
+  select round(sum(f.peso*e.puntaje),1) into v_total
+    from public.ivoh_evaluations e join public.ivoh_factors f
+      on f.version_id=e.version_id and f.factor_code=e.factor_code
+   where e.diagnostic_id=p_diagnostic_id and e.version_id=v_diag.index_version_id and e.estado='borrador';
+  if v_total is null then
+    raise exception 'IVOH: no se pudo calcular el total; rollback.' using errcode='P0001';
+  end if;
   update public.ivoh_evaluations e set estado='validado_r4', r4_logbook_id=v_ficha
    where e.diagnostic_id=p_diagnostic_id and e.version_id=v_diag.index_version_id and e.estado='borrador';
-  select ivoh,semaforo,semaforo_label,por_factor into v_total,v_semaforo,v_label,v_por
+  select semaforo,semaforo_label,por_factor into v_semaforo,v_label,v_por
     from public.v_ivoh_score where diagnostic_id=p_diagnostic_id;
-  if v_total is null then
+  if v_semaforo is null then
     return jsonb_build_object('ok',false,'code','VALIDATION_IVOH_INCOMPLETO','message','No se pudo calcular el IVOH.');
   end if;
   update public.diagnostics set ivoh_actual=v_total where id=p_diagnostic_id;
