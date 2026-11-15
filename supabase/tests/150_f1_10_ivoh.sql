@@ -28,7 +28,7 @@ insert into public.document_checklist_items (diagnostic_id,item_code,estado) val
 insert into public.iih_assets (organization_id,diagnostic_id,stage_code,asset_type_id,tag,ubicacion,estado_fisico,opera,criticidad,intervencion,prioridad,verificado_v1)
 select 'ab000000-0000-4000-8000-0000000000a1',d.id,'CAP',t.id,'T-'||right(d.id::text,2),'U','bueno','si','alta','ninguna','media',true
 from public.diagnostics d, lateral (select id from public.iih_asset_types where stage_code='CAP' order by id limit 1) t
-where d.id in ('db000000-0000-4000-8000-000000000001','db000000-0000-4000-8000-000000000002');
+where d.id in ('db000000-0000-4000-8000-000000000001');
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version) values
   ('eb000000-0000-4000-8000-000000000001','ab000000-0000-4000-8000-0000000000a1','db000000-0000-4000-8000-000000000001',2026,1,'validado_r3',1),
   ('eb000000-0000-4000-8000-000000000002','ab000000-0000-4000-8000-0000000000a1','db000000-0000-4000-8000-000000000002',2026,1,'validado_r3',1);

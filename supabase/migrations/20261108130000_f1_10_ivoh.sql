@@ -93,6 +93,8 @@ select
   ((select count(*) from public.photo_log p join public.logbook_entries le on le.id=p.entry_id where le.diagnostic_id=d.id)>=8) as p10_fotos
 from public.diagnostics d;
 grant select on public.v_diagnostic_completeness to authenticated;
+revoke insert,update,delete on public.v_ivoh_score, public.v_ivoh_capture, public.v_diagnostic_completeness
+  from authenticated, anon, service_role;
 
 
 -- RLS: authenticated solo SELECT; retirar escrituras directas.
