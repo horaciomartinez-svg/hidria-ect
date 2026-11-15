@@ -21,7 +21,7 @@
 
 ## Tests
 
-`140_f1_09_bhe.sql` **plan 28**: 12 filas, brecha ponderada/circular, ACL, brecha >10, incompleto, ficha, validación/doble validación, gate F5, RLS roles/org server-side, inmutabilidad, import (filas, replay, doc ajeno/MIME/checksum, 0 filas sin tocar balance). `090` actualizado para gate F5 con 12 meses. Total pgTAP **459** (431 + 28); BD=repo=38.
+`140_f1_09_bhe.sql` **plan 50**: 12 filas, brecha ponderada/circular, ACL, brecha >10, incompleto, ficha, validación/doble validación, gate F5, RLS roles/org server-side, inmutabilidad, import (filas, replay, doc ajeno/MIME/checksum, 0 filas sin tocar balance). `090` actualizado para gate F5 con 12 meses. Total pgTAP **462** (412 + 50); BD=repo=38.
 
 ## Coordinación
 
