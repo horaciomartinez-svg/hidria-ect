@@ -1,6 +1,6 @@
 -- F1-09 task-142 â€” pgTAP: BHE views, guards, RPC EF-05/EF-09 y gate F5.
 begin;
-select plan(28);
+select plan(37);
 
 insert into public.organizations (id,name,org_type) values
   ('aa000000-0000-4000-8000-0000000000a1','Org BHE A','srhds'),
@@ -104,6 +104,32 @@ select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000
 select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
   jsonb_build_array(jsonb_build_object('fila',3,'catalog_code','NOEXISTE','mes',1,'volumen_m3',1)) ,repeat('a',64)))->>'code', 'VALIDATION_BHE_INCOMPLETO', 'import 0 filas válidas no toca balance');
 select is((select count(*) from public.balance_flows where balance_id='ea000000-0000-4000-8000-000000000003'), 1::bigint, 'import 0 válidas conserva flows');
+
+-- Cobertura QA: ficha, replay/conflicto/audit, ACL negativa, post-R3, cross-tenant e import rol.
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000000'))->>'code', 'GATE_R3_FICHA', 'validate sin ficha R3');
+select ok(not has_function_privilege('authenticated','public.fn_validate_bhe_r3(uuid,uuid,uuid,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE validate');
+select ok(not has_function_privilege('authenticated','public.fn_import_bhe(uuid,uuid,uuid,smallint,jsonb,text,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE import');
+-- B4 balanced para validación exitosa con idempotencia.
+reset role;
+insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
+select 'ea000000-0000-4000-8000-000000000004', fc.code, m.mes,
+  case fc.grupo when 'entrada' then 100 when 'consumo_proceso' then 40 when 'descarga' then 30
+       when 'perdida' then 20 when 'circular' then 10 else 0 end
+from generate_series(1,12) m(mes)
+join (select distinct on (grupo) code, grupo from public.balance_flow_catalog
+      where grupo in ('entrada','consumo_proceso','descarga','perdida','circular')
+      order by grupo, code) fc on true;
+set local role service_role;
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001','v1','h1'))->>'ok', 'true', 'validate B4 con idempotencia');
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001','v1','h1'))->>'replayed', 'true', 'validate replay');
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','fa000000-0000-4000-8000-000000000001','v1','h2'))->>'code', 'CONFLICT_STATE', 'validate idempotencia hash distinto');
+select ok((select count(*) from public.audit_log where entity='water_balances' and action='approve') > 0, 'audit approve de validación');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000003','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,'[]'::jsonb,repeat('a',64)))->>'code', 'FORBIDDEN_ROLE', 'import rol observador rechazado');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"ca000000-0000-4000-8000-000000000001","organization_id":"aa000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
+select throws_ok($sql$ update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000001' $sql$, '42501', NULL, 'post-R3 cabecera inmutable');
+select throws_ok($sql$ update public.water_balances set diagnostic_id='da000000-0000-4000-8000-000000000099' where id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'diagnostic_id cross-tenant inmutable');
 
 
 reset role;
