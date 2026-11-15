@@ -61,5 +61,32 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 - Deno: EF-06 score/validate-r4, errores, idempotencia, roles/tenant.
 - E2E UI: captura, score read-only, R4, gate, post-R4.
 
+## Adenda 2026-11-15 — cierres B1–B7 del arquitecto
+
+### D10 — Versionado real de `ivoh_evaluations` (B1)
+- Migración forward-only: **PK pasa a `(diagnostic_id, version_id, factor_code)`** (drop/recreate PK y unique), backfill `version_id = diagnostics.index_version_id` para filas existentes.
+- Cada evaluación pertenece a una versión de índice; se conservan filas históricas; la captura/R4 operan solo sobre la versión vigente del diagnóstico.
+- `factor_code`/`diagnostic_id`/`version_id` inmutables en UPDATE; no se mezclan versiones.
+
+### D11 — `v_ivoh_score` canónica (B2/B5/B6)
+- Recrear `security_invoker=true`, con `version_id`, filtrando `e.version_id = d.index_version_id` (versión vigente).
+- Columnas: `diagnostic_id`, `version_id`, `ivoh`, `semaforo`, `semaforo_label`, `serie_factores`, `por_factor` (jsonb con `{factor_code,peso,puntaje,aportacion}`).
+- Fórmula/pesos **desde `ivoh_factors`** de la versión vigente (no hardcode); suma de pesos = 1.0; `ivoh = round(sum(peso*puntaje),1)`.
+- `GRANT SELECT TO authenticated`; RLS base.
+- Semáforo con `ivoh_semaforo` (rangos inclusivos: rojo `<5.0`, amarillo `>=5.0 AND <8.0`, verde `>=8.0`) y `label` del catálogo.
+
+### D12 — RLS/guards de `ivoh_evaluations` (B3/B7)
+- `authenticated`: **solo SELECT** por membresía; sin INSERT/UPDATE/DELETE (policies de escritura eliminadas; escritura solo RPC service_role).
+- Guard trigger: post-R4 (`OLD.estado='validado_r4'`) cualquier UPDATE/DELETE ⇒ 42501; claves inmutables; `r4_logbook_id` solo RPC; autenticado no puede insertar/actualizar.
+- `puntaje` 0–10 **paso 0.5**, `justificacion` no vacía y `evidencia` array ≥1 se validan en RPC + guard/CHECK donde aplique; tests negativos.
+
+### D13 — Gate F6 (B4)
+- `check_phase_gate` F6: exige **6 factores distintos** con `estado='validado_r4'` y `version_id = diagnostics.index_version_id`; si falta ⇒ `GATE_IVOH_R4` 409.
+- La versión vieja no cuenta; la autoridad final sigue siendo el trigger.
+
+### D14 — Catálogo/seed (B5)
+- `ivoh_semaforo(nivel PK, min_total, max_total, label, descripcion, orden)` con seed rojo/amarillo/verde; `semaforo_label` en vista/RPC sale de aquí.
+- `ivoh_index_versions` vigente única; `trg_ivoh_version_immutable` se mantiene.
+
 ## Evidencia
 `docs/01` §4.8, `docs/04` EF-06/TD-6, `docs/05` IVOH-01…05/PG-09/10, `docs/02` triggers/vista existentes, `main@46f7ce7`.
