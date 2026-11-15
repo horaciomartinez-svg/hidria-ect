@@ -16,8 +16,8 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 - La UI **solo lee**; no calcula total, semáforo ni niveles.
 
 ### D2 — Semáforo como catálogo
-- Nueva tabla **`ivoh_semaforo`**: `nivel` (`rojo|amarillo|verde`), `min_total`, `max_total`, `label` (Incipiente/Básico/Consolidado/Referente u homólogo aprobado), `descripcion`, `orden`.
-- Seed: rojo `<5.0`, amarillo `5.0–7.9`, verde `≥8.0`. La vista/RPC/EF leen `label` del catálogo; el texto no se hardcodea en cliente.
+- Nueva tabla **`ivoh_semaforo`**: `nivel` (`rojo|amarillo|verde`), `min_total`, `max_total`, `label`, `descripcion`, `orden`.
+- Seed con **3 labels globales**: rojo=`Crítico`, amarillo=`En desarrollo`, verde=`Consolidado`; `ivoh_rubrics` conserva sus 4 niveles por factor (Incipiente/Básico/Consolidado/Referente) y **no** define el nivel global.
 - `semaforo` se calcula con `round(total,1)` y comparación de rangos; el límite superior de amarillo es `<8.0`.
 
 ### D3 — Versionado e inmutabilidad de `ivoh_evaluations`
@@ -104,7 +104,7 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 ### D16 — Vista de borrador y completitud (B11/B8)
 - Se crea **`v_ivoh_capture`** `security_invoker=true`: por diagnóstico/versión vigente, `factores_guardados`, `completo` (6/6), `total`/`semaforo`/`semaforo_label` calculados server-side desde `ivoh_factors` (NULL si faltan factores), `por_factor`, `serie_factores`.
 - La UI puede mostrar el total/semáforo de borrador **solo lectura** desde `v_ivoh_capture`; el valor oficial sigue siendo el de `v_ivoh_score` post-R4 y `diagnostics.ivoh_actual`.
-- `fn_save_ivoh_score` responde `{diagnostic_id,version_id,estado,factores_guardados,total,semaforo}` (total/semáforo de borrador server-side; no se escribe en `diagnostics`).
+- `fn_save_ivoh_score` responde `{diagnostic_id,version_id,estado,factores_guardados}` **sin total/semáforo**; la UI lee el borrador desde `v_ivoh_capture` (solo lectura) y no publica nada en `diagnostics`.
 - **`v_diagnostic_completeness.p8_ivoh`** exige 6/6 validado_r4 de la versión vigente (alineado con gate F6).
 - Evidencia: `[{tipo,ref,descripcion?}]`, allowlist `documento|activo|indicador|ficha`; `ref` no vacío; ≥1 por factor.
 
