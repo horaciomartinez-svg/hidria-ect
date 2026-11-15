@@ -88,5 +88,16 @@ El IVOH es el índice de valor de la metodología MD-OHI. La fórmula y el semá
 - `ivoh_semaforo(nivel PK, min_total, max_total, label, descripcion, orden)` con seed rojo/amarillo/verde; `semaforo_label` en vista/RPC sale de aquí.
 - `ivoh_index_versions` vigente única; `trg_ivoh_version_immutable` se mantiene.
 
+### D15 — Contrato UI/EF y versionado (cierres UI/EF)
+- **`fn_save_ivoh_score` acepta borrador parcial 1–6 factores** (sin duplicados), upsert por factor; **`fn_validate_ivoh_r4` exige exactamente 6** con justificación/evidencia. La UI puede autoguardar por factor vía EF-06 `score`.
+- **Respuesta `score`:** `{diagnostic_id, version_id, estado:'borrador', factores_guardados, total:null, semaforo:null}` (el total solo se publica al validar; UI muestra “pendiente/—”).
+- **Versión vigente:** la UI lee solo `diagnostics.index_version_id`; históricas no se muestran en F1-10. Si la versión cambia entre carga y guardado ⇒ `CONFLICT_IVOH_VERSION` 409; no se mezclan filas.
+- **Evidencia:** `[{tipo:'documento'|'activo'|'indicador'|'ficha', ref:text}]`; `tipo` debe estar en la allowlist, `ref` no vacío, ≥1 elemento por factor; validación en RPC/guard y UI.
+- **`validate-r4` response:** `{diagnostic_id,total,semaforo,semaforo_label,por_factor:[{factor_code,peso,puntaje,aportacion}]}`; `score` no calcula total.
+- **UI radial:** lee `serie_factores`/`por_factor` de `v_ivoh_score`; SVG propio, sin cálculo ni dependencia nueva. Gate F6 desde `diagnostics.fase_actual`.
+- **Post-R4:** el guard permite únicamente la transición atómica de la RPC `borrador→validado_r4` (service_role); después **ningún** UPDATE/DELETE (incluido service_role). Histórico read-only.
+- **Errores EF-06:** `GATE_BHE_R3` 409 · `VALIDATION_IVOH_INCOMPLETO` 422 · `CONFLICT_IVOH_VERSION` 409 · `GATE_R4_FICHA` 409 · `CONFLICT_STATE` 409 · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` 403 · 401 · 500 saneado. Idempotencia `EF-06.score`/`EF-06.validate-r4`.
+- Ruta: `POST /functions/v1/ef-06-ivoh/ivoh/{diagnostic_id}/score|validate-r4` (alias `/ivoh/{id}/...`).
+
 ## Evidencia
 `docs/01` §4.8, `docs/04` EF-06/TD-6, `docs/05` IVOH-01…05/PG-09/10, `docs/02` triggers/vista existentes, `main@46f7ce7`.
