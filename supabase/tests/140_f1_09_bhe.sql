@@ -28,9 +28,6 @@ insert into public.document_checklist_items (diagnostic_id,item_code,estado) val
 insert into public.iih_assets (organization_id,diagnostic_id,stage_code,asset_type_id,tag,ubicacion,estado_fisico,opera,criticidad,intervencion,prioridad,verificado_v1)
 select 'aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','CAP',id,'BHE-CAP','U','bueno','si','alta','ninguna','media',true
 from public.iih_asset_types where stage_code='CAP' order by id limit 1;
-insert into public.iih_assets (organization_id,diagnostic_id,stage_code,asset_type_id,tag,ubicacion,estado_fisico,opera,criticidad,intervencion,prioridad,verificado_v1)
-select 'aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000002','CAP',id,'BHE-D2','U','bueno','si','alta','ninguna','media',true
-from public.iih_asset_types where stage_code='CAP' order by id limit 1;
 insert into public.logbook_entries (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by)
 values ('fa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','R3','BIT-R3-109','Coord','2026-01-26','09:00','cerrada','ca000000-0000-4000-8000-000000000001'),
        ('fa000000-0000-4000-8000-000000000005','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000002','R3','BIT-R3-OTRO','Coord','2026-01-26','09:00','cerrada','ca000000-0000-4000-8000-000000000001'),
