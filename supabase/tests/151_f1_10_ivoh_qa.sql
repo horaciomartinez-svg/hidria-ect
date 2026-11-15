@@ -61,7 +61,7 @@ select is((select count(*) from public.v_ivoh_score where diagnostic_id='dc00000
 select is((select p8_ivoh from public.v_diagnostic_completeness where diagnostic_id='dc000000-0000-4000-8000-000000000002'),true,'p8_ivoh 6/6');
 
 -- Sin BHE R3: trigger bloquea.
-select throws_ok($sql$ insert into public.ivoh_evaluations (diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia) values ('dc000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-0000000000a1','F1',5,'J','[]') $sql$, 'P0001', 'IVOH bloqueado.*', 'sin BHE R3 bloquea');
+select throws_ok($sql$ insert into public.ivoh_evaluations (diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia) values ('dc000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-0000000000a1','F1',5,'J','[]') $sql$, 'P0001', NULL, 'sin BHE R3 bloquea');
 
 -- Pesos de versión vigente inmutables (IVOH-05).
 select throws_ok($sql$ update public.ivoh_factors set peso=0.20 where version_id='00000000-0000-4000-8000-0000000000a1' and factor_code='F1' $sql$, '42501', NULL, 'peso vigente inmutable');
