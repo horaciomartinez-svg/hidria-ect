@@ -1,6 +1,6 @@
 -- F1-10 task-157 — pgTAP QA IVOH: vectores, fronteras, versiones y atomicidad.
 begin;
-select plan(19);
+select plan(23);
 
 insert into public.organizations (id,name,org_type) values
   ('ac000000-0000-4000-8000-0000000000a1','Org IVOH QA','srhds');
@@ -19,7 +19,8 @@ insert into public.diagnostics (id,organization_id,company_id,tipo,fecha_inicio,
   ('dc000000-0000-4000-8000-000000000007','ac000000-0000-4000-8000-0000000000a1','bc000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12',5,'validado_r2','00000000-0000-4000-8000-0000000000a1');
 insert into public.project_members (diagnostic_id,user_id,organization_id,role) values
   ('dc000000-0000-4000-8000-000000000001','cc000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-0000000000a1','coordinador'),
-  ('dc000000-0000-4000-8000-000000000002','cc000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-0000000000a1','coordinador');
+  ('dc000000-0000-4000-8000-000000000002','cc000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-0000000000a1','coordinador'),
+  ('dc000000-0000-4000-8000-000000000006','cc000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-0000000000a1','coordinador');
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version) values
   ('ec000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000001',2026,1,'validado_r3',1),
   ('ec000000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000002',2026,1,'validado_r3',1),
@@ -59,8 +60,17 @@ select is((select semaforo from public.v_ivoh_score where diagnostic_id='dc00000
 select is((select ivoh from public.v_ivoh_score where diagnostic_id='dc000000-0000-4000-8000-000000000001'),7.2::numeric,'IVOH-01 ponderado');
 select is((select count(*) from public.v_ivoh_score where diagnostic_id='dc000000-0000-4000-8000-000000000003'),1::bigint,'rojo en vista');
 select is((select p8_ivoh from public.v_diagnostic_completeness where diagnostic_id='dc000000-0000-4000-8000-000000000002'),true,'p8_ivoh 6/6');
+select is((select nivel from public.ivoh_semaforo where 4.9 between min_total and max_total),'rojo','frontera 4.9');
+select is((select nivel from public.ivoh_semaforo where 7.9 between min_total and max_total),'amarillo','frontera 7.9');
+select is((select nivel from public.ivoh_semaforo where 8.0 between min_total and max_total),'verde','frontera 8.0');
 
--- Sin BHE R3: trigger bloquea.
+-- Sin BHE R3: RPC save bloquea.
+set local role service_role;
+set local request.jwt.claims='{}';
+select is(public.fn_save_ivoh_score('cc000000-0000-4000-8000-000000000001','dc000000-0000-4000-8000-000000000006',jsonb_build_array(jsonb_build_object('factor_code','F1','puntaje',5,'justificacion','J','evidencia',jsonb_build_array(jsonb_build_object('tipo','documento','ref','d')))))->>'code','GATE_BHE_R3','save sin BHE R3 bloquea');
+reset role;
+reset request.jwt.claims;
+-- Sin BHE R3: trigger directo bloquea.
 select throws_ok($sql$ insert into public.ivoh_evaluations (diagnostic_id,version_id,factor_code,puntaje,justificacion,evidencia) values ('dc000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-0000000000a1','F1',5,'J','[]') $sql$, 'P0001', NULL, 'sin BHE R3 bloquea');
 
 -- Pesos de versión vigente inmutables (IVOH-05).
