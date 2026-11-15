@@ -295,7 +295,7 @@ Deno.test("EF-09: rechazos por fila se combinan con los de la RPC (200)", async 
       ok: true,
       data: {
         filas_ok: 1,
-        filas_rechazadas: [{ fila: 10, razon: "asset_type inexistente" }],
+        filas_rechazadas: [{ fila: 1, razon: "asset_type inexistente" }],
       },
     },
   });
@@ -303,7 +303,7 @@ Deno.test("EF-09: rechazos por fila se combinan con los de la RPC (200)", async 
   const rejected = payload.filas_rechazadas as Array<{ fila: number }>;
   assertEquals(rejected.length, 2);
   assertEquals(rejected.some((row) => row.fila === 9), true);
-  assertEquals(rejected.some((row) => row.fila === 10), true);
+  assertEquals(rejected.some((row) => row.fila === 8), true);
 });
 
 Deno.test("EF-09 422: checksum no coincide; objeto inexistente; documento inválido", async () => {

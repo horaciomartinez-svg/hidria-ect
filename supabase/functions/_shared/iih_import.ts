@@ -682,9 +682,20 @@ export function createIihImportHandler(
       }
 
       const data = (result.data ?? {}) as Record<string, unknown>;
-      const rejected = Array.isArray(data.filas_rechazadas)
+      const rawRejected = Array.isArray(data.filas_rechazadas)
         ? data.filas_rechazadas as Array<{ fila: number; razon: string }>
         : [];
+      // La RPC devuelve la posición (1-based) dentro de p_rows; se traduce a la fila de Excel
+      // para que el contrato de respuesta use filas 1-based del archivo.
+      const rejected = rawRejected.map((row) => {
+        const index = row.fila;
+        if (
+          Number.isInteger(index) && index >= 1 && index <= parsed.rows.length
+        ) {
+          return { fila: parsed.rows[index - 1].fila, razon: row.razon };
+        }
+        return row;
+      });
       return json(request, config, {
         kind: IMPORT_KIND,
         destino_id: typeof data.destino_id === "string"
