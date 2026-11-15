@@ -130,16 +130,18 @@ Reglas obligatorias (detalle en
 - Ruta: `POST /functions/v1/ef-09-import/import/xlsx` (contrato `/import/xlsx`).
 - Body **JSON**: `{diagnostic_id, document_id, kind:'iih', periodo_anio?}`; el
   `document_id` es el de EF-08 `register` y la EF **descarga el XLSX de R2** con
-  credenciales server-side (nunca expone bucket/rutas). Roles `coordinador|equipo`;
-  tenant/membresía (403 anti-enumeración).
+  credenciales server-side (nunca expone bucket/rutas). Roles
+  `coordinador|equipo`; tenant/membresía (403 anti-enumeración).
 - **Parser XLSX propio** (ZIP+deflate nativo, sin dependencias): hojas
-  `1. Captación`…`6. Evacuación`, encabezados fila 7, datos desde fila 8, columna B
-  = código `iih_asset_types`; límites 10 MB / 500 filas, anti zip-bomb y **rechazo de
-  fórmulas/macros**. Estructura inválida ⇒ `422 VALIDATION_XLSX_ESTRUCTURA` con diff;
-  errores por fila `{fila, razon}` (1-based).
-- Tx: RPC `fn_import_iih_assets` (`service_role`, F1-08c) con INSERT `iih_assets`
-  (folio server-side; `verificado_v1=false`) + `audit_log(action='create')` +
-  `api_idempotency`; `prioridad` se recalcula server-side. Respuesta
+  `1. Captación`…`6. Evacuación`, encabezados fila 7, datos desde fila 8,
+  columna B = código `iih_asset_types`; límites 10 MB / 500 filas, anti zip-bomb
+  y **rechazo de fórmulas/macros**. Estructura inválida ⇒
+  `422 VALIDATION_XLSX_ESTRUCTURA` con diff; errores por fila `{fila, razon}`
+  (1-based).
+- Tx: RPC `fn_import_iih_assets` (`service_role`, F1-08c) con INSERT
+  `iih_assets` (folio server-side; `verificado_v1=false`) +
+  `audit_log(action='create')` + `api_idempotency`; `prioridad` se recalcula
+  server-side. Respuesta
   `{kind:'iih', destino_id, filas_ok, filas_rechazadas, advertencias}`.
 
 ## Variables de entorno de las EF

@@ -369,6 +369,27 @@ Deno.test("EF-09 409/422: conflicto de la RPC y Idempotency-Key inválida", asyn
   );
 });
 
+Deno.test("EF-09 422: 0 filas de datos, MIME no permitido y documento ajeno", async () => {
+  const headerRow = workbook().sheets[0].rows.get(7) as Map<number, string>;
+  const zeroRows = await call(BODY, {}, {
+    parseResult: workbook(new Map([[7, headerRow]])),
+  });
+  assertEquals(zeroRows.response.status, 422);
+  assertEquals(errorOf(zeroRows.payload).details?.reason, "sin_filas");
+
+  const mime = await call(BODY, {}, {
+    document: { mime: "application/vnd.ms-excel" },
+  });
+  assertEquals(mime.response.status, 422);
+  assertEquals(errorOf(mime.payload).details?.reason, "mime_no_permitido");
+
+  const ajeno = await call(BODY, {}, {
+    document: { diagnosticId: OTHER_DIAG },
+  });
+  assertEquals(ajeno.response.status, 422);
+  assertEquals(errorOf(ajeno.payload).details?.reason, "documento_no_valido");
+});
+
 Deno.test("EF-09: body inválido, CORS y ruta desconocida", async () => {
   const missingDoc = await call({ ...BODY, document_id: "no-uuid" });
   assertEquals(missingDoc.response.status, 422);

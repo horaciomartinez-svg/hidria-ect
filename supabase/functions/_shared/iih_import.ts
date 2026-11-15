@@ -30,8 +30,8 @@ export const MAX_XLSX_BYTES = 10 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 500;
 
 const XLSX_MIMES: readonly string[] = [
+  // Allowlist estricta (seguridad): solo el MIME oficial XLSX.
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/octet-stream",
 ];
 
 export interface IihImportClient {
