@@ -6,6 +6,8 @@ import { MODULES } from './routes/registry';
 import { CatFormPage } from './routes/cat/CatFormPage';
 import { CatListPage } from './routes/cat/CatListPage';
 import { ChecklistPage } from './routes/checklist/ChecklistPage';
+import { BheDetailPage } from './routes/bhe/BheDetailPage';
+import { BheListPage } from './routes/bhe/BheListPage';
 import { IihInventoryPage } from './routes/iih/IihInventoryPage';
 import { IihListPage } from './routes/iih/IihListPage';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
@@ -27,7 +29,11 @@ import { AboutPage, NotFoundPage, PrivacyPage, RouteErrorPage } from './routes/S
  */
 const placeholderRoutes: RouteObject[] = MODULES.filter(
   (module) =>
-    module.id !== 'M1' && module.id !== 'M3' && module.id !== 'M4' && module.id !== 'M5',
+    module.id !== 'M1' &&
+    module.id !== 'M3' &&
+    module.id !== 'M4' &&
+    module.id !== 'M5' &&
+    module.id !== 'M6',
 ).map((module) => ({
   path: module.path.slice(1),
   element: (
@@ -95,6 +101,9 @@ export const router = createBrowserRouter([
       // M5 — IIH (F1-08a): inventario, alta/edición e importación XLSX.
       { path: 'iih', element: <IihListPage /> },
       { path: 'iih/:diagnosticId', element: <IihInventoryPage /> },
+      // M6 — BHE (F1-09a): captura mensual, brecha de solo lectura, validación R3 e import XLSX.
+      { path: 'bhe', element: <BheListPage /> },
+      { path: 'bhe/:diagnosticId', element: <BheDetailPage /> },
       ...placeholderRoutes,
       { path: 'sincronizacion', element: <SincronizacionPage /> },
       { path: 'acerca', element: <AboutPage /> },
