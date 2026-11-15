@@ -63,7 +63,7 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - Se crea **`v_bhe_monthly_capture`** (misma fórmula que `v_bhe_monthly`, **sin** filtro `estado='validado_r3'`) con **`security_invoker=true`** para que RLS de `water_balances`/`balance_flows`/`balance_flow_catalog` aplique. (Nombre final acordado con arquitecto/UI; sustituye a `v_bhe_monthly_draft` en borradores previos.)
 - `v_bhe_monthly`/`v_bhe_summary` se recrean con **`security_invoker=true`** y conservan el filtro `validado_r3` para tablero/cierre. La UI de captura lee `v_bhe_monthly_capture`; la UI de cierre/validado lee `v_bhe_summary`.
 - `fn_validate_bhe_r3` calcula la brecha desde **`v_bhe_monthly_capture`** antes de validar. Si `entradas_m3 = 0` o hay menos de 12 meses con datos, **no se puede validar** (`GATE_BHE_BRECHA`/`VALIDATION_BHE_INCOMPLETO`): un balance vacío no cierra.
-- `brecha_pct` se define como `100*(entradas - (consumo_proceso+consumo_general+descarga+perdida))/entradas`, redondeada a 2; `NULL` si `entradas=0` y se trata como no válido.
+- `brecha_pct` se define como `100*(entradas - (consumo_proceso+consumo_general+descarga+perdida+circular))/entradas`, redondeada a 2; `NULL` si `entradas=0` y se trata como no válido. **Se resta `circular` (reúso/recirculación) conforme docs/05 BHE-05**; corregir `fn_bhe_monthly`/`fn_bhe_summary`/vistas si no lo hacen (C2).
 
 ### D8 — Guards de cierre e inmutabilidad (B2)
 - Trigger `trg_water_balances_guard`:
@@ -77,7 +77,7 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - RLS: `water_balances_upd` y `balance_flows_*` se ajustan para no permitir escritura de gate fields ni escritura de flows fuera de captura; el cierre solo por RPC.
 
 ### D9 — Gate F5 (B3)
-- `check_phase_gate` se extiende (forward-only) para F5: exige `water_balances.estado='validado_r3'`, **12 meses completos** y **brecha mensual ≤ 10 %** (consulta `v_bhe_summary`/`v_bhe_monthly` validada). Si falla ⇒ `GATE_BHE_R3`/`GATE_BHE_BRECHA` según causa.
+- `check_phase_gate` se extiende (forward-only) para F5: exige `water_balances.estado='validado_r3'`, **12 meses completos** y **brecha mensual ≤ 10 %** (consulta `v_bhe_summary`/`v_bhe_monthly` validada). Si falla ⇒ `GATE_BHE_R3` (estado/12 meses) o `GATE_BHE_BRECHA` (brecha), ambos 409 con mensaje canónico para brecha.
 - La autoridad final sigue siendo el trigger; la RPC garantiza el mismo invariante al cerrar y la inmutabilidad post-R3 evita que se altere después.
 
 ### D10 — RPC y contrato (B4–B6)
@@ -117,7 +117,7 @@ Tras revisar `v_bhe_monthly`/`v_bhe_summary` y `check_phase_gate` en la BD, se c
 - Post-R3: cualquier UPDATE autenticado de balance o flows ⇒ 42501.
 
 ### D14 — Brecha anual canónica
-- `brecha_anual_pct = round(100*Σbrecha_m3 / nullif(Σentradas_m3,0), 2)` (ponderada).
+- `brecha_anual_pct = round(100*Σbrecha_m3 / nullif(Σentradas_m3,0), 2)` (ponderada), con `brecha_m3 = entradas - (destinos + descargas + pérdidas + circular)`.
 - `v_bhe_capture_summary` y `v_bhe_summary` exponen `brecha_anual_pct` y `brecha_max_mes_pct`; `brecha_pct_promedio` queda **no canónico**.
 - EF-05/gate usan el máximo mensual y el ponderado; nunca promedio simple.
 
