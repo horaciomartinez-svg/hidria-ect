@@ -76,6 +76,18 @@ export interface DocumentScopeRow {
   organizationId: string;
 }
 
+/** Documento para importación EF-09 (incluye la clave R2 interna, nunca expuesta). */
+export interface DocumentImportRow {
+  id: string;
+  diagnosticId: string | null;
+  organizationId: string;
+  r2Key: string;
+  sha256: string;
+  mime: string;
+  sizeBytes: number;
+  uploadStatus: string;
+}
+
 export interface CatItemRow {
   id: string;
   codigo: string;
@@ -128,6 +140,10 @@ export interface ServiceClient {
   fetchChecklistItemById?(itemId: string): Promise<ChecklistItemRow | null>;
   /** F1-06b: documento por id para validar la ligadura (EF-03). */
   fetchDocumentById?(documentId: string): Promise<DocumentScopeRow | null>;
+  /** F1-08b: documento con metadatos internos para importar XLSX (EF-09). */
+  fetchDocumentForImport?(
+    documentId: string,
+  ): Promise<DocumentImportRow | null>;
   /** F1-06b: usuarios de un rol del diagnóstico (notificación a empresa). */
   listRoleUserIds?(diagnosticId: string, role: string): Promise<string[]>;
   /** F1-07b: ítems del banco CAT A1-v1. */
@@ -580,6 +596,39 @@ export function createServiceClient(
     };
   };
 
+  const fetchDocumentForImport = async (
+    documentId: string,
+  ): Promise<DocumentImportRow | null> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/documents?id=eq.${encodeURIComponent(documentId)}` +
+        "&select=id,diagnostic_id,organization_id,r2_key,sha256,mime,size_bytes,upload_status" +
+        "&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.id !== "string" || typeof row.organization_id !== "string" ||
+      typeof row.r2_key !== "string" || typeof row.sha256 !== "string" ||
+      typeof row.mime !== "string" || typeof row.size_bytes !== "number"
+    ) {
+      return null;
+    }
+    return {
+      id: row.id,
+      diagnosticId: typeof row.diagnostic_id === "string"
+        ? row.diagnostic_id
+        : null,
+      organizationId: row.organization_id,
+      r2Key: row.r2_key,
+      sha256: row.sha256,
+      mime: row.mime,
+      sizeBytes: row.size_bytes,
+      uploadStatus: typeof row.upload_status === "string"
+        ? row.upload_status
+        : "registered",
+    };
+  };
+
   const listMemberUserIds = async (
     diagnosticId: string,
   ): Promise<string[]> => {
@@ -644,6 +693,7 @@ export function createServiceClient(
     listMemberUserIds,
     fetchChecklistItemById,
     fetchDocumentById,
+    fetchDocumentForImport,
     listRoleUserIds,
     fetchCatItems,
     fetchCatResponses,
