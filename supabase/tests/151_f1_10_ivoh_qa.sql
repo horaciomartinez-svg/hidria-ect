@@ -23,6 +23,7 @@ insert into public.project_members (diagnostic_id,user_id,organization_id,role) 
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version) values
   ('ec000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000001',2026,1,'validado_r3',1),
   ('ec000000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000002',2026,1,'validado_r3',1),
+  ('ec000000-0000-4000-8000-000000000003','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000003',2026,1,'validado_r3',1),
   ('ec000000-0000-4000-8000-000000000004','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000004',2026,1,'validado_r3',1),
   ('ec000000-0000-4000-8000-000000000007','ac000000-0000-4000-8000-0000000000a1','dc000000-0000-4000-8000-000000000007',2026,1,'validado_r3',1);
 insert into public.logbook_entries (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by) values
