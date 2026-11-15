@@ -1,6 +1,6 @@
 -- F1-09 task-142 â€” pgTAP: BHE views, guards, RPC EF-05/EF-09 y gate F5.
 begin;
-select plan(37);
+select plan(50);
 
 insert into public.organizations (id,name,org_type) values
   ('aa000000-0000-4000-8000-0000000000a1','Org BHE A','srhds'),
@@ -16,17 +16,25 @@ insert into public.profiles (user_id,organization_id,full_name,email,global_role
 insert into public.companies (id,organization_id,razon_social,nombre_planta,giro,calle,colonia_parque,cp,municipio,organismo_operador) values
   ('ba000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','Empresa BHE','Planta BHE','manufacturera','Calle','Parque','87000','Victoria','COMAPA');
 insert into public.diagnostics (id,organization_id,company_id,tipo,fecha_inicio,fecha_fin,fase_actual,cat_estado,index_version_id) values
-  ('da000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','ba000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12',4,'validado_r2','00000000-0000-4000-8000-0000000000a1');
+  ('da000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','ba000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12',4,'validado_r2','00000000-0000-4000-8000-0000000000a1'),
+  ('da000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','ba000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12',4,'validado_r2','00000000-0000-4000-8000-0000000000a1');
 insert into public.project_members (diagnostic_id,user_id,organization_id,role) values
   ('da000000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','coordinador'),
   ('da000000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','equipo'),
   ('da000000-0000-4000-8000-000000000001','ca000000-0000-4000-8000-000000000003','aa000000-0000-4000-8000-0000000000a1','observador');
-insert into public.document_checklist_items (diagnostic_id,item_code,estado) values ('da000000-0000-4000-8000-000000000001','layout','validado_r1');
+insert into public.document_checklist_items (diagnostic_id,item_code,estado) values
+  ('da000000-0000-4000-8000-000000000001','layout','validado_r1'),
+  ('da000000-0000-4000-8000-000000000002','layout','validado_r1');
 insert into public.iih_assets (organization_id,diagnostic_id,stage_code,asset_type_id,tag,ubicacion,estado_fisico,opera,criticidad,intervencion,prioridad,verificado_v1)
 select 'aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','CAP',id,'BHE-CAP','U','bueno','si','alta','ninguna','media',true
 from public.iih_asset_types where stage_code='CAP' order by id limit 1;
+insert into public.iih_assets (organization_id,diagnostic_id,stage_code,asset_type_id,tag,ubicacion,estado_fisico,opera,criticidad,intervencion,prioridad,verificado_v1)
+select 'aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000002','CAP',id,'BHE-D2','U','bueno','si','alta','ninguna','media',true
+from public.iih_asset_types where stage_code='CAP' order by id limit 1;
 insert into public.logbook_entries (id,organization_id,diagnostic_id,clave,folio,responsable_sesion,fecha,horario_inicio,estado,created_by)
-values ('fa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','R3','BIT-R3-109','Coord','2026-01-26','09:00','cerrada','ca000000-0000-4000-8000-000000000001');
+values ('fa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','R3','BIT-R3-109','Coord','2026-01-26','09:00','cerrada','ca000000-0000-4000-8000-000000000001'),
+       ('fa000000-0000-4000-8000-000000000005','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000002','R3','BIT-R3-OTRO','Coord','2026-01-26','09:00','cerrada','ca000000-0000-4000-8000-000000000001'),
+       ('fa000000-0000-4000-8000-000000000006','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001','R3','BIT-R3-ABIERTA','Coord','2026-01-26','09:00','abierta','ca000000-0000-4000-8000-000000000001');
 insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version) values
   ('ea000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',1),
   ('ea000000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000001',2026::smallint,1,'en_captura',10),
@@ -104,9 +112,13 @@ select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000
 select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
   jsonb_build_array(jsonb_build_object('fila',3,'catalog_code','NOEXISTE','mes',1,'volumen_m3',1)) ,repeat('a',64)))->>'code', 'VALIDATION_BHE_INCOMPLETO', 'import 0 filas válidas no toca balance');
 select is((select count(*) from public.balance_flows where balance_id='ea000000-0000-4000-8000-000000000003'), 1::bigint, 'import 0 válidas conserva flows');
+select is((public.fn_import_bhe('ca000000-0000-4000-8000-000000000001','da000000-0000-4000-8000-000000000001','fa000000-0000-4000-8000-000000000002',2026::smallint,
+  jsonb_build_array(jsonb_build_object('fila',7,'catalog_code','NOEXISTE','mes',1,'volumen_m3',1)) ,repeat('a',64)))->'details'->'filas_rechazadas'->0->>'fila', '7', 'import rechazo fila Excel 1-based');
 
 -- Cobertura QA: ficha, replay/conflicto/audit, ACL negativa, post-R3, cross-tenant e import rol.
 select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000000'))->>'code', 'GATE_R3_FICHA', 'validate sin ficha R3');
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000005','fa000000-0000-4000-8000-000000000006'))->>'code', 'GATE_R3_FICHA', 'ficha R3 abierta bloquea');
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000005','fa000000-0000-4000-8000-000000000005'))->>'code', 'GATE_R3_FICHA', 'ficha R3 ajena bloquea');
 select ok(not has_function_privilege('authenticated','public.fn_validate_bhe_r3(uuid,uuid,uuid,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE validate');
 select ok(not has_function_privilege('authenticated','public.fn_import_bhe(uuid,uuid,uuid,smallint,jsonb,text,text,text)','EXECUTE'), 'ACL authenticated sin EXECUTE import');
 -- B4 balanced para validación exitosa con idempotencia.
@@ -130,6 +142,28 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"ca000000-0000-4000-8000-000000000001","organization_id":"aa000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
 select throws_ok($sql$ update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000001' $sql$, '42501', NULL, 'post-R3 cabecera inmutable');
 select throws_ok($sql$ update public.water_balances set diagnostic_id='da000000-0000-4000-8000-000000000099' where id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'diagnostic_id cross-tenant inmutable');
+select throws_ok($sql$ update public.water_balances set organization_id='aa000000-0000-4000-8000-0000000000b1' where id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'organization_id inmutable');
+select throws_ok($sql$ update public.balance_flows set catalog_code='OTRO' where balance_id='ea000000-0000-4000-8000-000000000002' $sql$, '42501', NULL, 'claves de balance_flows inmutables');
+select throws_ok($sql$ insert into public.balance_flows(balance_id,catalog_code,mes,volumen_m3) select 'ea000000-0000-4000-8000-000000000001',code,1,1 from public.balance_flow_catalog limit 1 $sql$, '42501', NULL, 'post-R3 flows inmutables');
+select ok(not has_function_privilege('anon','public.fn_validate_bhe_r3(uuid,uuid,uuid,text,text)','EXECUTE'), 'ACL anon sin validate');
+select ok((select proacl::text from pg_proc where proname='fn_validate_bhe_r3') like '%service_role=X%', 'proacl validate service_role');
+select is((public.fn_validate_bhe_r3('ca000000-0000-4000-8000-000000000001','ea000000-0000-4000-8000-000000000002','fa000000-0000-4000-8000-000000000001'))->>'code', 'GATE_BHE_BRECHA', 'brecha no audita');
+select is((select count(*) from public.audit_log where entity='water_balances' and action='approve' and entity_id='ea000000-0000-4000-8000-000000000002'), 0::bigint, 'brecha sin audit approve');
+reset role;
+
+set local role service_role;
+select throws_ok($sql$ update public.diagnostics set fase_actual=5 where id='da000000-0000-4000-8000-000000000002' $sql$, 'P0001', NULL, 'F5 sin BHE bloquea');
+insert into public.water_balances (id,organization_id,diagnostic_id,periodo_anio,mes_inicio,estado,version)
+values ('ea000000-0000-4000-8000-000000000006','aa000000-0000-4000-8000-0000000000a1','da000000-0000-4000-8000-000000000002',2026,1,'en_captura',1);
+insert into public.balance_flows (balance_id,catalog_code,mes,volumen_m3)
+select 'ea000000-0000-4000-8000-000000000006', fc.code, m.mes,
+  case fc.grupo when 'entrada' then 100 when 'consumo_proceso' then 60 else 0 end
+from generate_series(1,12) m(mes)
+join (select distinct on (grupo) code, grupo from public.balance_flow_catalog
+      where grupo in ('entrada','consumo_proceso') order by grupo, code) fc on true;
+update public.water_balances set estado='validado_r3' where id='ea000000-0000-4000-8000-000000000006';
+select throws_ok($sql$ update public.diagnostics set fase_actual=5 where id='da000000-0000-4000-8000-000000000002' $sql$, 'P0001', NULL, 'F5 con brecha >10 bloquea');
+reset role;
 
 
 reset role;
