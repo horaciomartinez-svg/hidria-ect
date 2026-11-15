@@ -129,7 +129,10 @@ Deno.test("XLSX: no es un ZIP/XLSX ⇒ VALIDATION_XLSX_ESTRUCTURA", async () => 
 });
 
 /** ZIP con una entrada deflate (para probar el cap de descompresión). */
-async function zipDeflated(name: string, payload: Uint8Array): Promise<Uint8Array> {
+async function zipDeflated(
+  name: string,
+  payload: Uint8Array,
+): Promise<Uint8Array> {
   const compressed = new Uint8Array(
     await new Response(
       new Blob([payload as unknown as BlobPart]).stream().pipeThrough(
@@ -155,7 +158,10 @@ async function zipDeflated(name: string, payload: Uint8Array): Promise<Uint8Arra
 
 Deno.test("XLSX: zip-bomb rechazada por cap de streaming sin materializar (B2)", async () => {
   // 2 MB de ceros comprimidos (~2 KB): ratio muy superior a 200.
-  const bomb = await zipDeflated("xl/worksheets/sheet1.xml", new Uint8Array(2_000_000));
+  const bomb = await zipDeflated(
+    "xl/worksheets/sheet1.xml",
+    new Uint8Array(2_000_000),
+  );
   await throwsApi(
     () =>
       parseXlsx(bomb, {

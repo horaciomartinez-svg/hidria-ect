@@ -377,8 +377,17 @@ Deno.test("EF-09 422: 0 filas de datos, MIME no permitido y documento ajeno", as
   assertEquals(zeroRows.response.status, 422);
   assertEquals(errorOf(zeroRows.payload).details?.reason, "sin_filas");
 
-  const mime = await call(BODY, {}, {
+  const xls = await call(BODY, {}, {
     document: { mime: "application/vnd.ms-excel" },
+  });
+  assertEquals(xls.response.status, 422);
+  assertEquals(
+    errorOf(xls.payload).details?.reason,
+    "formato_xls_no_soportado",
+  );
+
+  const mime = await call(BODY, {}, {
+    document: { mime: "text/plain" },
   });
   assertEquals(mime.response.status, 422);
   assertEquals(errorOf(mime.payload).details?.reason, "mime_no_permitido");

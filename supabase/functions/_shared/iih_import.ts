@@ -542,7 +542,16 @@ export function createIihImportHandler(
           { reason: "documento_no_valido" },
         );
       }
-      if (!XLSX_MIMES.includes(document.mime.toLowerCase())) {
+      const documentMime = document.mime.toLowerCase();
+      if (documentMime === "application/vnd.ms-excel") {
+        // M1: el parser solo soporta XLSX (OOXML); el XLS binario se rechaza de forma controlada.
+        throw new ApiError(
+          "VALIDATION_XLSX_ESTRUCTURA",
+          "El formato XLS binario no está soportado; guarda e importa como XLSX.",
+          { reason: "formato_xls_no_soportado" },
+        );
+      }
+      if (!XLSX_MIMES.includes(documentMime)) {
         throw new ApiError(
           "VALIDATION_XLSX_ESTRUCTURA",
           "El archivo no es un XLSX válido.",
