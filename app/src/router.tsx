@@ -10,6 +10,8 @@ import { BheDetailPage } from './routes/bhe/BheDetailPage';
 import { BheListPage } from './routes/bhe/BheListPage';
 import { IvohDetailPage } from './routes/ivoh/IvohDetailPage';
 import { IvohListPage } from './routes/ivoh/IvohListPage';
+import { BitacoraEntryPage } from './routes/bitacora/BitacoraEntryPage';
+import { BitacoraListPage } from './routes/bitacora/BitacoraListPage';
 import { IihInventoryPage } from './routes/iih/IihInventoryPage';
 import { IihListPage } from './routes/iih/IihListPage';
 import { EmpresaDetailPage } from './routes/empresas/EmpresaDetailPage';
@@ -36,7 +38,8 @@ const placeholderRoutes: RouteObject[] = MODULES.filter(
     module.id !== 'M4' &&
     module.id !== 'M5' &&
     module.id !== 'M6' &&
-    module.id !== 'M8',
+    module.id !== 'M8' &&
+    module.id !== 'M10',
 ).map((module) => ({
   path: module.path.slice(1),
   element: (
@@ -110,6 +113,9 @@ export const router = createBrowserRouter([
       // M8 — IVOH (F1-10a): captura de 6 factores, total/semáforo de solo lectura y validación R4.
       { path: 'ivoh', element: <IvohListPage /> },
       { path: 'ivoh/:diagnosticId', element: <IvohDetailPage /> },
+      // M10 — Bitácora (F1-11a): fichas, firmas, revisión y cierre por EF-02.
+      { path: 'bitacora', element: <BitacoraListPage /> },
+      { path: 'bitacora/:entryId', element: <BitacoraEntryPage /> },
       ...placeholderRoutes,
       { path: 'sincronizacion', element: <SincronizacionPage /> },
       { path: 'acerca', element: <AboutPage /> },
