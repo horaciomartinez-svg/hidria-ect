@@ -87,6 +87,45 @@ create trigger logbook_child_guard before insert or update on public.logbook_agr
 create trigger logbook_child_guard before insert or update on public.logbook_evidence for each row execute function public.trg_logbook_child_guard();
 revoke all on function public.trg_logbook_child_guard() from public,anon,authenticated;
 
+create or replace function public.trg_logbook_delete_guard()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare v_state text; v_diag uuid; v_role text;
+begin
+  select e.estado,e.diagnostic_id into v_state,v_diag from public.logbook_entries e where e.id=old.entry_id;
+  if v_state='cerrada' and auth.uid() is not null then raise exception 'Ficha cerrada: hijas inmutables.' using errcode='42501'; end if;
+  if auth.uid() is not null then
+    v_role:=public.fn_diag_role(auth.uid(),v_diag);
+    if v_role is null or v_role not in ('coordinador','equipo') then raise exception 'Bitácora: solo coordinador/equipo.' using errcode='42501'; end if;
+  end if;
+  return old;
+end; $$;
+drop trigger if exists logbook_delete_guard on public.logbook_participants;
+drop trigger if exists logbook_delete_guard on public.logbook_agenda;
+drop trigger if exists logbook_delete_guard on public.logbook_findings;
+drop trigger if exists logbook_delete_guard on public.logbook_agreements;
+drop trigger if exists logbook_delete_guard on public.logbook_evidence;
+create trigger logbook_delete_guard before delete on public.logbook_participants for each row execute function public.trg_logbook_delete_guard();
+create trigger logbook_delete_guard before delete on public.logbook_agenda for each row execute function public.trg_logbook_delete_guard();
+create trigger logbook_delete_guard before delete on public.logbook_findings for each row execute function public.trg_logbook_delete_guard();
+create trigger logbook_delete_guard before delete on public.logbook_agreements for each row execute function public.trg_logbook_delete_guard();
+create trigger logbook_delete_guard before delete on public.logbook_evidence for each row execute function public.trg_logbook_delete_guard();
+revoke all on function public.trg_logbook_delete_guard() from public,anon,authenticated;
+
+create or replace function public.trg_logbook_sign_guard()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+begin
+  if auth.uid() is not null and (
+     (tg_op='INSERT' and new.firma_ts is not null) or
+     (tg_op='UPDATE' and new.firma_ts is distinct from old.firma_ts)) then
+    raise exception 'Firma solo por RPC service_role.' using errcode='42501';
+  end if;
+  return new;
+end; $$;
+drop trigger if exists logbook_sign_guard on public.logbook_participants;
+create trigger logbook_sign_guard before insert or update on public.logbook_participants
+for each row execute function public.trg_logbook_sign_guard();
+revoke all on function public.trg_logbook_sign_guard() from public,anon,authenticated;
+
 -- Hijas: DELETE post-cierre 42501 (B1).
 create or replace function public.trg_logbook_child_delete_guard()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
