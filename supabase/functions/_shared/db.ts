@@ -76,6 +76,19 @@ export interface DocumentScopeRow {
   organizationId: string;
 }
 
+/** Ficha de bitácora para EF-02 (submit-review/sign/close). */
+export interface LogbookEntryRow {
+  id: string;
+  diagnosticId: string;
+  organizationId: string;
+  clave: string;
+  folio: string;
+  estado: string;
+  version: number;
+  fecha: string | null;
+  horarioInicio: string | null;
+}
+
 /** Balance hídrico para EF-05 (validate-r3). */
 export interface WaterBalanceRow {
   id: string;
@@ -156,6 +169,8 @@ export interface ServiceClient {
   ): Promise<DocumentImportRow | null>;
   /** F1-09: balance hídrico por id (EF-05 validate-r3). */
   fetchWaterBalance?(balanceId: string): Promise<WaterBalanceRow | null>;
+  /** F1-11: ficha de bitácora por id (EF-02). */
+  fetchLogbookEntryForEf02?(entryId: string): Promise<LogbookEntryRow | null>;
   /** F1-06b: usuarios de un rol del diagnóstico (notificación a empresa). */
   listRoleUserIds?(diagnosticId: string, role: string): Promise<string[]>;
   /** F1-07b: ítems del banco CAT A1-v1. */
@@ -635,6 +650,39 @@ export function createServiceClient(
     };
   };
 
+  const fetchLogbookEntryForEf02 = async (
+    entryId: string,
+  ): Promise<LogbookEntryRow | null> => {
+    const rows = await select<Record<string, unknown>>(
+      `/rest/v1/logbook_entries?id=eq.${encodeURIComponent(entryId)}` +
+        "&select=id,diagnostic_id,organization_id,clave,folio,estado,version,fecha,horario_inicio" +
+        "&limit=1",
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (
+      typeof row.id !== "string" || typeof row.diagnostic_id !== "string" ||
+      typeof row.organization_id !== "string" ||
+      typeof row.clave !== "string" || typeof row.folio !== "string" ||
+      typeof row.estado !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: row.id,
+      diagnosticId: row.diagnostic_id,
+      organizationId: row.organization_id,
+      clave: row.clave,
+      folio: row.folio,
+      estado: row.estado,
+      version: typeof row.version === "number" ? row.version : 1,
+      fecha: typeof row.fecha === "string" ? row.fecha : null,
+      horarioInicio: typeof row.horario_inicio === "string"
+        ? row.horario_inicio
+        : null,
+    };
+  };
+
   const fetchDocumentForImport = async (
     documentId: string,
   ): Promise<DocumentImportRow | null> => {
@@ -734,6 +782,7 @@ export function createServiceClient(
     fetchDocumentById,
     fetchDocumentForImport,
     fetchWaterBalance,
+    fetchLogbookEntryForEf02,
     listRoleUserIds,
     fetchCatItems,
     fetchCatResponses,
