@@ -63,7 +63,7 @@ declare v_state text; v_diag uuid; v_role text;
 begin
   select e.estado, e.diagnostic_id into v_state,v_diag from public.logbook_entries e where e.id=new.entry_id;
   if v_state is null then raise exception 'Bitácora: ficha inexistente.' using errcode='42501'; end if;
-  if v_state='cerrada' then raise exception 'Ficha cerrada: hijas inmutables.' using errcode='42501'; end if;
+  if v_state='cerrada' and auth.uid() is not null then raise exception 'Ficha cerrada: hijas inmutables.' using errcode='42501'; end if;
   if auth.uid() is not null then
     v_role := public.fn_diag_role(auth.uid(),v_diag);
     if v_role is null or v_role not in ('coordinador','equipo') then
