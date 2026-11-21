@@ -19,20 +19,20 @@ Existen `logbook_templates` (8 fichas), `logbook_entries` con folio server-side 
 ### D2 — Regla ≤24 h (TD-8)
 - **Timestamp del evento:** `(fecha + horario_inicio)` interpretado en `America/Mexico_City` y convertido a `timestamptz`; se compara contra `now()` server-side.
 - **≤24 h:** cierre normal; `cerrada_razon` opcional.
-- **>24 h:** cierre **bloqueado** con `VALIDATION_RAZON` (422) si `cerrada_razon` falta o tiene <10 caracteres. Con razón válida se permite, marca `cierre_tardio=true`, y la auditoría/`logbook_change_log` lo registran.
+- **>24 h:** cierre **bloqueado** con `VALIDATION_RAZON` (422) si `cerrada_razon` falta o tiene <20 caracteres (TD-8). Con razón válida se permite, marca `cierre_tardio=true`, y la auditoría/`logbook_change_log` lo registran.
 - **Al vencer:** no se cambia automáticamente el semáforo ni se escala en F1-11; el cierre tardío queda visible (`cierre_tardio`, razón, audit). Escalamiento/job y semáforo de atraso son follow-up F1-13 (no bloqueante de F1-11).
 - Caso límite: exactamente 24 h se considera normal (`now() <= event_ts + interval '24 hours'`); el bloqueo aplica con `>`.
 
 ### D3 — Validaciones de cierre (server-side, RPC)
 - **Firmas:** contar los segmentos de `logbook_templates.asistentes_requeridos` separados por `·`; exigir al menos ese número de `logbook_participants` con `firma_ts not null`. Sin firmas suficientes ⇒ `VALIDATION_FIRMAS` 422.
-- **Agenda:** deben existir al menos tantas filas `logbook_agenda` como `agenda_items` del template, cubriendo `no=1..N`; cada fila con `estado='no_realizado'` o `'modificado'` exige `resultado` no vacío. Incumplimiento ⇒ `VALIDATION_AGENDA` 422.
-- **Evidencia:** al menos tantas `logbook_evidence` como `evidence_items` del template; toda fila con `obligatorio=true` exige `document_id` (y documento del tenant/diagnóstico). Incumplimiento ⇒ `VALIDATION_EVIDENCIA` 422.
+- **Agenda:** los `agenda_items` del template son un **array de strings**; el seed asigna `no=ordinal` (1..N) y `actividad=texto`. Deben existir al menos N filas cubriendo `no=1..N`; cada fila con `estado='no_realizado'` o `'modificado'` exige `resultado` no vacío. Incumplimiento ⇒ `VALIDATION_AGENDA` 422.
+- **Evidencia:** los `evidence_items` son array de strings; el seed crea filas `item=texto` con `obligatorio=true`; se exige una fila por ítem y `document_id` del mismo tenant/diagnóstico. Incumplimiento ⇒ `VALIDATION_EVIDENCIA` 422.
 - **Rol/tenant:** coordinador/equipo con membresía en el diagnóstico; ficha del tenant; no cross-tenant; 403 anti-enumeración.
 - **Precedencia:** `FORBIDDEN_*` → `CONFLICT_STATE` (estado incorrecto) → `VALIDATION_FIRMAS` → `VALIDATION_AGENDA` → `VALIDATION_EVIDENCIA` → `VALIDATION_RAZON` (24 h).
 
 ### D4 — RPC y EF-02
 - `fn_submit_logbook_review(p_user_id,p_entry_id,p_idempotency_key,p_request_hash)`: `abierta→en_revision`, audit `update`, idempotencia `EF-02.submit-review`.
-- `fn_sign_logbook_participant(p_user_id,p_entry_id,p_participante,p_idempotency_key,p_request_hash)`: set `firma_ts=now()` si `abierta|en_revision`, audit `update`, idempotencia `EF-02.sign`.
+- `fn_sign_logbook_participant(p_user_id,p_entry_id,p_participante_nombre text,p_idempotency_key,p_request_hash)`: set `firma_ts=now()` si `abierta|en_revision`, audit `update`, idempotencia `EF-02.sign`.
 - `fn_close_logbook(p_user_id,p_entry_id,p_cierre_razon,p_idempotency_key,p_request_hash)`: valida D3, calcula `cierre_tardio`, `UPDATE estado/cerrada_en/razon/version+1/cierre_tardio`, inserta `logbook_change_log` con snapshot previo, audit `sign`, actualiza `diagnostics.bitacora_cerrada` (true si las 8 fichas V1,V2,V3,R1..R5 están cerradas), idempotencia `EF-02.close`.
 - Rutas EF-02: `POST /functions/v1/ef-02-logbook/logbook/{entry_id}/submit-review|sign|close` (alias `/logbook/{id}/...`).
 - Todas las RPC: `SECURITY DEFINER`, `search_path=public,pg_temp`, `REVOKE` public/anon/authenticated, `GRANT EXECUTE service_role`.
@@ -75,7 +75,7 @@ Existen `logbook_templates` (8 fichas), `logbook_entries` con folio server-side 
 ### D11 — Matching exacto y 24 h
 - Agenda: por `no` 1..N contra el orden de `agenda_items` del template; `estado='no_realizado'|'modificado'` ⇒ `resultado` no vacío. Evidencia: por `item` (texto exacto del `evidence_items`); `obligatorio=true` ⇒ `document_id` no nulo y documento del mismo diagnóstico/tenant.
 - Firmas requeridas: `string_to_array(asistentes_requeridos, '·')` depurado; se exige `count(distinct nombre)` con `firma_ts` ≥ número de segmentos; no se aceptan firmas de otro tenant/diagnóstico.
-- 24 h: `event_ts = ((fecha + horario_inicio) AT TIME ZONE 'America/Mexico_City')`; `now() <= event_ts + interval '24 hours'` normal; `>` exige razón ≥10 y `cierre_tardio=true`; DST se resuelve con `AT TIME ZONE` de la zona IANA.
+- 24 h: `event_ts = ((fecha + horario_inicio) AT TIME ZONE 'America/Mexico_City')`; `now() <= event_ts + interval '24 hours'` normal; `>` exige razón **≥20 caracteres** y `cierre_tardio=true`; DST se resuelve con `AT TIME ZONE` de la zona IANA.
 - `bitacora_cerrada=true` solo cuando existen 8 entries `V1,V2,V3,R1,R2,R3,R4,R5` cerradas del diagnóstico; no se acepta desde cliente.
 
 ### D12 — Alta de fichas, poblado inicial y contrato UI
@@ -90,7 +90,7 @@ Existen `logbook_templates` (8 fichas), `logbook_entries` con folio server-side 
 ### D13 — Cierres EF/DB y gate de reporte
 - **Catálogo EF-02:** añadir endpoints `EF-02.submit-review`, `EF-02.sign`, `EF-02.close` en `_shared/auth.ts` con roles `coordinador|equipo`; las tres comparten auth/claims/tenant/anti-enumeración.
 - **Identidad de firma:** `logbook_participants` PK `(entry_id,nombre)`; `fn_sign_logbook_participant(...,p_participante_nombre text,...)` valida nombre exacto; coord/equipo registran la firma en representación del asistente (acta; sin cuentas externas). `firma_ts` server-side; no se firma por otro diagnóstico/entry.
-- **`p7_bitacoras`/`bitacora_cerrada`:** exige **una ficha cerrada por cada clave requerida** `V1,V2,V3,R1,R2,R3,R4,R5` (8 claves distintas); sesiones extra (p. ej. segunda V1) no cuentan como requisito ni lo bloquean si están abiertas. `bitacora_cerrada=true` cuando las 8 claves requeridas tienen al menos una entry cerrada; se recalcula server-side tras cada cierre.
+- **`p7_bitacoras`/`bitacora_cerrada`:** exige **8 claves requeridas cubiertas** `V1,V2,V3,R1,R2,R3,R4,R5` (cada una con ≥1 ficha cerrada) **y que ninguna ficha existente de esas claves esté en `abierta|en_revision`**. Sesiones extra (p. ej. segunda V1) deben cerrarse también; no cuentan como requisito adicional. `bitacora_cerrada=true` cuando se cumple esa condición; se recalcula server-side tras cada cierre.
 - **Notificación:** tras `close`, notificación `kind='validacion'` best-effort a miembros de la organización del diagnóstico (empresa/contraparte) si el template es tipo `reunion`; error de notificación no revierte el cierre. Evento `logbook_closed`.
 - **Respuesta close:** `{entry_id,folio,clave,cerrada_en,version,cierre_tardio}`.
 - **No hay precheck 24 h**; la UI ofrece razón opcional y reacciona a 422/200 del servidor.
