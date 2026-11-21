@@ -38,9 +38,9 @@ insert into public.logbook_entries (id,diagnostic_id,clave,fecha,horario_inicio,
   ('ee000000-0000-4000-8000-000000000006','de000000-0000-4000-8000-000000000001','R4',current_date,'09:00','Coord','cerrada',now(),'ce000000-0000-4000-8000-000000000001'),
   ('ee000000-0000-4000-8000-000000000007','de000000-0000-4000-8000-000000000001','R5',current_date,'09:00','Coord','cerrada',now(),'ce000000-0000-4000-8000-000000000001'),
   ('ee000000-0000-4000-8000-000000000008','de000000-0000-4000-8000-000000000001','R1',current_date,'09:00','Coord','abierta',null,'ce000000-0000-4000-8000-000000000001');
-insert into public.logbook_entries (id,diagnostic_id,clave,fecha,horario_inicio,responsable_sesion,created_by) values
-  ('ee000000-0000-4000-8000-000000000009','de000000-0000-4000-8000-000000000002','R2',current_date,'09:00','Coord','ce000000-0000-4000-8000-000000000001'),
-  ('ee000000-0000-4000-8000-00000000000a','de000000-0000-4000-8000-000000000002','R3',current_date,'09:00','Coord','ce000000-0000-4000-8000-000000000001');
+insert into public.logbook_entries (id,diagnostic_id,clave,folio,fecha,horario_inicio,responsable_sesion,created_by) values
+  ('ee000000-0000-4000-8000-000000000009','de000000-0000-4000-8000-000000000002','R2','BIT-QA-D2-01',current_date,'09:00','Coord','ce000000-0000-4000-8000-000000000001'),
+  ('ee000000-0000-4000-8000-00000000000a','de000000-0000-4000-8000-000000000002','R3','BIT-QA-D2-02',current_date,'09:00','Coord','ce000000-0000-4000-8000-000000000001');
 insert into public.logbook_participants (entry_id,nombre,cargo,institucion) values
   ('ee000000-0000-4000-8000-000000000008','Dirección','Dirección','Empresa'),
   ('ee000000-0000-4000-8000-000000000008','Responsable','Planta','Empresa'),

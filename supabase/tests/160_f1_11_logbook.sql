@@ -1,6 +1,6 @@
 -- F1-11 task-172 â€” pgTAP BitÃ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(46);
+select plan(48);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
@@ -99,9 +99,11 @@ select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000
 update public.logbook_agenda set estado='no_realizado',resultado=null where entry_id='ed000000-0000-4000-8000-000000000007' and no=1;
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000007'))->>'code','VALIDATION_AGENDA','LB-02 agenda R4');
 select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008'))->'data'->>'estado','en_revision','submit R5');
-insert into public.logbook_participants(entry_id,nombre,cargo,institucion) values ('ed000000-0000-4000-8000-000000000008','P3','C','I'),('ed000000-0000-4000-8000-000000000008','P4','C','I');
+insert into public.logbook_participants(entry_id,nombre,cargo,institucion) values ('ed000000-0000-4000-8000-000000000008','P3','C','I'),('ed000000-0000-4000-8000-000000000008','P4','C','I'),('ed000000-0000-4000-8000-000000000008','P5','C','I'),('ed000000-0000-4000-8000-000000000008','P6','C','I');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P3'))->>'ok','true','firma R5 1');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P4'))->>'ok','true','firma R5 2');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P5'))->>'ok','true','firma R5 3');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P6'))->>'ok','true','firma R5 4');
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008'))->>'code','VALIDATION_EVIDENCIA','LB-03 evidencia R5');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','Dirección'))->>'code','CONFLICT_STATE','post-cierre sign rechazado');
 select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->>'code','CONFLICT_STATE','post-cierre submit rechazado');
