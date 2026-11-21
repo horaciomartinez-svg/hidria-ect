@@ -148,18 +148,20 @@ Cada EF, al completar una operación mutante, inserta en `audit_log` (`action`, 
 
 > **Alcance F1 (F1-04):** EF-01 entrega transiciones **1→2 y 2→3 reales**; **3→4+** se validan con fixtures/contrato hasta **F2-06 (M5/IIH)**. No se declara F1 como flujo completo a F6.
 
-## EF-02 — Cierre y firma de ficha de bitácora
+## EF-02 — Revisión, firma y cierre de ficha de bitácora
 
-`POST /functions/v1/logbook/{entry_id}/close`
+`POST /functions/v1/ef-02-logbook/logbook/{entry_id}/submit-review` — `.../sign` — `.../close` (alias `/logbook/{entry_id}/...`)
 
 | Campo | Valor |
 |---|---|
-| Propósito | Cerrar la ficha (`estado: abierta → cerrada`), sellar `cerrada_en`, crear la entrada de control de cambios |
-| Pre | Rol `coordinador|equipo`; ficha `abierta`; participantes con `firma_ts` de los asistentes **requeridos** del template (`logbook_templates.asistentes_requeridos`); agenda completa (cada `no` con `estado` y `resultado` si fue `realizado`); evidencia obligatoria adjunta (`logbook_evidence.obligatorio → document_id not null`); si `now() - fecha > 24 h` entonces `cerrada_razon` obligatoria en el cuerpo |
-| Tx | `UPDATE logbook_entries SET estado='cerrada', cerrada_en=now(), cerrada_razon, version=version+1`; `INSERT logbook_change_log(version, descripcion, responsable, prev)` con el snapshot previo; `audit_log(action='sign')` |
-| Post | Notificación `kind='validacion'` a contraparte empresa si la ficha es V/R de validación; evento Realtime `logbook_closed` |
-| Respuesta | `{ entry_id, folio, clave, cerrada_en, version }` |
-| Errores | `VALIDATION_FIRMAS` · `VALIDATION_AGENDA` · `VALIDATION_EVIDENCIA` (422) · `VALIDATION_RAZON` (422, cierre tardío sin justificación) · `FORBIDDEN_ROLE` |
+| Propósito | `submit-review`: `abierta → en_revision`; `sign`: registrar `firma_ts` de un participante; `close`: `en_revision → cerrada`, sellar `cerrada_en`/`cierre_tardio` y crear `logbook_change_log` |
+| Pre | Rol `coordinador|equipo`; tenant/membresía (403 anti-enumeración); `submit-review` solo desde `abierta`; `sign` en `abierta|en_revision` por nombre exacto de `logbook_participants`; `close` solo desde `en_revision` |
+| Validaciones de cierre | Firmas: ≥ nº de segmentos de `logbook_templates.asistentes_requeridos` con `firma_ts`; agenda: filas `no=1..N` y `resultado` no vacío si `no_realizado|modificado`; evidencia: cada `item` de `evidence_items` con `document_id` del mismo diagnóstico/tenant y `upload_status='registered'`; 24 h: `event_ts=(fecha+horario_inicio) AT TIME ZONE 'America/Mexico_City'`; `>24 h` exige `cierre_razon ≥20` y marca `cierre_tardio` |
+| Tx | RPC `fn_submit_logbook_review` / `fn_sign_logbook_participant(...,p_participante_nombre,...)` / `fn_close_logbook` `SECURITY DEFINER`/`service_role`-only, `search_path=public,pg_temp`, REVOKE public/anon/authenticated: transición, `firma_ts=now()` server-side, `estado='cerrada'`+`version+1`+`cierre_tardio`, snapshot `prev` en `logbook_change_log`, `audit_log('sign')`, idempotencia `EF-02.submit-review|sign|close`; `diagnostics.bitacora_cerrada` se recalcula (8 claves cubiertas y todas las filas de esas claves cerradas) |
+| Post | `logbook_closed` + notificación `kind='validacion'` best-effort; gate de reporte `p7_bitacoras`/`bitacora_cerrada` |
+| Respuesta | `submit-review`: `{entry_id,folio,clave,estado:'en_revision'}` · `sign`: `{entry_id,folio,participante,firma_ts,estado}` · `close`: `{entry_id,folio,clave,cerrada_en,version,cierre_tardio}` |
+| Errores | `VALIDATION_FIRMAS`/`VALIDATION_AGENDA`/`VALIDATION_EVIDENCIA`/`VALIDATION_RAZON` (422; razón incluye `details.requiere_razon/event_ts`) · `CONFLICT_STATE` (409 estado/idempotencia/doble firma) · `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` (403) · `INTERNAL_ERROR` (500 saneado) |
+| Inmutabilidad | Post-cierre UPDATE/DELETE de la ficha y sus hijas ⇒ **42501**; `firma_ts` solo por EF-02; `created_by`/`organization_id`/`folio`/`estado`/`version` server-side |
 
 ## EF-03 — Transición de ítem de la lista de cotejo documental
 
