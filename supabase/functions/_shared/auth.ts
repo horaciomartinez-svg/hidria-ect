@@ -512,7 +512,9 @@ export type EndpointRolePolicy =
 
 export type EndpointId =
   | "EF-01"
-  | "EF-02"
+  | "EF-02.submit-review"
+  | "EF-02.sign"
+  | "EF-02.close"
   | "EF-03"
   | "EF-04.submit"
   | "EF-04.validate-r2"
@@ -568,14 +570,34 @@ export const ENDPOINTS: readonly EndpointDefinition[] = [
     docRef: "docs/04 §4 EF-01",
   },
   {
-    id: "EF-02",
+    id: "EF-02.submit-review",
+    ef: "EF-02",
+    method: "POST",
+    path: "/logbook/{entry_id}/submit-review",
+    scope: { kind: "logbook_entry", param: "entry_id" },
+    policy: { kind: "diagnostic", roles: COORDINADOR_EQUIPO },
+    tenantRequired: true,
+    docRef: "docs/04 §4 EF-02 (submit-review)",
+  },
+  {
+    id: "EF-02.sign",
+    ef: "EF-02",
+    method: "POST",
+    path: "/logbook/{entry_id}/sign",
+    scope: { kind: "logbook_entry", param: "entry_id" },
+    policy: { kind: "diagnostic", roles: COORDINADOR_EQUIPO },
+    tenantRequired: true,
+    docRef: "docs/04 §4 EF-02 (sign)",
+  },
+  {
+    id: "EF-02.close",
     ef: "EF-02",
     method: "POST",
     path: "/logbook/{entry_id}/close",
     scope: { kind: "logbook_entry", param: "entry_id" },
     policy: { kind: "diagnostic", roles: COORDINADOR_EQUIPO },
     tenantRequired: true,
-    docRef: "docs/04 §4 EF-02",
+    docRef: "docs/04 §4 EF-02 (close)",
   },
   {
     id: "EF-03",
