@@ -1,6 +1,13 @@
 -- F1-11 cierres QA: LB-01/02, 24 h límite, RLS/ACL, idempotencia, p7 y post-cierre.
 begin;
 select plan(20);
+create or replace function public.qa_lb_folio() returns trigger language plpgsql as $$
+begin
+  if new.folio is null then new.folio := 'QA-' || replace(new.id::text,'-',''); end if;
+  return new;
+end; $$;
+drop trigger if exists qa_lb_folio on public.logbook_entries;
+create trigger qa_lb_folio before insert on public.logbook_entries for each row execute function public.qa_lb_folio();
 
 insert into public.organizations (id,name,org_type) values
   ('ae000000-0000-4000-8000-0000000000a1','Org LB QA','srhds'),

@@ -1,6 +1,6 @@
 -- F1-11 task-172 â€” pgTAP BitÃ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(48);
+select plan(50);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
@@ -102,6 +102,9 @@ select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001
 insert into public.logbook_participants(entry_id,nombre,cargo,institucion) values ('ed000000-0000-4000-8000-000000000008','P3','C','I'),('ed000000-0000-4000-8000-000000000008','P4','C','I'),('ed000000-0000-4000-8000-000000000008','P5','C','I'),('ed000000-0000-4000-8000-000000000008','P6','C','I');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P3'))->>'ok','true','firma R5 1');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P4'))->>'ok','true','firma R5 2');
+insert into public.logbook_participants(entry_id,nombre,cargo,institucion) values ('ed000000-0000-4000-8000-000000000008','P5','C','I'),('ed000000-0000-4000-8000-000000000008','P6','C','I');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P5'))->>'ok','true','firma R5 3');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P6'))->>'ok','true','firma R5 4');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P5'))->>'ok','true','firma R5 3');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P6'))->>'ok','true','firma R5 4');
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008'))->>'code','VALIDATION_EVIDENCIA','LB-03 evidencia R5');
