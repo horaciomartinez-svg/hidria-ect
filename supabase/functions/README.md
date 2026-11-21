@@ -180,19 +180,46 @@ Reglas obligatorias (detalle en
   `…/validate-r4` (contrato `/ivoh/{diagnostic_id}/…`).
 - **score** (`coordinador|equipo`): borrador **parcial 1–6 factores**; body
   `{scores:[{factor_code:F1..F6, puntaje:0–10 paso 0.5, justificacion,
-  evidencia:[{tipo,ref,descripcion?}]}]}`; evidencia allowlist
-  `documento|activo|indicador|ficha`, `ref` no vacío, ≥1 por factor; RPC
-  `fn_save_ivoh_score`; respuesta `{diagnostic_id, version_id, estado:'borrador',
-  factores_guardados}` **sin total/semáforo**.
+  evidencia:[{tipo,ref,descripcion?}]}]}`;
+  evidencia allowlist `documento|activo|indicador|ficha`, `ref` no vacío, ≥1 por
+  factor; RPC `fn_save_ivoh_score`; respuesta
+  `{diagnostic_id, version_id, estado:'borrador',
+  factores_guardados}` **sin
+  total/semáforo**.
 - **validate-r4** (`coordinador|equipo`): body `{r4_logbook_id}` (ficha `BIT-R4`
   cerrada del diagnóstico, `409 GATE_R4_FICHA`); RPC `fn_validate_ivoh_r4` exige
-  6/6 y devuelve `{diagnostic_id, total, semaforo, semaforo_label,
-  por_factor:[{factor_code,peso,puntaje,aportacion}]}`; post-commit
-  `ivoh_validated` + notificación (best-effort). La EF **no calcula** IVOH.
+  6/6 y devuelve
+  `{diagnostic_id, total, semaforo, semaforo_label,
+  por_factor:[{factor_code,peso,puntaje,aportacion}]}`;
+  post-commit `ivoh_validated` + notificación (best-effort). La EF **no
+  calcula** IVOH.
 - Errores: 401 · 403 `FORBIDDEN_ROLE`/`FORBIDDEN_NOT_MEMBER` · 409
   `GATE_BHE_R3`/`CONFLICT_IVOH_VERSION`/`GATE_R4_FICHA`/`CONFLICT_STATE` · 422
   `VALIDATION_IVOH_INCOMPLETO`/`VALIDATION_PARAMETRO_REQUERIDO`/
   `VALIDATION_IDEMPOTENCY_KEY` · 500 saneado. `Idempotency-Key` opcional.
+
+### EF-02 — `ef-02-logbook` (task-173 / F1-11)
+
+- Rutas: `POST /functions/v1/ef-02-logbook/logbook/{entry_id}/submit-review`,
+  `…/sign`, `…/close` (alias `/logbook/{entry_id}/…`).
+- Auth/claims (`verifyProfile`, `nbf`, `p_user_id` JWT), rol
+  **coordinador|equipo**, tenant/membresía con **403 anti-enumeración**.
+- **submit-review** (`abierta → en_revision`): solo transición; body `{}`;
+  RPC `fn_submit_logbook_review`; respuesta `{entry_id, folio, clave,
+  estado:'en_revision'}`. No valida firmas/agenda/evidencia.
+- **sign**: body `{participante:<nombre exacto>}`; RPC
+  `fn_sign_logbook_participant(...,p_participante_nombre,...)` fija `firma_ts`
+  server-side (coord/equipo registran en representación); respuesta
+  `{entry_id, folio, participante, firma_ts, estado}`.
+- **close** (solo desde `en_revision`): body `{cierre_razon?}`; la RPC valida
+  firmas/agenda/evidencia y la regla 24 h (razón ≥20 si tardío; la EF **no**
+  calcula 24 h); respuesta `{entry_id, folio, clave, cerrada_en, version,
+  cierre_tardio}`. Post-commit notificación `validacion` + `logbook_closed`
+  (best-effort).
+- Errores: 401 · 403 · 409 `CONFLICT_STATE` · 422 `VALIDATION_FIRMAS`/
+  `VALIDATION_AGENDA`/`VALIDATION_EVIDENCIA`/`VALIDATION_RAZON`/
+  `VALIDATION_PARAMETRO_REQUERIDO`/`VALIDATION_IDEMPOTENCY_KEY` · 500 saneado.
+  `Idempotency-Key` opcional (`EF-02.submit-review`/`EF-02.sign`/`EF-02.close`).
 
 ## Variables de entorno de las EF
 
@@ -216,7 +243,7 @@ El job `Edge Functions (Deno)` del CI (#38) ejecuta
 `deno fmt --check
 supabase/functions --ignore=supabase/functions/README.md`,
 `deno lint`, `deno check supabase/functions/_shared` + cada
-`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**232
+`supabase/functions/*/index.ts`, y `deno test supabase/functions/_shared` (**242
 pruebas**: 101 base + 50 F1-04 + 15 F1-05 + 16 F1-06b + 12 F1-07b + 17 F1-08b
-+ 7 F1-09 EF-05 + 6 F1-09 BHE + 8 F1-10 EF-06). Sin red ni permisos: DB/RPC,
-R2 (HEAD/download) y broadcast se inyectan.
++ 7 F1-09 EF-05 + 6 F1-09 BHE + 8 F1-10 EF-06 + 10 F1-11 EF-02). Sin red ni
+permisos: DB/RPC, R2 (HEAD/download) y broadcast se inyectan.

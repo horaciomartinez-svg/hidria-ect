@@ -573,9 +573,9 @@ Deno.test("requireDiagnosticRole: id malformado ⇒ 403 FORBIDDEN_NOT_MEMBER", a
 // Catálogo de endpoints y guardas por endpoint (docs/04)
 // ---------------------------------------------------------------------------
 
-Deno.test("catálogo: 16 endpoints de EF-01…EF-13 con políticas del contrato", () => {
+Deno.test("catálogo: 18 endpoints de EF-01…EF-13 con políticas del contrato", () => {
   assertEquals(new Set(ENDPOINTS.map((endpoint) => endpoint.ef)).size, 13);
-  assertEquals(ENDPOINTS.length, 16);
+  assertEquals(ENDPOINTS.length, 18);
 
   assertEquals(endpointById("EF-07").policy, {
     kind: "diagnostic",
@@ -646,8 +646,22 @@ Deno.test("matchEndpoint: ruta, parámetros y prefijo /functions/v1", () => {
     `/functions/v1/logbook/${LOGBOOK_ENTRY_ID}/close`,
   );
   assert(entry !== null);
-  assertEquals(entry.endpoint.id, "EF-02");
+  assertEquals(entry.endpoint.id, "EF-02.close");
   assertEquals(entry.params.entry_id, LOGBOOK_ENTRY_ID);
+
+  const submitReview = matchEndpoint(
+    "POST",
+    `/functions/v1/logbook/${LOGBOOK_ENTRY_ID}/submit-review`,
+  );
+  assert(submitReview !== null);
+  assertEquals(submitReview.endpoint.id, "EF-02.submit-review");
+
+  const sign = matchEndpoint(
+    "POST",
+    `/functions/v1/logbook/${LOGBOOK_ENTRY_ID}/sign`,
+  );
+  assert(sign !== null);
+  assertEquals(sign.endpoint.id, "EF-02.sign");
 });
 
 Deno.test("matchEndpoint: método o ruta desconocidos ⇒ null", () => {
