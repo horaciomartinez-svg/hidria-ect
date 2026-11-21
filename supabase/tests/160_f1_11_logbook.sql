@@ -1,6 +1,6 @@
 -- F1-11 task-172 â€” pgTAP BitÃ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(28);
+select plan(46);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
@@ -84,6 +84,27 @@ select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005'))->>'code','VALIDATION_RAZON','cierre tardÃ­o sin razÃ³n');
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005','JustificaciÃ³n suficientemente larga para el cierre tardÃ­o'))->>'ok','true','cierre tardÃ­o con razÃ³n');
 select is((select cierre_tardio from public.logbook_entries where id='ed000000-0000-4000-8000-000000000005'),true,'cierre_tardio true');
+select is((select p7_bitacoras from public.v_diagnostic_completeness where diagnostic_id='dd000000-0000-4000-8000-000000000001'),false,'p7 2/8 false');
+select is((select bitacora_cerrada from public.diagnostics where id='dd000000-0000-4000-8000-000000000001'),false,'bitacora_cerrada 2/8 false');
+select ok((select count(*) from public.logbook_change_log where entry_id='ed000000-0000-4000-8000-000000000004')>=1,'change_log cierre R1');
+select ok((select count(*) from public.audit_log where entity='logbook_entries' and action='sign')>=2,'audit cierre R1/R2');
+select ok(not has_function_privilege('authenticated','public.fn_close_logbook(uuid,uuid,text,text,text)','EXECUTE'),'ACL authenticated sin close');
+select ok((select proacl::text from pg_proc where proname='fn_close_logbook') like '%service_role=X%','proacl close service_role');
+select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000006'))->'data'->>'estado','en_revision','submit R3');
+select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000006'))->>'code','VALIDATION_FIRMAS','LB-01 firmas R3');
+select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000007'))->'data'->>'estado','en_revision','submit R4');
+insert into public.logbook_participants(entry_id,nombre,cargo,institucion) values ('ed000000-0000-4000-8000-000000000007','P1','C','I'),('ed000000-0000-4000-8000-000000000007','P2','C','I');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000007','P1'))->>'ok','true','firma R4 1');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000007','P2'))->>'ok','true','firma R4 2');
+update public.logbook_agenda set estado='no_realizado',resultado=null where entry_id='ed000000-0000-4000-8000-000000000007' and no=1;
+select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000007'))->>'code','VALIDATION_AGENDA','LB-02 agenda R4');
+select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008'))->'data'->>'estado','en_revision','submit R5');
+insert into public.logbook_participants(entry_id,nombre,cargo,institucion) values ('ed000000-0000-4000-8000-000000000008','P3','C','I'),('ed000000-0000-4000-8000-000000000008','P4','C','I');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P3'))->>'ok','true','firma R5 1');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008','P4'))->>'ok','true','firma R5 2');
+select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008'))->>'code','VALIDATION_EVIDENCIA','LB-03 evidencia R5');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','Dirección'))->>'code','CONFLICT_STATE','post-cierre sign rechazado');
+select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->>'code','CONFLICT_STATE','post-cierre submit rechazado');
 reset role;
 reset request.jwt.claims;
 
