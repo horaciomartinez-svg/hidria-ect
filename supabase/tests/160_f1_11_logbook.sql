@@ -1,6 +1,6 @@
 -- F1-11 task-172 Ã¢â‚¬â€ pgTAP BitÃƒÂ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(50);
+select plan(48);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
