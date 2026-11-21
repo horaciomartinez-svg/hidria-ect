@@ -1,6 +1,6 @@
 -- F1-11 task-172 Ã¢â‚¬â€ pgTAP BitÃƒÂ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(50);
+select plan(48);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
@@ -107,11 +107,6 @@ select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000008'))->>'code','VALIDATION_EVIDENCIA','LB-03 evidencia R5');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','DirecciÃ³n'))->>'code','CONFLICT_STATE','post-cierre sign rechazado');
 select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->>'code','CONFLICT_STATE','post-cierre submit rechazado');
--- Frontera 24 h: exactamente 24 h normal; 24 h + 1 s tardío (comparador server-side).
-with t as (select now() as ts)
-select is((t.ts - interval '24 hours') <= (t.ts - interval '24 hours') + interval '24 hours',true,'frontera exacta 24h normal');
-with t as (select now() as ts)
-select is((t.ts - interval '24 hours' - interval '1 second') > (t.ts - interval '24 hours') + interval '24 hours',false,'24h +1s no supera borde (control)');
 reset role;
 reset request.jwt.claims;
 
