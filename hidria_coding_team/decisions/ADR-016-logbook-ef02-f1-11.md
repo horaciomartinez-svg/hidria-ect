@@ -87,5 +87,13 @@ Existen `logbook_templates` (8 fichas), `logbook_entries` con folio server-side 
 - **Gate de reporte:** la UI lee `diagnostics.bitacora_cerrada` y `v_diagnostic_completeness.p7_bitacoras`; muestra 8/8 y el aviso de prerrequisito de reporte.
 - **RLS hijas:** edición directa por coord/equipo hasta `cerrada` (RLS + guards); observador/empresa solo lectura; cierre/firma/revisión solo EF-02.
 
+### D13 — Cierres EF/DB y gate de reporte
+- **Catálogo EF-02:** añadir endpoints `EF-02.submit-review`, `EF-02.sign`, `EF-02.close` en `_shared/auth.ts` con roles `coordinador|equipo`; las tres comparten auth/claims/tenant/anti-enumeración.
+- **Identidad de firma:** `logbook_participants` PK `(entry_id,nombre)`; `fn_sign_logbook_participant(...,p_participante_nombre text,...)` valida nombre exacto; coord/equipo registran la firma en representación del asistente (acta; sin cuentas externas). `firma_ts` server-side; no se firma por otro diagnóstico/entry.
+- **`p7_bitacoras`/`bitacora_cerrada`:** exige **una ficha cerrada por cada clave requerida** `V1,V2,V3,R1,R2,R3,R4,R5` (8 claves distintas); sesiones extra (p. ej. segunda V1) no cuentan como requisito ni lo bloquean si están abiertas. `bitacora_cerrada=true` cuando las 8 claves requeridas tienen al menos una entry cerrada; se recalcula server-side tras cada cierre.
+- **Notificación:** tras `close`, notificación `kind='validacion'` best-effort a miembros de la organización del diagnóstico (empresa/contraparte) si el template es tipo `reunion`; error de notificación no revierte el cierre. Evento `logbook_closed`.
+- **Respuesta close:** `{entry_id,folio,clave,cerrada_en,version,cierre_tardio}`.
+- **No hay precheck 24 h**; la UI ofrece razón opcional y reacciona a 422/200 del servidor.
+
 ## Evidencia
 `docs/01` §4.10, `docs/04` EF-02/TD-8, `docs/05` LB-01…08, `docs/02` tablas/triggers, `main@e6ab1c8`.
