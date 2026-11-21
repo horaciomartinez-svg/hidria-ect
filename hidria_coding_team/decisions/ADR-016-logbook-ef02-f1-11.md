@@ -58,5 +58,34 @@ Existen `logbook_templates` (8 fichas), `logbook_entries` con folio server-side 
 - Deno EF-02: submit/sign/close, roles/tenant/errores/idempotencia.
 - E2E UI M10: edición, firma, en_revision, cierre/razón, post-cierre read-only, a11y/offline.
 
+## Adenda 2026-11-21 — cierres B1–B8 del arquitecto
+
+### D9 — Migración mínima y firma por nombre
+- `ALTER TABLE logbook_entries` CHECK `estado` → `abierta|en_revision|cerrada`; añadir `cierre_tardio boolean not null default false`.
+- `logbook_participants` PK actual `(entry_id,nombre)`: la firma se identifica por **`p_participante_nombre text`** (nombre exacto, PK de la fila), no por un id inexistente. `fn_sign_logbook_participant(...,p_participante_nombre,...)` valida que la fila exista en la entry y fija `firma_ts=now()`; nombres duplicados imposibles por PK. Documentar en docs/04.
+- Se mantiene `logbook_entries.folio` server-side (`trg_logbook_folio`) y `organization_id` se fija desde `diagnostics.organization_id` en INSERT, validando tenant.
+
+### D10 — RLS/guards detallados
+- **entries:** SELECT por membresía; INSERT/UPDATE solo `coordinador|equipo` (`fn_diag_role`); gate fields (`estado`, `cerrada_en`, `cerrada_razon`, `version`, `cierre_tardio`) solo RPC service_role; folio/org/diagnóstico/clave inmutables.
+- **hijas** (`participants`,`agenda`,`findings`,`agreements`,`evidence`): SELECT membresía; INSERT/UPDATE/DELETE solo coord/equipo y **solo si la entry no está cerrada**; guard 42501 si `estado='cerrada'`.
+- **change_log:** SELECT membresía; INSERT solo por RPC service_role (o trigger de cierre); **sin UPDATE/DELETE** (append-only) y sin INSERT authenticated.
+- `trg_logbook_immutable` cambia a **errcode 42501**; se añade guard `trg_logbook_child_immutable`/función para hijas.
+- `logbook_change_log.prev` guarda el snapshot de la entry antes del cierre; `descripcion='cierre de ficha'`, `responsable=p_user_id`, `version` nueva.
+
+### D11 — Matching exacto y 24 h
+- Agenda: por `no` 1..N contra el orden de `agenda_items` del template; `estado='no_realizado'|'modificado'` ⇒ `resultado` no vacío. Evidencia: por `item` (texto exacto del `evidence_items`); `obligatorio=true` ⇒ `document_id` no nulo y documento del mismo diagnóstico/tenant.
+- Firmas requeridas: `string_to_array(asistentes_requeridos, '·')` depurado; se exige `count(distinct nombre)` con `firma_ts` ≥ número de segmentos; no se aceptan firmas de otro tenant/diagnóstico.
+- 24 h: `event_ts = ((fecha + horario_inicio) AT TIME ZONE 'America/Mexico_City')`; `now() <= event_ts + interval '24 hours'` normal; `>` exige razón ≥10 y `cierre_tardio=true`; DST se resuelve con `AT TIME ZONE` de la zona IANA.
+- `bitacora_cerrada=true` solo cuando existen 8 entries `V1,V2,V3,R1,R2,R3,R4,R5` cerradas del diagnóstico; no se acepta desde cliente.
+
+### D12 — Alta de fichas, poblado inicial y contrato UI
+- **Alta:** las 8 fichas se crean desde la UI con INSERT directo bajo RLS (coord/equipo), aportando `clave`, `fecha`, `horario_inicio`, `responsable_sesion`, `modalidad`, `lugar`; `organization_id` se fija server-side desde el diagnóstico, folio por `trg_logbook_folio`, `estado='abierta'`, `version=1`. No se crea EF de alta (cabe en RLS+trigger).
+- **Poblado inicial:** trigger `trg_logbook_seed_children` (BEFORE/AFTER INSERT en entries) siembra `logbook_agenda` (una fila por `agenda_items`, `no` 1..N, `estado='realizado'` inicial) y `logbook_evidence` (una fila por `evidence_items`, `obligatorio=true`, `document_id=null`), para que la UI solo edite/complete. Participantes los agrega coord/equipo (RLS); firmas por nombre.
+- **Firma:** la UI muestra “Firmar” por participante; coord/equipo registra la firma con `fn_sign_logbook_participant` (representa la firma del acta; no hay cuentas para asistentes externos). `firma_ts` es server-side.
+- **24 h en UI:** no se calcula en cliente. La UI muestra el campo `cierre_razon` opcional y el aviso “cierre tardío requiere justificación”; el servidor responde 422 `VALIDATION_RAZON`/200 y la UI solo refleja el resultado. No hay endpoint de precheck en F1-11.
+- **Fotos:** `photo_log`/fotos quedan fuera de F1-11 (follow-up F1-13/M10 ampliado); la evidencia de bitácora se cubre con `documents` vía EF-08.
+- **Gate de reporte:** la UI lee `diagnostics.bitacora_cerrada` y `v_diagnostic_completeness.p7_bitacoras`; muestra 8/8 y el aviso de prerrequisito de reporte.
+- **RLS hijas:** edición directa por coord/equipo hasta `cerrada` (RLS + guards); observador/empresa solo lectura; cierre/firma/revisión solo EF-02.
+
 ## Evidencia
 `docs/01` §4.10, `docs/04` EF-02/TD-8, `docs/05` LB-01…08, `docs/02` tablas/triggers, `main@e6ab1c8`.
