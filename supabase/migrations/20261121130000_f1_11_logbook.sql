@@ -129,6 +129,23 @@ create trigger logbook_seed_children after insert on public.logbook_entries
 for each row execute function public.trg_logbook_seed_children();
 revoke all on function public.trg_logbook_seed_children() from public,anon,authenticated;
 
+create or replace function public.trg_logbook_evidence_document()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare v_diag uuid; v_org uuid; v_doc public.documents%rowtype;
+begin
+  if new.document_id is null then return new; end if;
+  select e.diagnostic_id, e.organization_id into v_diag,v_org from public.logbook_entries e where e.id=new.entry_id;
+  select * into v_doc from public.documents where id=new.document_id;
+  if not found or v_doc.diagnostic_id is distinct from v_diag or v_doc.organization_id is distinct from v_org or v_doc.upload_status <> 'registered' then
+    raise exception 'Bitácora: documento de evidencia ajeno/no registrado.' using errcode='42501';
+  end if;
+  return new;
+end; $$;
+drop trigger if exists logbook_evidence_document on public.logbook_evidence;
+create trigger logbook_evidence_document before insert or update of document_id on public.logbook_evidence
+for each row execute function public.trg_logbook_evidence_document();
+revoke all on function public.trg_logbook_evidence_document() from public,anon,authenticated;
+
 -- RLS escritura: entries/hijas solo coord/equipo; change_log append-only service.
 drop policy if exists logbook_entries_ins on public.logbook_entries;
 drop policy if exists logbook_entries_upd on public.logbook_entries;

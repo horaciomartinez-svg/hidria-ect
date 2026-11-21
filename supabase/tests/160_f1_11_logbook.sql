@@ -1,4 +1,4 @@
--- F1-11 task-172 — pgTAP Bitácora: estados, seed, firmas, 24h, guards y RPC.
+-- F1-11 task-172 â€” pgTAP BitÃ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
 select plan(24);
 
@@ -35,14 +35,14 @@ insert into public.documents (id,organization_id,diagnostic_id,doc_type,title,r2
   ('fd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','dd000000-0000-4000-8000-000000000001','otro','acta.pdf','lb/a.pdf',repeat('a',64),'application/pdf',10,'cd000000-0000-4000-8000-000000000001'),
   ('fd000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-0000000000a1','dd000000-0000-4000-8000-000000000002','otro','otro.pdf','lb/b.pdf',repeat('b',64),'application/pdf',10,'cd000000-0000-4000-8000-000000000001');
 insert into public.logbook_participants (entry_id,nombre,cargo,institucion) values
-  ('ed000000-0000-4000-8000-000000000004','Dirección','Dirección','Empresa'),
+  ('ed000000-0000-4000-8000-000000000004','DirecciÃ³n','DirecciÃ³n','Empresa'),
   ('ed000000-0000-4000-8000-000000000004','Responsable','Planta','Empresa'),
-  ('ed000000-0000-4000-8000-000000000004','Técnico','Técnico','SRHDS'),
-  ('ed000000-0000-4000-8000-000000000005','Contraparte','Técnica','Empresa'),
-  ('ed000000-0000-4000-8000-000000000005','Técnico2','Técnico','SRHDS');
+  ('ed000000-0000-4000-8000-000000000004','TÃ©cnico','TÃ©cnico','SRHDS'),
+  ('ed000000-0000-4000-8000-000000000005','Contraparte','TÃ©cnica','Empresa'),
+  ('ed000000-0000-4000-8000-000000000005','TÃ©cnico2','TÃ©cnico','SRHDS');
 update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000001'
  where entry_id in ('ed000000-0000-4000-8000-000000000004','ed000000-0000-4000-8000-000000000005');
-select throws_ok($sql$ update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000002' where entry_id='ed000000-0000-4000-8000-000000000004' $sql$,'42501',NULL,'evidencia de otro diagnóstico 42501');
+select throws_ok($sql$ update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000002' where entry_id='ed000000-0000-4000-8000-000000000004' $sql$,'42501',NULL,'evidencia de otro diagnÃ³stico 42501');
 
 select is((select count(*) from public.logbook_entries),8::bigint,'8 fichas creadas');
 select is((select count(distinct clave) from public.logbook_entries),8::bigint,'8 claves');
@@ -57,11 +57,12 @@ set local request.jwt.claims='{}';
 select ok(has_function_privilege('service_role','public.fn_close_logbook(uuid,uuid,text,text,text)','EXECUTE'),'ACL service close');
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000002'))->>'code','CONFLICT_STATE','close desde abierta rechazado');
 select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->'data'->>'estado','en_revision','submit review');
-select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','Dirección'))->>'ok','true','firma 1');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','DirecciÃ³n'))->>'ok','true','firma 1');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','Responsable'))->>'ok','true','firma 2');
-select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','Técnico'))->>'ok','true','firma 3');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','TÃ©cnico'))->>'ok','true','firma 3');
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->>'ok','true','close R1 OK');
 select is((select estado from public.logbook_entries where id='ed000000-0000-4000-8000-000000000004'),'cerrada','R1 cerrada');
+select throws_ok($sql$ update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000002' where entry_id='ed000000-0000-4000-8000-000000000004' $sql$,'42501',NULL,'evidencia documento ajeno 42501');
 
 set local role authenticated;
 set local request.jwt.claims='{"sub":"cd000000-0000-4000-8000-000000000001","organization_id":"ad000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
@@ -74,9 +75,9 @@ set local role service_role;
 set local request.jwt.claims='{}';
 select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005'))->'data'->>'estado','en_revision','submit R2');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005','Contraparte'))->>'ok','true','firma R2 1');
-select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005','Técnico2'))->>'ok','true','firma R2 2');
-select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005'))->>'code','VALIDATION_RAZON','cierre tardío sin razón');
-select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005','Justificación suficientemente larga para el cierre tardío'))->>'ok','true','cierre tardío con razón');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005','TÃ©cnico2'))->>'ok','true','firma R2 2');
+select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005'))->>'code','VALIDATION_RAZON','cierre tardÃ­o sin razÃ³n');
+select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000005','JustificaciÃ³n suficientemente larga para el cierre tardÃ­o'))->>'ok','true','cierre tardÃ­o con razÃ³n');
 select is((select cierre_tardio from public.logbook_entries where id='ed000000-0000-4000-8000-000000000005'),true,'cierre_tardio true');
 reset role;
 reset request.jwt.claims;
