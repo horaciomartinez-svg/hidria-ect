@@ -1,6 +1,6 @@
 -- F1-11 task-172 â€” pgTAP BitÃ¡cora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(24);
+select plan(27);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
@@ -60,6 +60,10 @@ select is((public.fn_submit_logbook_review('cd000000-0000-4000-8000-000000000001
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','DirecciÃ³n'))->>'ok','true','firma 1');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','Responsable'))->>'ok','true','firma 2');
 select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','TÃ©cnico'))->>'ok','true','firma 3');
+select is((public.fn_sign_logbook_participant('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004','TÃ©cnico'))->>'code','CONFLICT_STATE','doble firma 409');
+update public.logbook_evidence set document_id=null where entry_id='ed000000-0000-4000-8000-000000000004' and item=(select min(item) from public.logbook_evidence where entry_id='ed000000-0000-4000-8000-000000000004');
+select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->>'code','VALIDATION_EVIDENCIA','evidencia faltante 422');
+update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000001' where entry_id='ed000000-0000-4000-8000-000000000004' and document_id is null;
 select is((public.fn_close_logbook('cd000000-0000-4000-8000-000000000001','ed000000-0000-4000-8000-000000000004'))->>'ok','true','close R1 OK');
 select is((select estado from public.logbook_entries where id='ed000000-0000-4000-8000-000000000004'),'cerrada','R1 cerrada');
 select throws_ok($sql$ update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000002' where entry_id='ed000000-0000-4000-8000-000000000004' $sql$,'42501',NULL,'evidencia documento ajeno 42501');
@@ -67,6 +71,7 @@ select throws_ok($sql$ update public.logbook_evidence set document_id='fd000000-
 set local role authenticated;
 set local request.jwt.claims='{"sub":"cd000000-0000-4000-8000-000000000001","organization_id":"ad000000-0000-4000-8000-0000000000a1","global_role":"coordinador_srhds"}';
 select throws_ok($sql$ update public.logbook_entries set estado='abierta' where id='ed000000-0000-4000-8000-000000000004' $sql$,'42501',NULL,'post-cierre entrada 42501');
+select throws_ok($sql$ delete from public.logbook_agenda where entry_id='ed000000-0000-4000-8000-000000000004' and no=1 $sql$,'42501',NULL,'post-cierre DELETE hija 42501');
 select throws_ok($sql$ insert into public.logbook_agenda(entry_id,no,actividad) values ('ed000000-0000-4000-8000-000000000004',99,'x') $sql$,'42501',NULL,'post-cierre hija 42501');
 reset role;
 reset request.jwt.claims;

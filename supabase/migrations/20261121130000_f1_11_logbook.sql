@@ -16,6 +16,7 @@ begin
   if tg_op='INSERT' then
     new.organization_id := v_org;
     if new.created_by is null then new.created_by := auth.uid(); end if;
+    if auth.uid() is not null then new.created_by := auth.uid(); end if;
     if new.created_by is null then raise exception 'Bitácora: created_by requerido.' using errcode='23502'; end if;
     if auth.uid() is not null then
       new.estado := 'abierta';
@@ -85,6 +86,51 @@ create trigger logbook_child_guard before insert or update on public.logbook_fin
 create trigger logbook_child_guard before insert or update on public.logbook_agreements for each row execute function public.trg_logbook_child_guard();
 create trigger logbook_child_guard before insert or update on public.logbook_evidence for each row execute function public.trg_logbook_child_guard();
 revoke all on function public.trg_logbook_child_guard() from public,anon,authenticated;
+
+-- Hijas: DELETE post-cierre 42501 (B1).
+create or replace function public.trg_logbook_child_delete_guard()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare v_state text; v_diag uuid; v_role text;
+begin
+  select e.estado, e.diagnostic_id into v_state,v_diag from public.logbook_entries e where e.id=old.entry_id;
+  if not found then return old; end if;
+  if v_state='cerrada' and auth.uid() is not null then raise exception 'Ficha cerrada: hijas inmutables.' using errcode='42501'; end if;
+  if auth.uid() is not null then
+    v_role:=public.fn_diag_role(auth.uid(),v_diag);
+    if v_role is null or v_role not in ('coordinador','equipo') then raise exception 'Bitácora: solo coordinador/equipo edita hijas.' using errcode='42501'; end if;
+  end if;
+  return old;
+end; $$;
+drop trigger if exists logbook_child_del_guard on public.logbook_participants;
+drop trigger if exists logbook_child_del_guard on public.logbook_agenda;
+drop trigger if exists logbook_child_del_guard on public.logbook_findings;
+drop trigger if exists logbook_child_del_guard on public.logbook_agreements;
+drop trigger if exists logbook_child_del_guard on public.logbook_evidence;
+create trigger logbook_child_del_guard before delete on public.logbook_participants for each row execute function public.trg_logbook_child_delete_guard();
+create trigger logbook_child_del_guard before delete on public.logbook_agenda for each row execute function public.trg_logbook_child_delete_guard();
+create trigger logbook_child_del_guard before delete on public.logbook_findings for each row execute function public.trg_logbook_child_delete_guard();
+create trigger logbook_child_del_guard before delete on public.logbook_agreements for each row execute function public.trg_logbook_child_delete_guard();
+create trigger logbook_child_del_guard before delete on public.logbook_evidence for each row execute function public.trg_logbook_child_delete_guard();
+revoke all on function public.trg_logbook_child_delete_guard() from public,anon,authenticated;
+
+-- Firma solo por RPC EF-02 (SEC-PR77-01): autenticado no fija/cambia firma_ts.
+create or replace function public.trg_logbook_participant_sign_guard()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+begin
+  if auth.uid() is not null then
+    if tg_op='INSERT' and new.firma_ts is not null then
+      raise exception 'Firma: solo EF-02 puede registrar firma_ts.' using errcode='42501';
+    end if;
+    if tg_op='UPDATE' and new.firma_ts is distinct from old.firma_ts then
+      raise exception 'Firma: solo EF-02 puede registrar firma_ts.' using errcode='42501';
+    end if;
+  end if;
+  return new;
+end; $$;
+drop trigger if exists logbook_participant_sign_guard on public.logbook_participants;
+create trigger logbook_participant_sign_guard before insert or update on public.logbook_participants
+for each row execute function public.trg_logbook_participant_sign_guard();
+revoke all on function public.trg_logbook_participant_sign_guard() from public,anon,authenticated;
 
 -- Evidencia: document_id debe ser del mismo diagnóstico/tenant (SEC-PR79-01).
 create or replace function public.trg_logbook_evidence_doc_guard()
@@ -257,6 +303,9 @@ begin
   if v_role is null or v_role not in ('coordinador','equipo') then return jsonb_build_object('ok',false,'code','FORBIDDEN_ROLE','message','Solo coordinador/equipo.'); end if;
   if v_e.estado not in ('abierta','en_revision') then return jsonb_build_object('ok',false,'code','CONFLICT_STATE','message','La ficha no admite firma.'); end if;
   if not exists (select 1 from public.logbook_participants where entry_id=p_entry_id and nombre=p_participante_nombre) then return jsonb_build_object('ok',false,'code','VALIDATION_FIRMAS','message','Participante no encontrado.'); end if;
+  if exists (select 1 from public.logbook_participants where entry_id=p_entry_id and nombre=p_participante_nombre and firma_ts is not null) then
+    return jsonb_build_object('ok',false,'code','CONFLICT_STATE','message','El participante ya firmó.');
+  end if;
   update public.logbook_participants set firma_ts=now() where entry_id=p_entry_id and nombre=p_participante_nombre;
   v_audit:=public.fn_audit_write(p_user_id,'update','logbook_participants',p_entry_id::text,jsonb_build_object('participante',p_participante_nombre));
   v_resp:=jsonb_build_object('ok',true,'replayed',false,'data',jsonb_build_object('entry_id',p_entry_id,'participante',p_participante_nombre,'firma_ts',now()),'audit_ref','audit:'||v_audit);
@@ -298,8 +347,13 @@ begin
     return jsonb_build_object('ok',false,'code','VALIDATION_AGENDA','message','Agenda incompleta.');
   end if;
   select count(*) into v_n from jsonb_array_elements(v_tpl.evidence_items);
-  select count(*) into v_ok from public.logbook_evidence e where e.entry_id=p_entry_id;
-  if v_ok < v_n or exists (select 1 from public.logbook_evidence e where e.entry_id=p_entry_id and e.obligatorio and e.document_id is null) then
+  if exists (
+    select 1 from jsonb_array_elements_text(v_tpl.evidence_items) it
+    where not exists (
+      select 1 from public.logbook_evidence e
+      where e.entry_id=p_entry_id and e.item=it.value and e.document_id is not null
+    )
+  ) then
     return jsonb_build_object('ok',false,'code','VALIDATION_EVIDENCIA','message','Evidencia obligatoria incompleta.');
   end if;
   v_event := ((v_e.fecha + v_e.horario_inicio) at time zone 'America/Mexico_City');
