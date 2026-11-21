@@ -15,6 +15,8 @@ begin
   if v_org is null then raise exception 'Bitácora: diagnóstico inexistente.' using errcode='42501'; end if;
   if tg_op='INSERT' then
     new.organization_id := v_org;
+    if new.created_by is null then new.created_by := auth.uid(); end if;
+    if new.created_by is null then raise exception 'Bitácora: created_by requerido.' using errcode='23502'; end if;
     if auth.uid() is not null then
       new.estado := 'abierta';
       new.cerrada_en := null;
