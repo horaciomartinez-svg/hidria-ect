@@ -86,6 +86,24 @@ create trigger logbook_child_guard before insert or update on public.logbook_agr
 create trigger logbook_child_guard before insert or update on public.logbook_evidence for each row execute function public.trg_logbook_child_guard();
 revoke all on function public.trg_logbook_child_guard() from public,anon,authenticated;
 
+-- Evidencia: document_id debe ser del mismo diagnóstico/tenant (SEC-PR79-01).
+create or replace function public.trg_logbook_evidence_doc_guard()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare v_diag uuid; v_org uuid; v_doc_diag uuid; v_doc_org uuid; v_status text;
+begin
+  if new.document_id is null then return new; end if;
+  select e.diagnostic_id, e.organization_id into v_diag,v_org from public.logbook_entries e where e.id=new.entry_id;
+  select d.diagnostic_id, d.organization_id, d.upload_status into v_doc_diag,v_doc_org,v_status from public.documents d where d.id=new.document_id;
+  if v_doc_diag is null or v_doc_diag <> v_diag or v_doc_org <> v_org or v_status <> 'registered' then
+    raise exception 'Evidencia: documento de otro diagnóstico/tenant o no registrado.' using errcode='42501';
+  end if;
+  return new;
+end; $$;
+drop trigger if exists logbook_evidence_doc_guard on public.logbook_evidence;
+create trigger logbook_evidence_doc_guard before insert or update on public.logbook_evidence
+for each row execute function public.trg_logbook_evidence_doc_guard();
+revoke all on function public.trg_logbook_evidence_doc_guard() from public,anon,authenticated;
+
 -- Seed agenda/evidence desde template al crear la ficha.
 create or replace function public.trg_logbook_seed_children()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$

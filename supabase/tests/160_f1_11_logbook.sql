@@ -1,6 +1,6 @@
 -- F1-11 task-172 — pgTAP Bitácora: estados, seed, firmas, 24h, guards y RPC.
 begin;
-select plan(23);
+select plan(24);
 
 insert into public.organizations (id,name,org_type) values
   ('ad000000-0000-4000-8000-0000000000a1','Org LB A','srhds'),
@@ -16,7 +16,8 @@ insert into public.profiles (user_id,organization_id,full_name,email,global_role
 insert into public.companies (id,organization_id,razon_social,nombre_planta,giro,calle,colonia_parque,cp,municipio,organismo_operador) values
   ('bd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','Empresa LB','Planta LB','manufacturera','Calle','Parque','87000','Victoria','COMAPA');
 insert into public.diagnostics (id,organization_id,company_id,tipo,fecha_inicio,fecha_fin,index_version_id) values
-  ('dd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','bd000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12','00000000-0000-4000-8000-0000000000a1');
+  ('dd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','bd000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12','00000000-0000-4000-8000-0000000000a1'),
+  ('dd000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-0000000000a1','bd000000-0000-4000-8000-000000000001','inicial','2026-01-01','2026-02-12','00000000-0000-4000-8000-0000000000a1');
 insert into public.project_members (diagnostic_id,user_id,organization_id,role) values
   ('dd000000-0000-4000-8000-000000000001','cd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','coordinador'),
   ('dd000000-0000-4000-8000-000000000001','cd000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-0000000000a1','equipo'),
@@ -31,7 +32,8 @@ insert into public.logbook_entries (id,diagnostic_id,clave,fecha,horario_inicio,
   ('ed000000-0000-4000-8000-000000000007','dd000000-0000-4000-8000-000000000001','R4',current_date,'09:00','Coord','cd000000-0000-4000-8000-000000000001'),
   ('ed000000-0000-4000-8000-000000000008','dd000000-0000-4000-8000-000000000001','R5',current_date,'09:00','Coord','cd000000-0000-4000-8000-000000000001');
 insert into public.documents (id,organization_id,diagnostic_id,doc_type,title,r2_key,sha256,mime,size_bytes,uploaded_by) values
-  ('fd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','dd000000-0000-4000-8000-000000000001','otro','acta.pdf','lb/a.pdf',repeat('a',64),'application/pdf',10,'cd000000-0000-4000-8000-000000000001');
+  ('fd000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-0000000000a1','dd000000-0000-4000-8000-000000000001','otro','acta.pdf','lb/a.pdf',repeat('a',64),'application/pdf',10,'cd000000-0000-4000-8000-000000000001'),
+  ('fd000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-0000000000a1','dd000000-0000-4000-8000-000000000002','otro','otro.pdf','lb/b.pdf',repeat('b',64),'application/pdf',10,'cd000000-0000-4000-8000-000000000001');
 insert into public.logbook_participants (entry_id,nombre,cargo,institucion) values
   ('ed000000-0000-4000-8000-000000000004','Dirección','Dirección','Empresa'),
   ('ed000000-0000-4000-8000-000000000004','Responsable','Planta','Empresa'),
@@ -40,6 +42,7 @@ insert into public.logbook_participants (entry_id,nombre,cargo,institucion) valu
   ('ed000000-0000-4000-8000-000000000005','Técnico2','Técnico','SRHDS');
 update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000001'
  where entry_id in ('ed000000-0000-4000-8000-000000000004','ed000000-0000-4000-8000-000000000005');
+select throws_ok($sql$ update public.logbook_evidence set document_id='fd000000-0000-4000-8000-000000000002' where entry_id='ed000000-0000-4000-8000-000000000004' $sql$,'42501',NULL,'evidencia de otro diagnóstico 42501');
 
 select is((select count(*) from public.logbook_entries),8::bigint,'8 fichas creadas');
 select is((select count(distinct clave) from public.logbook_entries),8::bigint,'8 claves');
