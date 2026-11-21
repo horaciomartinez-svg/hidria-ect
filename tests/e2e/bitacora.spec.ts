@@ -334,6 +334,7 @@ test.describe('M10 — Bitácora', () => {
       responsable_sesion: 'Equipo SRHDS',
     });
     expect(state.createCalls[0]).not.toHaveProperty('organization_id');
+    expect(state.createCalls[0]).not.toHaveProperty('created_by');
     expect(state.createCalls[0]).not.toHaveProperty('folio');
   });
 
@@ -369,6 +370,7 @@ test.describe('M10 — Bitácora', () => {
     expect(state.efCalls.at(-1)?.action).toBe('close');
     expect(state.efCalls.at(-1)?.body).toMatchObject({ cierre_razon: 'Cierre tardío justificado por revisión de acta y firmas.' });
     await expect(page.getByTestId('bitacora-estado')).toHaveText('Cerrada');
+    await expect(page.getByTestId('bitacora-entry-page')).toContainText('Cierre tardío');
     await expect(page.getByTestId('bitacora-close')).toHaveCount(0);
     await expect(page.getByTestId('bitacora-resultado-1')).toBeDisabled();
   });

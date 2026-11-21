@@ -125,7 +125,7 @@ interface RawDiagnostic {
 }
 
 const ENTRY_COLUMNS =
-  'id, organization_id, diagnostic_id, clave, folio, responsable_sesion, fecha, horario_inicio, horario_fin, modalidad, lugar, estado, cerrada_en, cerrada_razon, version, created_at, updated_at';
+  'id, organization_id, diagnostic_id, clave, folio, responsable_sesion, fecha, horario_inicio, horario_fin, modalidad, lugar, estado, cerrada_en, cerrada_razon, version, cierre_tardio, created_at, updated_at';
 
 async function rolesForUser(
   userId: string,

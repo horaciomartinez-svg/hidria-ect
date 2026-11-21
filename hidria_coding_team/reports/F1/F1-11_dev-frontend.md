@@ -5,7 +5,7 @@
 | **Tarea** | `task-174` — F1-11a (UI M10, Bitácora + EF-02) |
 | **Agente** | `dev-frontend-pwa` (04) |
 | **Rama** | `feature/F1-11a-bitacora-ui` |
-| **Base** | `main` = `e6ab1c8`; ADR-016 `6b05860` |
+| **Base** | `main` = `9d4ae51` (ADR-016 integrado); ADR-016 `6b05860` |
 | **Alcance** | `/bitacora` + `/bitacora/:entryId`: 8 fichas, alta mínima, agenda/participantes/evidencia, submit/sign/close EF-02, gate 8/8, post-cierre read-only, a11y/offline, E2E UI-level |
 | **Conclusión** | **VERDE local** — `lint` 0 · `typecheck` 0 · `build` 0 · E2E **78 passed + 6 skipped** (9 casos M10); CI 7/7 en el PR |
 
@@ -32,7 +32,7 @@
   obligatorias. `photo_log`/LB-08 queda fuera de F1-11 (ADR D12).
 - **Gate/reporte:** se leen `diagnostics.bitacora_cerrada` y `v_diagnostic_completeness.p7_bitacoras`;
   se muestra 8/8 y “prerrequisito de reporte” sin calcular el gate en cliente.
-- **Roles:** coordinador/equipo escriben hasta cierre; empresa/observador solo lectura y sin acciones;
+- **B1/B2 de spec (#79):** cierre_tardio se proyecta en ENTRY_COLUMNS y se muestra como badge post-cierre; el alta **no** envía created_by/organization_id (los fija el trigger/guard de #77, server-side) y el E2E lo verifica. SEC-PR79-01: la evidencia se liga con EF-08 egister + UPDATE RLS; el trigger/RPC de #77 debe exigir documento del mismo org/diagnóstico y upload_status='registered' (la UI no puede garantizarlo sola).\n- **Roles:** coordinador/equipo escriben hasta cierre; empresa/observador solo lectura y sin acciones;
   post-cierre todo read-only. Estados carga/vacío/error/403/offline/config.
 - **A11y:** fieldset/labels por sección, `aria-label` en agenda/participantes/evidencia, `aria-live`
   para guardado/acciones, foco en errores, texto saneado y nomenclatura SDFI/SRHDS/UCI.
