@@ -262,6 +262,11 @@ create policy logbook_findings_ins on public.logbook_findings for insert to auth
 create policy logbook_findings_upd on public.logbook_findings for update to authenticated using (is_logbook_entry_member(entry_id)) with check (is_logbook_entry_member(entry_id));
 create policy logbook_agreements_ins on public.logbook_agreements for insert to authenticated with check (is_logbook_entry_member(entry_id));
 create policy logbook_agreements_upd on public.logbook_agreements for update to authenticated using (is_logbook_entry_member(entry_id)) with check (is_logbook_entry_member(entry_id));
+create policy logbook_participants_del on public.logbook_participants for delete to authenticated using (is_logbook_entry_member(entry_id));
+create policy logbook_agenda_del on public.logbook_agenda for delete to authenticated using (is_logbook_entry_member(entry_id));
+create policy logbook_findings_del on public.logbook_findings for delete to authenticated using (is_logbook_entry_member(entry_id));
+create policy logbook_agreements_del on public.logbook_agreements for delete to authenticated using (is_logbook_entry_member(entry_id));
+create policy logbook_evidence_del on public.logbook_evidence for delete to authenticated using (is_logbook_entry_member(entry_id));
 
 -- p7 corregido: 8 claves cubiertas y todas las filas existentes de esas claves cerradas.
 create or replace view public.v_diagnostic_completeness with (security_invoker = true) as
