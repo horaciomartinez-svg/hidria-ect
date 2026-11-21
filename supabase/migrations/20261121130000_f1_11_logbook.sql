@@ -15,11 +15,13 @@ begin
   if v_org is null then raise exception 'Bitácora: diagnóstico inexistente.' using errcode='42501'; end if;
   if tg_op='INSERT' then
     new.organization_id := v_org;
-    new.estado := 'abierta';
-    new.cerrada_en := null;
-    new.cerrada_razon := null;
-    new.cierre_tardio := false;
-    new.version := 1;
+    if auth.uid() is not null then
+      new.estado := 'abierta';
+      new.cerrada_en := null;
+      new.cerrada_razon := null;
+      new.cierre_tardio := false;
+      new.version := 1;
+    end if;
   else
     if new.diagnostic_id is distinct from old.diagnostic_id
        or new.organization_id is distinct from old.organization_id
@@ -51,7 +53,8 @@ begin
   if old.estado='cerrada' and tg_op in ('UPDATE','DELETE') then
     raise exception 'Ficha % cerrada: inmutable.', old.folio using errcode='42501';
   end if;
-  return old;
+  if tg_op='DELETE' then return old; end if;
+  return new;
 end; $$;
 
 create or replace function public.trg_logbook_child_guard()
