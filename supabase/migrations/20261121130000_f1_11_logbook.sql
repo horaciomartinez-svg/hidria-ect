@@ -89,6 +89,7 @@ create or replace function public.trg_logbook_seed_children()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_tpl public.logbook_templates%rowtype; v_item jsonb; v_no int:=0;
 begin
+  if new.estado <> 'abierta' then return new; end if;
   select * into v_tpl from public.logbook_templates where clave=new.clave;
   if found then
     for v_item in select value from jsonb_array_elements(v_tpl.agenda_items) loop
